@@ -1,0 +1,168 @@
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import './App.css';
+
+const BACKEND_BASE = 'http://localhost:8081';
+
+export default function Login() {
+  const [formFields, setFormFields] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const isRegisterPrompt = error.toLowerCase().includes('account not found') || error.toLowerCase().includes('register page');
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    const token = credentialResponse?.credential;
+    if (!token) {
+      setError('Google login did not return a token. Please try again.');
+      return;
+    }
+
+    setError('');
+    try {
+      const res = await fetch(`${BACKEND_BASE}/api/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        const normalizedUser = {
+          ...data.user,
+          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+        };
+        localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+      } else {
+        if (res.status === 404) {
+          setError("We couldn't find an account with that email.");
+        } else {
+          setError(data.error || 'Google sign-in failed.');
+        }
+      }
+    } catch (err) {
+      setError('Network error. Is the backend running?');
+    }
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await fetch(`${BACKEND_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: formFields.email, password: formFields.password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        const normalizedUser = {
+          ...data.user,
+          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+        };
+        localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+      } else {
+        if (res.status === 404) {
+          setError("We couldn't find an account with that email.");
+        } else {
+          setError(data.error || 'Invalid credentials');
+        }
+      }
+    } catch (err) {
+      setError('Network error. Is the backend running?');
+    }
+  };
+
+  return (
+    <div className="auth-page" style={{ '--auth-bg-image': `url(${process.env.PUBLIC_URL}/authleft.jpg)` }}>
+      <div className="auth-split">
+        <section className="auth-left" style={{ '--auth-left-image': `url(${process.env.PUBLIC_URL}/authleft.jpg)` }}>
+          <div className="auth-left-brand">
+            <div className="auth-left-top">NEXUS</div>
+            <img src={`${process.env.PUBLIC_URL}/LOGO.png`} alt="Nexus logo" className="auth-left-logo" />
+          </div>
+          <h1>Welcome back.</h1>
+          <p>Your central hub for NEXUS operations.
+Log in to manage facility bookings, track maintenance tickets, and view notifications.</p>
+        </section>
+
+        <section className="clean-login-right">
+          <h1 className="clean-login-title">Sign in</h1>
+          <p className="clean-login-subtitle">Sign in if you have an account in here</p>
+
+          <div className="clean-google-row">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-in was cancelled or failed.')}
+              width="100%"
+              text="continue_with"
+              shape="rectangular"
+            />
+          </div>
+
+          <div className="divider clean-divider">
+            <span>or continue with email</span>
+          </div>
+
+          <form className="form" onSubmit={handleFormSubmit}>
+            <div className="form-row">
+              <label htmlFor="email" className="clean-label">Your email</label>
+              <input
+                id="email"
+                type="email"
+                value={formFields.email}
+                onChange={(e) => setFormFields((prev) => ({ ...prev, email: e.target.value }))}
+                className={isRegisterPrompt ? 'clean-input input-shake' : 'clean-input'}
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="password" className="clean-label">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={formFields.password}
+                onChange={(e) => setFormFields((prev) => ({ ...prev, password: e.target.value }))}
+                className="clean-input"
+                placeholder="Enter your password"
+                required
+              />
+              <button type="button" className="forgot-link">Forgot Password?</button>
+            </div>
+
+            {isRegisterPrompt && (
+              <p className="inline-notfound" role="alert" aria-live="assertive">
+                We couldn't find an account with that email.
+              </p>
+            )}
+
+            {!isRegisterPrompt && error && (
+              <p className="inline-plain-error" role="alert" aria-live="assertive">{error}</p>
+            )}
+
+            <button
+              type="submit"
+              className="mt-2 h-12 w-full rounded-xl bg-[#BF932A] text-[#111827] font-extrabold tracking-[0.4px] shadow-[0_12px_28px_rgba(191,147,42,0.38)] transition duration-200 hover:bg-[#9F781E] hover:shadow-[0_16px_32px_rgba(159,120,30,0.45)] focus:outline-none focus:ring-2 focus:ring-[#BF932A]/50"
+            >
+              SIGN IN
+            </button>
+          </form>
+
+          <div className="clean-switch-row">
+            <span>Not a member?</span>
+            <Link
+              to="/register"
+              className={isRegisterPrompt ? 'auth-switch-link auth-switch-link-highlight' : 'auth-switch-link'}
+            >
+              Sign up
+            </Link>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
