@@ -8,7 +8,7 @@ import Register from './Register';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
 import Profile from './Profile';
-import TicketPage from './TicketPage';
+import TicketPage from './pages/tickets/TicketPage';
 
 const clientId = '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
