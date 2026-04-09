@@ -11,8 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Objects;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
@@ -54,6 +56,42 @@ public class TicketService {
     public Ticket getTicketById(Long id) {
         return ticketRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
+    }
+
+    public Ticket updateTicket(Long id, Ticket updatedTicket) {
+        Ticket existingTicket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
+
+        if (updatedTicket.getLocationId() == null || updatedTicket.getResourceId() == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "locationId and resourceId are required");
+        }
+
+        existingTicket.setTitle(updatedTicket.getTitle());
+        existingTicket.setCategory(updatedTicket.getCategory());
+        existingTicket.setDescription(updatedTicket.getDescription());
+        existingTicket.setPriority(updatedTicket.getPriority());
+        existingTicket.setStatus(updatedTicket.getStatus());
+        existingTicket.setPreferredContactName(updatedTicket.getPreferredContactName());
+        existingTicket.setPreferredContactEmail(updatedTicket.getPreferredContactEmail());
+        existingTicket.setPreferredContactPhone(updatedTicket.getPreferredContactPhone());
+        existingTicket.setLocationId(updatedTicket.getLocationId());
+        existingTicket.setResourceId(updatedTicket.getResourceId());
+
+        if (!Objects.equals(existingTicket.getAssignedTechnicianId(), updatedTicket.getAssignedTechnicianId())) {
+            existingTicket.setAssignedTechnicianId(updatedTicket.getAssignedTechnicianId());
+        }
+
+        existingTicket.setRejectionReason(updatedTicket.getRejectionReason());
+        existingTicket.setResolutionNotes(updatedTicket.getResolutionNotes());
+
+        return ticketRepository.save(existingTicket);
+    }
+
+    public void deleteTicket(Long id) {
+        if (!ticketRepository.existsById(id)) {
+            throw new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id);
+        }
+        ticketRepository.deleteById(id);
     }
 
     private User resolveCurrentUser(Authentication authentication) {
