@@ -139,6 +139,9 @@ export default function Dashboard() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            Create Ticket
+          </button>
           <button onClick={() => navigate('/profile')} style={{ backgroundColor: 'transparent', border: '1px solid #d1d5db', color: '#374151', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
             Profile
           </button>

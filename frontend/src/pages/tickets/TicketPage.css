@@ -1,0 +1,166 @@
+.ticket-page-root {
+  min-height: 100vh;
+  background: #f8fafc;
+  padding: 24px;
+  color: #111827;
+}
+
+.ticket-page-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+}
+
+.ticket-page-header {
+  max-width: 1100px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ticket-page-title {
+  margin: 0;
+  font-size: 24px;
+}
+
+.ticket-page-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ticket-nav-btn {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111827;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ticket-nav-btn.danger {
+  background: #f3f4f6;
+}
+
+.ticket-manager {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  color: #111827;
+}
+
+.ticket-manager-title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.ticket-manager-subtitle {
+  margin: 6px 0 16px;
+  color: #6b7280;
+}
+
+.ticket-form {
+  display: grid;
+  gap: 10px;
+}
+
+.ticket-form input,
+.ticket-form textarea,
+.ticket-form select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+}
+
+.ticket-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.ticket-action-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ticket-action-row button,
+.ticket-row-actions button {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.ticket-action-row button {
+  background: #bf932a;
+  color: #111827;
+  font-weight: 600;
+}
+
+.btn-secondary {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+.ticket-feedback {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.ticket-feedback.success {
+  color: #166534;
+}
+
+.ticket-feedback.error {
+  color: #b91c1c;
+}
+
+.ticket-list-wrap {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+
+.ticket-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ticket-table th,
+.ticket-table td {
+  border: 1px solid #e5e7eb;
+  padding: 8px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.ticket-row-actions {
+  display: flex;
+  gap: 6px;
+}
+
+@media (max-width: 768px) {
+  .ticket-page-root {
+    padding: 16px;
+  }
+
+  .ticket-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ticket-form-row {
+    grid-template-columns: 1fr;
+  }
+}
