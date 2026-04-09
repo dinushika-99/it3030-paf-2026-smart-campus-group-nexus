@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,8 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/profile")
 public class ProfileController {
+
+    record ProfileUpdateRequest(String name, String email, String studentId) {}
 
     private static final long MAX_AVATAR_SIZE_BYTES = 2L * 1024L * 1024L;
     private static final String AVATAR_URL_PREFIX = "/api/profile/avatar/file/";
@@ -55,6 +58,60 @@ public class ProfileController {
 
         if (email == null) return Optional.empty();
         return userRepository.findByEmail(email);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getProfile(@AuthenticationPrincipal Object principal) {
+        User user = resolveCurrentUser(principal).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", user.getId());
+        body.put("name", user.getName());
+        body.put("email", user.getEmail());
+        body.put("role", user.getRole() != null ? user.getRole().name() : "STUDENT");
+        body.put("studentId", user.getStudentId());
+        body.put("avatarUrl", user.getAvatarUrl());
+        return ResponseEntity.ok(body);
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<?> updateProfile(@RequestBody ProfileUpdateRequest request,
+                                           @AuthenticationPrincipal Object principal) {
+        User user = resolveCurrentUser(principal).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (request.name() == null || request.name().isBlank() || request.email() == null || request.email().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Name and email are required"));
+        }
+
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+        Optional<User> existingByEmail = userRepository.findByEmail(normalizedEmail);
+        if (existingByEmail.isPresent() && !existingByEmail.get().getId().equals(user.getId())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email already in use"));
+        }
+
+        user.setName(request.name().trim());
+        user.setEmail(normalizedEmail);
+        user.setStudentId(request.studentId() != null ? request.studentId().trim() : null);
+        userRepository.save(user);
+
+        Map<String, Object> userBody = new LinkedHashMap<>();
+        userBody.put("id", user.getId());
+        userBody.put("name", user.getName());
+        userBody.put("email", user.getEmail());
+        userBody.put("role", user.getRole() != null ? user.getRole().name() : "STUDENT");
+        userBody.put("studentId", user.getStudentId());
+        userBody.put("avatarUrl", user.getAvatarUrl());
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("message", "Profile updated successfully");
+        body.put("user", userBody);
+        return ResponseEntity.ok(body);
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
