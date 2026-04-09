@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -49,18 +50,23 @@ public class TicketService {
         return ticketRepository.save(ticket);
     }
 
-    public List<Ticket> getAllTickets() {
-        return ticketRepository.findAll();
+    public List<Ticket> getTicketsForCurrentUser(Authentication authentication) {
+        User currentUser = resolveCurrentUser(authentication);
+        return ticketRepository.findByCreatedByUserId(currentUser.getId());
     }
 
-    public Ticket getTicketById(Long id) {
-        return ticketRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + id));
+    public Ticket getTicketById(Long id, Authentication authentication) {
+        Ticket ticket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
+        ensureTicketOwnership(ticket, authentication);
+        return ticket;
     }
 
-    public Ticket updateTicket(Long id, Ticket updatedTicket) {
+    public Ticket updateTicket(Long id, Ticket updatedTicket, Authentication authentication) {
         Ticket existingTicket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
+
+        ensureTicketOwnership(existingTicket, authentication);
 
         if (updatedTicket.getLocationId() == null || updatedTicket.getResourceId() == null) {
             throw new ResponseStatusException(BAD_REQUEST, "locationId and resourceId are required");
@@ -87,11 +93,19 @@ public class TicketService {
         return ticketRepository.save(existingTicket);
     }
 
-    public void deleteTicket(Long id) {
-        if (!ticketRepository.existsById(id)) {
-            throw new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id);
+    public void deleteTicket(Long id, Authentication authentication) {
+        Ticket existingTicket = ticketRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
+
+        ensureTicketOwnership(existingTicket, authentication);
+        ticketRepository.delete(existingTicket);
+    }
+
+    private void ensureTicketOwnership(Ticket ticket, Authentication authentication) {
+        User currentUser = resolveCurrentUser(authentication);
+        if (!Objects.equals(ticket.getCreatedByUserId(), currentUser.getId())) {
+            throw new ResponseStatusException(FORBIDDEN, "You can only access your own tickets");
         }
-        ticketRepository.deleteById(id);
     }
 
     private User resolveCurrentUser(Authentication authentication) {

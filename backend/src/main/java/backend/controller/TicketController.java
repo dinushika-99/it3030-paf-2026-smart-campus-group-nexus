@@ -27,23 +27,23 @@ public class TicketController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Ticket>> getAllTickets() {
-        return ResponseEntity.ok(ticketService.getAllTickets());
+    public ResponseEntity<List<Ticket>> getAllTickets(Authentication authentication) {
+        return ResponseEntity.ok(ticketService.getTicketsForCurrentUser(authentication));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ticket> getTicketById(@PathVariable Long id) {
-        return ResponseEntity.ok(ticketService.getTicketById(id));
+    public ResponseEntity<Ticket> getTicketById(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.ok(ticketService.getTicketById(id, authentication));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @RequestBody Ticket ticket) {
-        return ResponseEntity.ok(ticketService.updateTicket(id, ticket));
+    public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @RequestBody Ticket ticket, Authentication authentication) {
+        return ResponseEntity.ok(ticketService.updateTicket(id, ticket, authentication));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTicket(@PathVariable Long id) {
-        ticketService.deleteTicket(id);
+    public ResponseEntity<Void> deleteTicket(@PathVariable Long id, Authentication authentication) {
+        ticketService.deleteTicket(id, authentication);
         return ResponseEntity.noContent().build();
     }
 }

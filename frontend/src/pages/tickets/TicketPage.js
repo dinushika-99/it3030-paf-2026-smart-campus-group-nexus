@@ -23,7 +23,7 @@ export default function TicketPage() {
   return (
     <div className="ticket-page-root">
       <div className="ticket-page-header">
-        <h2 className="ticket-page-title">Create and Manage Tickets</h2>
+        <h2 className="ticket-page-title">Your Tickets</h2>
         <div className="ticket-page-actions">
           <button type="button" className="ticket-nav-btn" onClick={() => navigate('/dashboard')}>
             Home
