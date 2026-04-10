@@ -10,6 +10,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import backend.dto.AssignTechnicianRequest;
+import backend.model.TicketAssignment;
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -61,6 +63,25 @@ public class TicketController {
     @GetMapping("/{id}/history")
     public ResponseEntity<List<TicketStatusHistory>> getTicketHistory(@PathVariable Integer id) {
         return ResponseEntity.ok(ticketService.getHistoryByTicketId(id));
+    }
+
+    @PutMapping("/{id}/assign")
+    public ResponseEntity<Ticket> assignTechnician(
+            @PathVariable Integer id,
+            @RequestBody AssignTechnicianRequest request,
+            Authentication authentication) {
+        Ticket updatedTicket = ticketService.assignTechnician(id, request, authentication);
+        return ResponseEntity.ok(updatedTicket);
+    }
+
+    @GetMapping("/technician/{technicianId}")
+    public ResponseEntity<List<Ticket>> getTicketsByTechnician(@PathVariable String technicianId) {
+        return ResponseEntity.ok(ticketService.getTicketsByTechnician(technicianId));
+    }
+
+    @GetMapping("/{id}/assignments")
+    public ResponseEntity<List<TicketAssignment>> getAssignmentHistory(@PathVariable Integer id) {
+        return ResponseEntity.ok(ticketService.getAssignmentHistory(id));
     }
 
 }
