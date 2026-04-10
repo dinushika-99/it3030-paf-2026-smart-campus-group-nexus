@@ -5,7 +5,10 @@ import backend.model.Role;
 import backend.model.TicketStatus;
 import backend.model.TicketStatusHistory;
 import backend.model.TicketStatusUpdateRequest;
+import backend.model.TicketAssignment;
 import backend.model.User;
+import backend.dto.AssignTechnicianRequest;
+import backend.repository.TicketAssignmentRepository;
 import backend.repository.TicketRepository;
 import backend.repository.TicketStatusHistoryRepository;
 import backend.repository.UserRepository;
@@ -14,6 +17,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -31,15 +35,18 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final UserRepository userRepository;
+    private final TicketAssignmentRepository ticketAssignmentRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            TicketAssignmentRepository ticketAssignmentRepository
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
+        this.ticketAssignmentRepository = ticketAssignmentRepository;
     }
 
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
@@ -191,10 +198,7 @@ public class TicketService {
         Ticket updatedTicket = ticketRepository.save(ticket);
 
         User currentUser = resolveCurrentUser(authentication);
-        String changedByUserId = request.getChangedByUserId();
-        if (changedByUserId == null || changedByUserId.isBlank()) {
-            changedByUserId = currentUser.getId();
-        }
+        String changedByUserId = currentUser.getId();
 
         TicketStatusHistory history = new TicketStatusHistory(
                 updatedTicket,
@@ -221,6 +225,80 @@ public class TicketService {
     public List<TicketStatusHistory> getHistoryByTicketId(Integer ticketId) {
         return ticketStatusHistoryRepository.findByTicketTicketIdOrderByChangedAtAsc(ticketId);
     }
+
+    @Transactional
+    public Ticket assignTechnician(Integer ticketId, AssignTechnicianRequest request, Authentication authentication) {
+        User currentUser = resolveCurrentUser(authentication);
+        if (currentUser.getRole() != Role.ADMIN) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can assign technicians");
+        }
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + ticketId));
+
+        if (request.getTechnicianId() == null || request.getTechnicianId().trim().isEmpty()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Technician ID is required");
+        }
+
+        if (ticket.getStatus() != TicketStatus.OPEN && ticket.getStatus() != TicketStatus.IN_PROGRESS) {
+            throw new ResponseStatusException(BAD_REQUEST, "Ticket can only be assigned when OPEN or IN_PROGRESS");
+        }
+
+        boolean technicianExists = userRepository.existsById(request.getTechnicianId());
+        if (!technicianExists) {
+            throw new ResponseStatusException(NOT_FOUND, "Technician not found with user_id: " + request.getTechnicianId());
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        ticketAssignmentRepository.findByTicketTicketIdAndIsActiveTrue(ticketId).ifPresent(activeAssignment -> {
+            activeAssignment.setIsActive(false);
+            activeAssignment.setUnassignedAt(now);
+            ticketAssignmentRepository.save(activeAssignment);
+        });
+
+        TicketStatus previousStatus = ticket.getStatus();
+
+        ticket.setAssignedTechnicianId(request.getTechnicianId());
+        ticket.setAssignedAt(now);
+        if (ticket.getStatus() == TicketStatus.OPEN) {
+            ticket.setStatus(TicketStatus.IN_PROGRESS);
+        }
+
+        Ticket updatedTicket = ticketRepository.save(ticket);
+
+        TicketAssignment newAssignment = new TicketAssignment();
+        newAssignment.setTicket(updatedTicket);
+        newAssignment.setTechnicianId(request.getTechnicianId());
+        newAssignment.setAssignedByUserId(currentUser.getId());
+        newAssignment.setAssignedAt(now);
+        newAssignment.setAssignmentNote(request.getAssignmentNote());
+        newAssignment.setIsActive(true);
+        ticketAssignmentRepository.save(newAssignment);
+
+        if (previousStatus == TicketStatus.OPEN && updatedTicket.getStatus() == TicketStatus.IN_PROGRESS) {
+            TicketStatusHistory assignmentStatusHistory = new TicketStatusHistory(
+                    updatedTicket,
+                    previousStatus.name(),
+                    TicketStatus.IN_PROGRESS.name(),
+                    currentUser.getId(),
+                    (request.getAssignmentNote() == null || request.getAssignmentNote().isBlank())
+                            ? "Assigned technician and moved to in progress."
+                            : request.getAssignmentNote()
+            );
+            ticketStatusHistoryRepository.save(assignmentStatusHistory);
+        }
+
+        return updatedTicket;
+    }
+
+public List<Ticket> getTicketsByTechnician(String technicianId) {
+    return ticketRepository.findByAssignedTechnicianId(technicianId);
+}
+
+public List<TicketAssignment> getAssignmentHistory(Integer ticketId) {
+    return ticketAssignmentRepository.findByTicketTicketIdOrderByAssignedAtDesc(ticketId);
+}
 
 
 }

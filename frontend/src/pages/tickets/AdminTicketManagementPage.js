@@ -57,6 +57,15 @@ const pageTitleCardStyle = {
   padding: '14px 16px',
 };
 
+const ticketSubNavStyle = {
+  ...cardStyle,
+  marginBottom: '12px',
+  padding: '10px',
+  display: 'flex',
+  gap: '8px',
+  flexWrap: 'wrap',
+};
+
 const MenuCategory = ({ title }) => (
   <p className="admin-menu-category">{title}</p>
 );
@@ -201,6 +210,7 @@ export default function AdminTicketManagementPage() {
   const [technicians, setTechnicians] = useState([]);
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [history, setHistory] = useState([]);
+  const [assignmentHistory, setAssignmentHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -209,6 +219,7 @@ export default function AdminTicketManagementPage() {
   const [assignNote, setAssignNote] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [rejectNote, setRejectNote] = useState('');
+  const [ticketView, setTicketView] = useState('manager');
 
   const selectedTicket = useMemo(
     () => tickets.find((ticket) => String(ticket.ticketId) === String(selectedTicketId)) || null,
@@ -225,6 +236,26 @@ export default function AdminTicketManagementPage() {
 
   const creatorInfo = selectedTicket?.createdByUserId ? usersById.get(selectedTicket.createdByUserId) : null;
   const assignedTechnicianInfo = selectedTicket?.assignedTechnicianId ? usersById.get(selectedTicket.assignedTechnicianId) : null;
+
+  const formatUserWithId = (userId) => {
+    if (!userId) return '-';
+    const userInfo = usersById.get(userId);
+    if (userInfo?.name) return `${userInfo.name} (${userId})`;
+    if (user?.id && userId === user.id) return `${user.name || 'Admin'} (${userId})`;
+    return userId;
+  };
+
+  const viewTitle = ticketView === 'manager'
+    ? 'Ticket Management'
+    : ticketView === 'status'
+      ? 'Status History'
+      : 'Assignment History';
+
+  const viewSubtitle = ticketView === 'manager'
+    ? 'Review ticket details, assign technicians, and reject requests.'
+    : ticketView === 'status'
+      ? 'View status transitions for the selected ticket.'
+      : 'View technician assignment timeline for the selected ticket.';
 
   const fetchTickets = useCallback(async () => {
     const response = await fetch(`${API_BASE}/api/tickets`, {
@@ -270,6 +301,25 @@ export default function AdminTicketManagementPage() {
 
     const data = await response.json();
     setHistory(Array.isArray(data) ? data : []);
+  };
+
+  const fetchAssignmentHistory = async (ticketId) => {
+    if (!ticketId) {
+      setAssignmentHistory([]);
+      return;
+    }
+
+    const response = await fetch(`${API_BASE}/api/tickets/${ticketId}/assignments`, {
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      setAssignmentHistory([]);
+      return;
+    }
+
+    const data = await response.json();
+    setAssignmentHistory(Array.isArray(data) ? data : []);
   };
 
   const refreshData = useCallback(async () => {
@@ -345,29 +395,15 @@ export default function AdminTicketManagementPage() {
     if (!selectedTicketId) {
       setAssignTechnicianId('');
       setHistory([]);
+      setAssignmentHistory([]);
       return;
     }
 
     const selected = tickets.find((item) => String(item.ticketId) === String(selectedTicketId));
     setAssignTechnicianId(selected?.assignedTechnicianId || '');
     fetchHistory(selectedTicketId);
+    fetchAssignmentHistory(selectedTicketId);
   }, [selectedTicketId, tickets]);
-
-  const buildUpdatedTicketPayload = (ticket, technicianId) => ({
-    title: ticket.title || '',
-    category: ticket.category || '',
-    description: ticket.description || '',
-    priority: ticket.priority || 'MEDIUM',
-    status: ticket.status || 'OPEN',
-    preferredContactName: ticket.preferredContactName || '',
-    preferredContactEmail: ticket.preferredContactEmail || '',
-    preferredContactPhone: ticket.preferredContactPhone || '',
-    resourceId: ticket.resourceId || '',
-    locationId: ticket.locationId || '',
-    assignedTechnicianId: technicianId || null,
-    rejectionReason: ticket.rejectionReason || null,
-    resolutionNotes: ticket.resolutionNotes || null,
-  });
 
   const handleAssignTechnician = async () => {
     if (!selectedTicket) {
@@ -390,42 +426,28 @@ export default function AdminTicketManagementPage() {
     setMessage('');
 
     try {
-      const updateResponse = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticketId}`, {
+      const assignResponse = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticketId}/assign`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(buildUpdatedTicketPayload(selectedTicket, assignTechnicianId)),
+        body: JSON.stringify({
+          technicianId: assignTechnicianId,
+          assignedByUserId: user?.id,
+          assignmentNote: assignNote.trim() || null,
+        }),
       });
 
-      if (!updateResponse.ok) {
+      if (!assignResponse.ok) {
         throw new Error('Could not assign technician.');
-      }
-
-      if (selectedTicket.status === 'OPEN') {
-        const statusResponse = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticketId}/status`, {
-          method: 'PUT',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            status: 'IN_PROGRESS',
-            changeNote: assignNote.trim() || 'Assigned technician and moved to in progress.',
-            changedByUserId: user?.id,
-          }),
-        });
-
-        if (!statusResponse.ok) {
-          throw new Error('Technician assigned but status update failed.');
-        }
       }
 
       setMessage('Technician assigned successfully.');
       setAssignNote('');
       await refreshData();
       await fetchHistory(selectedTicket.ticketId);
+      await fetchAssignmentHistory(selectedTicket.ticketId);
     } catch (assignError) {
       setError(normalizeError(assignError, 'Failed to assign technician.'));
     } finally {
@@ -464,7 +486,6 @@ export default function AdminTicketManagementPage() {
           status: 'REJECTED',
           rejectionReason: rejectReason.trim(),
           changeNote: rejectNote.trim() || 'Rejected by admin.',
-          changedByUserId: user?.id,
         }),
       });
 
@@ -477,6 +498,7 @@ export default function AdminTicketManagementPage() {
       setRejectNote('');
       await refreshData();
       await fetchHistory(selectedTicket.ticketId);
+      await fetchAssignmentHistory(selectedTicket.ticketId);
     } catch (rejectError) {
       setError(normalizeError(rejectError, 'Failed to reject ticket.'));
     } finally {
@@ -550,9 +572,9 @@ export default function AdminTicketManagementPage() {
         <div style={pageTitleCardStyle}>
           <div>
             <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#BF932A' }}>Administration</p>
-            <h1 style={{ margin: '3px 0 0 0', fontSize: '24px', color: '#fff' }}>Ticket Management</h1>
+            <h1 style={{ margin: '3px 0 0 0', fontSize: '24px', color: '#fff' }}>{viewTitle}</h1>
             <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '13px' }}>
-              Review ticket details, assign technicians, reject requests with reasons, and update status.
+              {viewSubtitle}
             </p>
           </div>
           <button
@@ -575,6 +597,57 @@ export default function AdminTicketManagementPage() {
             Logout
           </button>
         </div>
+
+      <div style={ticketSubNavStyle}>
+        <button
+          type="button"
+          onClick={() => setTicketView('manager')}
+          style={{
+            border: ticketView === 'manager' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'manager' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'manager' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Ticket Manager
+        </button>
+        <button
+          type="button"
+          onClick={() => setTicketView('status')}
+          style={{
+            border: ticketView === 'status' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'status' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'status' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Status History
+        </button>
+        <button
+          type="button"
+          onClick={() => setTicketView('assignment')}
+          style={{
+            border: ticketView === 'assignment' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'assignment' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'assignment' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Assignment History
+        </button>
+      </div>
 
       {message && (
         <div style={{ ...cardStyle, borderColor: '#14532d', color: '#86efac', marginBottom: '12px', padding: '12px 14px' }}>
@@ -647,6 +720,7 @@ export default function AdminTicketManagementPage() {
         </section>
 
         <section style={{ display: 'grid', gap: '16px' }}>
+          {ticketView === 'manager' && (
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0, marginBottom: '14px', color: '#fff' }}>Ticket Details</h3>
             {!selectedTicket ? (
@@ -751,7 +825,9 @@ export default function AdminTicketManagementPage() {
               </>
             )}
           </div>
+          )}
 
+          {ticketView === 'manager' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div style={cardStyle}>
               <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Assign Technician</h3>
@@ -843,7 +919,9 @@ export default function AdminTicketManagementPage() {
               </button>
             </div>
           </div>
+          )}
 
+          {ticketView === 'status' && (
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Status History</h3>
             {!selectedTicket ? (
@@ -858,7 +936,7 @@ export default function AdminTicketManagementPage() {
                       <strong>{entry.oldStatus || '-'}</strong> {'->'} <strong>{entry.newStatus || '-'}</strong>
                     </p>
                     <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
-                      By: {entry.changedByUserId || '-'} | {formatDate(entry.changedAt)}
+                      By: {formatUserWithId(entry.changedByUserId)} | {formatDate(entry.changedAt)}
                     </p>
                     {entry.changeNote && (
                       <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '12px' }}>
@@ -870,6 +948,45 @@ export default function AdminTicketManagementPage() {
               </div>
             )}
           </div>
+          )}
+
+          {ticketView === 'assignment' && (
+          <div style={cardStyle}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Assignment History</h3>
+            {!selectedTicket ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Select a ticket to view assignment history.</p>
+            ) : assignmentHistory.length === 0 ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>No assignment entries yet.</p>
+            ) : (
+              <div style={{ display: 'grid', gap: '10px' }}>
+                {assignmentHistory.map((entry) => (
+                  <div
+                    key={entry.assignmentId || `${entry.technicianId}-${entry.assignedAt}`}
+                    style={{ border: '1px solid #1f2937', borderRadius: '10px', background: '#0f172a', padding: '10px 12px' }}
+                  >
+                    <p style={{ margin: 0, color: '#fff', fontSize: '13px' }}>
+                      Technician: <strong>{formatUserWithId(entry.technicianId)}</strong>
+                    </p>
+                    <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
+                      Assigned by: {formatUserWithId(entry.assignedByUserId)} | {formatDate(entry.assignedAt)}
+                    </p>
+                    <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
+                      Unassigned at: {formatDate(entry.unassignedAt)}
+                    </p>
+                    <p style={{ margin: '6px 0 0 0', color: entry.isActive ? '#86efac' : '#fca5a5', fontSize: '12px', fontWeight: 700 }}>
+                      {entry.isActive ? 'Active Assignment' : 'Closed Assignment'}
+                    </p>
+                    {entry.assignmentNote && (
+                      <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '12px' }}>
+                        Note: {entry.assignmentNote}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
         </section>
       </div>
       </main>
