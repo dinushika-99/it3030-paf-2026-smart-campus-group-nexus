@@ -1,6 +1,7 @@
 package backend.service;
 
 import backend.model.Ticket;
+import backend.model.Role;
 import backend.model.TicketStatus;
 import backend.model.TicketStatusHistory;
 import backend.model.TicketStatusUpdateRequest;
@@ -65,6 +66,9 @@ public class TicketService {
 
     public List<Ticket> getTicketsForCurrentUser(Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
+        if (currentUser.getRole() == Role.ADMIN) {
+            return ticketRepository.findAll();
+        }
         return ticketRepository.findByCreatedByUserId(currentUser.getId());
     }
 
@@ -117,6 +121,9 @@ public class TicketService {
 
     private void ensureTicketOwnership(Ticket ticket, Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
         if (!Objects.equals(ticket.getCreatedByUserId(), currentUser.getId())) {
             throw new ResponseStatusException(FORBIDDEN, "You can only access your own tickets");
         }
