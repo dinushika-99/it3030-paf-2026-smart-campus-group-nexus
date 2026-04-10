@@ -182,6 +182,33 @@ function statusColor(status) {
 
 function formatDate(value) {
   if (!value) return '-';
+
+  if (Array.isArray(value)) {
+    const [year, month, day, hour = 0, minute = 0, second = 0, nano = 0] = value;
+    if (!year || !month || !day) return '-';
+    const millis = Math.floor((nano || 0) / 1000000);
+    const dateFromArray = new Date(year, month - 1, day, hour, minute, second, millis);
+    if (!Number.isNaN(dateFromArray.getTime())) {
+      return dateFromArray.toLocaleString();
+    }
+  }
+
+  if (typeof value === 'object') {
+    const year = value.year;
+    const month = value.monthValue || value.month;
+    const day = value.dayOfMonth || value.day;
+    if (year && month && day) {
+      const hour = value.hour || 0;
+      const minute = value.minute || 0;
+      const second = value.second || 0;
+      const millis = Math.floor((value.nano || 0) / 1000000);
+      const dateFromObject = new Date(year, month - 1, day, hour, minute, second, millis);
+      if (!Number.isNaN(dateFromObject.getTime())) {
+        return dateFromObject.toLocaleString();
+      }
+    }
+  }
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString();
@@ -968,7 +995,10 @@ export default function AdminTicketManagementPage() {
                       Technician: <strong>{formatUserWithId(entry.technicianId)}</strong>
                     </p>
                     <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
-                      Assigned by: {formatUserWithId(entry.assignedByUserId)} | {formatDate(entry.assignedAt)}
+                      Assigned by: {formatUserWithId(entry.assignedByUserId)}
+                    </p>
+                    <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
+                      Assigned at: {formatDate(entry.assignedAt)}
                     </p>
                     <p style={{ margin: '6px 0 0 0', color: '#94a3b8', fontSize: '12px' }}>
                       Unassigned at: {formatDate(entry.unassignedAt)}
