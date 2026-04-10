@@ -8,6 +8,7 @@ import backend.model.User;
 import backend.repository.TicketRepository;
 import backend.repository.TicketStatusHistoryRepository;
 import backend.repository.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -41,15 +42,12 @@ public class TicketService {
     }
 
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
-        if (ticket.getLocationId() == null) {
-            throw new ResponseStatusException(BAD_REQUEST, "locationId is required");
-        }
-        if (ticket.getResourceId() == null) {
-            throw new ResponseStatusException(BAD_REQUEST, "resourceId is required");
-        }
-
         User currentUser = resolveCurrentUser(authentication);
         ticket.setCreatedByUserId(currentUser.getId());
+
+        // Until resources table flow is finalized, do not persist resources FK values.
+        // This prevents FK violations when users type free-text resource info.
+        ticket.setResourceId(null);
 
         if (ticket.getPreferredContactName() == null || ticket.getPreferredContactName().isBlank()) {
             ticket.setPreferredContactName(currentUser.getName());
@@ -58,7 +56,11 @@ public class TicketService {
             ticket.setPreferredContactEmail(currentUser.getEmail());
         }
 
-        return ticketRepository.save(ticket);
+        try {
+            return ticketRepository.save(ticket);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(BAD_REQUEST, "Ticket data is invalid for current database constraints", ex);
+        }
     }
 
     public List<Ticket> getTicketsForCurrentUser(Authentication authentication) {
@@ -66,22 +68,18 @@ public class TicketService {
         return ticketRepository.findByCreatedByUserId(currentUser.getId());
     }
 
-    public Ticket getTicketById(Long id, Authentication authentication) {
+    public Ticket getTicketById(Integer id, Authentication authentication) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
         ensureTicketOwnership(ticket, authentication);
         return ticket;
     }
 
-    public Ticket updateTicket(Long id, Ticket updatedTicket, Authentication authentication) {
+    public Ticket updateTicket(Integer id, Ticket updatedTicket, Authentication authentication) {
         Ticket existingTicket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
 
         ensureTicketOwnership(existingTicket, authentication);
-
-        if (updatedTicket.getLocationId() == null || updatedTicket.getResourceId() == null) {
-            throw new ResponseStatusException(BAD_REQUEST, "locationId and resourceId are required");
-        }
 
         existingTicket.setTitle(updatedTicket.getTitle());
         existingTicket.setCategory(updatedTicket.getCategory());
@@ -92,7 +90,8 @@ public class TicketService {
         existingTicket.setPreferredContactEmail(updatedTicket.getPreferredContactEmail());
         existingTicket.setPreferredContactPhone(updatedTicket.getPreferredContactPhone());
         existingTicket.setLocationId(updatedTicket.getLocationId());
-        existingTicket.setResourceId(updatedTicket.getResourceId());
+        // Keep detached from resources table until resource management is in place.
+        existingTicket.setResourceId(null);
 
         if (!Objects.equals(existingTicket.getAssignedTechnicianId(), updatedTicket.getAssignedTechnicianId())) {
             existingTicket.setAssignedTechnicianId(updatedTicket.getAssignedTechnicianId());
@@ -101,10 +100,14 @@ public class TicketService {
         existingTicket.setRejectionReason(updatedTicket.getRejectionReason());
         existingTicket.setResolutionNotes(updatedTicket.getResolutionNotes());
 
-        return ticketRepository.save(existingTicket);
+        try {
+            return ticketRepository.save(existingTicket);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(BAD_REQUEST, "Ticket update violates current database constraints", ex);
+        }
     }
 
-    public void deleteTicket(Long id, Authentication authentication) {
+    public void deleteTicket(Integer id, Authentication authentication) {
         Ticket existingTicket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
 
@@ -148,7 +151,7 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Logged-in user account not found"));
     }
 
-    public Ticket updateTicketStatus(Long ticketId, TicketStatusUpdateRequest request) {
+    public Ticket updateTicketStatus(Integer ticketId, TicketStatusUpdateRequest request, Authentication authentication) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
 
@@ -180,11 +183,17 @@ public class TicketService {
 
         Ticket updatedTicket = ticketRepository.save(ticket);
 
+        User currentUser = resolveCurrentUser(authentication);
+        String changedByUserId = request.getChangedByUserId();
+        if (changedByUserId == null || changedByUserId.isBlank()) {
+            changedByUserId = currentUser.getId();
+        }
+
         TicketStatusHistory history = new TicketStatusHistory(
                 updatedTicket,
                 oldStatus.name(),
                 newStatus.name(),
-                request.getChangedByUserId(),
+            changedByUserId,
                 request.getChangeNote()
         );
 
@@ -202,7 +211,7 @@ public class TicketService {
         };
     }
 
-    public List<TicketStatusHistory> getHistoryByTicketId(Long ticketId) {
+    public List<TicketStatusHistory> getHistoryByTicketId(Integer ticketId) {
         return ticketStatusHistoryRepository.findByTicketTicketIdOrderByChangedAtAsc(ticketId);
     }
 

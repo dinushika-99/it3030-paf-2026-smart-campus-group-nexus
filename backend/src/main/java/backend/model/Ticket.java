@@ -8,7 +8,7 @@ public class Ticket {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long ticketId;
+    private Integer ticketId;
 
     @Column(nullable = false, unique = true)
     private String ticketCode;
@@ -16,7 +16,7 @@ public class Ticket {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false)
+    @Column
     private String category;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -30,19 +30,26 @@ public class Ticket {
     @Column(nullable = false)
     private TicketStatus status;
 
-    @Column(nullable = false)
+    @Column
     private String preferredContactName;
 
-    @Column(nullable = false)
+    @Column
     private String preferredContactEmail;
 
-    @Column(nullable = false)
+    @Column
     private String preferredContactPhone;
 
-    private Long resourceId;
-    private Long locationId;
-    private Long createdByUserId;
-    private Long assignedTechnicianId;
+    @Column(name = "resources_id")
+    private String resourceId;
+
+    @Column(name = "location_id")
+    private String locationId;
+
+    @Column(name = "created_by_user_id")
+    private String createdByUserId;
+
+    @Column(name = "assigned_technician_id")
+    private String assignedTechnicianId;
 
     @Column(columnDefinition = "TEXT")
     private String rejectionReason;
@@ -75,11 +82,11 @@ public class Ticket {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public Long getTicketId() {
+    public Integer getTicketId() {
         return ticketId;
     }
 
-    public void setTicketId(Long ticketId) {
+    public void setTicketId(Integer ticketId) {
         this.ticketId = ticketId;
     }
 
@@ -155,35 +162,35 @@ public class Ticket {
         this.preferredContactPhone = preferredContactPhone;
     }
 
-    public Long getResourceId() {
+    public String getResourceId() {
         return resourceId;
     }
 
-    public void setResourceId(Long resourceId) {
+    public void setResourceId(String resourceId) {
         this.resourceId = resourceId;
     }
 
-    public Long getLocationId() {
+    public String getLocationId() {
         return locationId;
     }
 
-    public void setLocationId(Long locationId) {
+    public void setLocationId(String locationId) {
         this.locationId = locationId;
     }
 
-    public Long getCreatedByUserId() {
+    public String getCreatedByUserId() {
         return createdByUserId;
     }
 
-    public void setCreatedByUserId(Long createdByUserId) {
+    public void setCreatedByUserId(String createdByUserId) {
         this.createdByUserId = createdByUserId;
     }
 
-    public Long getAssignedTechnicianId() {
+    public String getAssignedTechnicianId() {
         return assignedTechnicianId;
     }
 
-    public void setAssignedTechnicianId(Long assignedTechnicianId) {
+    public void setAssignedTechnicianId(String assignedTechnicianId) {
         this.assignedTechnicianId = assignedTechnicianId;
     }
 

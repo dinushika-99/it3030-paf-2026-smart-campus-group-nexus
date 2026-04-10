@@ -17,9 +17,12 @@ const EMPTY_FORM = {
 };
 
 const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED'];
-const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH'];
+const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
 function toPayload(form) {
+  const resourceId = form.resourceId.trim();
+  const locationId = form.locationId.trim();
+
   return {
     title: form.title.trim(),
     category: form.category.trim(),
@@ -29,8 +32,8 @@ function toPayload(form) {
     preferredContactName: form.preferredContactName.trim(),
     preferredContactEmail: form.preferredContactEmail.trim(),
     preferredContactPhone: form.preferredContactPhone.trim(),
-    resourceId: Number(form.resourceId),
-    locationId: Number(form.locationId),
+    resourceId: resourceId || null,
+    locationId: locationId || null,
   };
 }
 
@@ -216,19 +219,15 @@ export default function TicketManager({ user }) {
             name="resourceId"
             value={form.resourceId}
             onChange={handleChange}
-            placeholder="Resource ID"
-            type="number"
-            min="1"
-            required
+            placeholder="Resource (optional)"
+            type="text"
           />
           <input
             name="locationId"
             value={form.locationId}
             onChange={handleChange}
-            placeholder="Location ID"
-            type="number"
-            min="1"
-            required
+            placeholder="Location (optional)"
+            type="text"
           />
         </div>
 

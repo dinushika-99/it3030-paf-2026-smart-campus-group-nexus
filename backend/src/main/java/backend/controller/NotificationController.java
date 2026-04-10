@@ -7,7 +7,8 @@ import backend.repository.UserRepository;
 import backend.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,20 +33,37 @@ public class NotificationController {
         this.userRepository = userRepository;
     }
 
-    private User getCurrentUser(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
             return null;
         }
-        String email = principal.getAttribute("email");
-        if (email == null) {
+
+        Object principal = authentication.getPrincipal();
+        String email = null;
+
+        if (principal instanceof OAuth2User oauth2User) {
+            email = oauth2User.getAttribute("email");
+        } else if (principal instanceof UserDetails userDetails) {
+            email = userDetails.getUsername();
+        } else if (principal instanceof String principalText && !"anonymousUser".equalsIgnoreCase(principalText)) {
+            email = principalText;
+        }
+
+        if ((email == null || email.isBlank()) && authentication.getName() != null
+                && !"anonymousUser".equalsIgnoreCase(authentication.getName())) {
+            email = authentication.getName();
+        }
+
+        if (email == null || email.isBlank()) {
             return null;
         }
+
         return userRepository.findByEmail(email).orElse(null);
     }
 
     @GetMapping("/me")
-    public ResponseEntity<List<Map<String, Object>>> myNotifications(@AuthenticationPrincipal OAuth2User principal) {
-        User user = getCurrentUser(principal);
+    public ResponseEntity<List<Map<String, Object>>> myNotifications(Authentication authentication) {
+        User user = getCurrentUser(authentication);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -68,8 +86,8 @@ public class NotificationController {
 
     @PostMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id,
-                                           @AuthenticationPrincipal OAuth2User principal) {
-        User user = getCurrentUser(principal);
+                                           Authentication authentication) {
+        User user = getCurrentUser(authentication);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }

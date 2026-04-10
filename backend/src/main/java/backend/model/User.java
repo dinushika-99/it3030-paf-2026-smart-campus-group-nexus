@@ -15,7 +15,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(nullable = false)
+    @Column
     private String name;
 
     @Enumerated(EnumType.STRING)
@@ -26,13 +26,13 @@ public class User {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "auth_provider", length = 32)
+    @Column(name = "auth_provider", nullable = false, length = 32)
     private AuthProvider authProvider;
 
-    @Column(name = "provider_id", length = 191)
+    @Column(name = "provider_id", unique = true, length = 255)
     private String providerId;
 
-    @Column(name = "student_id")
+    @Column(name = "student_id", unique = true)
     private String studentId;
 
     @Column(nullable = false)
