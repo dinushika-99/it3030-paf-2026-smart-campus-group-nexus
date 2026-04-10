@@ -8,7 +8,6 @@ const EMPTY_FORM = {
   category: '',
   description: '',
   priority: 'MEDIUM',
-  status: 'OPEN',
   preferredContactName: '',
   preferredContactEmail: '',
   preferredContactPhone: '',
@@ -16,10 +15,9 @@ const EMPTY_FORM = {
   locationId: '',
 };
 
-const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED'];
 const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-function toPayload(form) {
+function toPayload(form, editingTicket) {
   const resourceId = form.resourceId.trim();
   const locationId = form.locationId.trim();
 
@@ -28,7 +26,8 @@ function toPayload(form) {
     category: form.category.trim(),
     description: form.description.trim(),
     priority: form.priority,
-    status: form.status,
+    // New tickets must always start in OPEN; edits preserve current status.
+    status: editingTicket?.status || 'OPEN',
     preferredContactName: form.preferredContactName.trim(),
     preferredContactEmail: form.preferredContactEmail.trim(),
     preferredContactPhone: form.preferredContactPhone.trim(),
@@ -94,7 +93,8 @@ export default function TicketManager({ user }) {
     setError('');
 
     try {
-      const payload = toPayload(form);
+      const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
+      const payload = toPayload(form, editingTicket);
       const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
       const method = editingId ? 'PUT' : 'POST';
 
@@ -128,7 +128,6 @@ export default function TicketManager({ user }) {
       category: ticket.category || '',
       description: ticket.description || '',
       priority: ticket.priority || 'MEDIUM',
-      status: ticket.status || 'OPEN',
       preferredContactName: ticket.preferredContactName || '',
       preferredContactEmail: ticket.preferredContactEmail || '',
       preferredContactPhone: ticket.preferredContactPhone || '',
@@ -201,14 +200,6 @@ export default function TicketManager({ user }) {
             {PRIORITY_OPTIONS.map((priority) => (
               <option key={priority} value={priority}>
                 {priority}
-              </option>
-            ))}
-          </select>
-
-          <select name="status" value={form.status} onChange={handleChange}>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
               </option>
             ))}
           </select>

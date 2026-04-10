@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SITE_BRAND } from './siteConfig';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -38,10 +37,6 @@ export default function AdminDashboard({ user: userProp }) {
   const handleLogout = () => {
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
-  };
-
-  const handleOpenProfile = () => {
-    navigate('/profile');
   };
 
   useEffect(() => {
@@ -102,6 +97,7 @@ export default function AdminDashboard({ user: userProp }) {
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
+          <NavButton active={false} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
           <NavButton active={activeTab === 'asset-directory'} onClick={() => setActiveTab('asset-directory')} text="Asset Directory" icon="asset" />
           <NavButton active={activeTab === 'scheduling'} onClick={() => setActiveTab('scheduling')} text="Resource Scheduling" icon="schedule" />
 
@@ -262,6 +258,11 @@ const MenuIcon = ({ type }) => {
   if (type === 'schedule') {
     return (
       <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+    );
+  }
+  if (type === 'ticket') {
+    return (
+      <svg {...common}><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z"></path><path d="M9 9v6"></path><path d="M15 9v6"></path></svg>
     );
   }
   if (type === 'incident') {
