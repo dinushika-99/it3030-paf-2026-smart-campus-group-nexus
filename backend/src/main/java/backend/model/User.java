@@ -2,14 +2,15 @@ package backend.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "user_id", nullable = false, updatable = false, length = 255)
+    private String user_id;
 
     @Column(nullable = false, unique = true)
     private String email;
@@ -50,12 +51,12 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    public Long getId() {
-        return id;
+    public String getId() {
+        return user_id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setId(String id) {
+        this.user_id = id;
     }
 
     public String getEmail() {
@@ -132,8 +133,14 @@ public class User {
 
     @PrePersist
     public void onPrePersist() {
+        if (user_id == null || user_id.isBlank()) {
+            user_id = UUID.randomUUID().toString();
+        }
         if (authProvider == null) {
             authProvider = AuthProvider.LOCAL;
+        }
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
         }
     }
 }

@@ -2,23 +2,26 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import './App.css';
+import { SITE_BRAND } from './siteConfig';
 
 const BACKEND_BASE = 'http://localhost:8081';
 
 export default function Login() {
   const [formFields, setFormFields] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const navigate = useNavigate();
-  const isRegisterPrompt = error.toLowerCase().includes('account not found') || error.toLowerCase().includes('register page');
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential;
     if (!token) {
+      setShowRegisterPrompt(false);
       setError('Google login did not return a token. Please try again.');
       return;
     }
 
     setError('');
+    setShowRegisterPrompt(false);
     try {
       const res = await fetch(`${BACKEND_BASE}/api/auth/google`, {
         method: 'POST',
@@ -36,12 +39,15 @@ export default function Login() {
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
       } else {
         if (res.status === 404) {
-          setError("We couldn't find an account with that email.");
+          setShowRegisterPrompt(true);
+          setError('No account exists for this email. Please register first.');
         } else {
+          setShowRegisterPrompt(false);
           setError(data.error || 'Google sign-in failed.');
         }
       }
     } catch (err) {
+      setShowRegisterPrompt(false);
       setError('Network error. Is the backend running?');
     }
   };
@@ -49,6 +55,7 @@ export default function Login() {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setShowRegisterPrompt(false);
     try {
       const res = await fetch(`${BACKEND_BASE}/api/auth/login`, {
         method: 'POST',
@@ -66,12 +73,15 @@ export default function Login() {
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
       } else {
         if (res.status === 404) {
-          setError("We couldn't find an account with that email.");
+          setShowRegisterPrompt(true);
+          setError('No account exists for this email. Please register first.');
         } else {
-          setError(data.error || 'Invalid credentials');
+          setShowRegisterPrompt(false);
+          setError(data.error || 'We could not sign you in. Please check your email and password, then try again.');
         }
       }
     } catch (err) {
+      setShowRegisterPrompt(false);
       setError('Network error. Is the backend running?');
     }
   };
@@ -81,11 +91,11 @@ export default function Login() {
       <div className="auth-split">
         <section className="auth-left" style={{ '--auth-left-image': `url(${process.env.PUBLIC_URL}/authleft.jpg)` }}>
           <div className="auth-left-brand">
-            <div className="auth-left-top">NEXUS</div>
-            <img src={`${process.env.PUBLIC_URL}/LOGO.png`} alt="Nexus logo" className="auth-left-logo" />
+            <div className="auth-left-top">{SITE_BRAND.name}</div>
+            <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} className="auth-left-logo" />
           </div>
           <h1>Welcome back.</h1>
-          <p>Your central hub for NEXUS operations.
+          <p>Your central hub for {SITE_BRAND.name} operations.
 Log in to manage facility bookings, track maintenance tickets, and view notifications.</p>
         </section>
 
@@ -115,7 +125,7 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
                 type="email"
                 value={formFields.email}
                 onChange={(e) => setFormFields((prev) => ({ ...prev, email: e.target.value }))}
-                className={isRegisterPrompt ? 'clean-input input-shake' : 'clean-input'}
+                className={showRegisterPrompt ? 'clean-input input-shake' : 'clean-input'}
                 placeholder="Enter your email"
                 required
               />
@@ -134,13 +144,24 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
               <button type="button" className="forgot-link">Forgot Password?</button>
             </div>
 
-            {isRegisterPrompt && (
-              <p className="inline-notfound" role="alert" aria-live="assertive">
-                We couldn't find an account with that email.
-              </p>
+            {showRegisterPrompt && (
+              <div className="register-cta-card" role="alert" aria-live="assertive">
+                <div className="register-cta-icon" aria-hidden="true">!</div>
+                <div className="register-cta-content">
+                  <p className="register-cta-title">No account found</p>
+                  <p className="register-cta-text">No account exists for this email yet. Register to continue.</p>
+                  <button
+                    type="button"
+                    className="register-cta-button"
+                    onClick={() => navigate('/register')}
+                  >
+                    Go to Register
+                  </button>
+                </div>
+              </div>
             )}
 
-            {!isRegisterPrompt && error && (
+            {!showRegisterPrompt && error && (
               <p className="inline-plain-error" role="alert" aria-live="assertive">{error}</p>
             )}
 
@@ -156,7 +177,7 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
             <span>Not a member?</span>
             <Link
               to="/register"
-              className={isRegisterPrompt ? 'auth-switch-link auth-switch-link-highlight' : 'auth-switch-link'}
+              className={showRegisterPrompt ? 'auth-switch-link auth-switch-link-highlight' : 'auth-switch-link'}
             >
               Sign up
             </Link>

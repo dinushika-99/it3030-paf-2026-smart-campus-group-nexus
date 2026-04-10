@@ -5,10 +5,16 @@ export default function Profile() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', studentId: '', program: '', year: '', advisor: '', status: '' });
+  const [activeSection, setActiveSection] = useState('profile');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', studentId: '' });
   const [avatarUrl, setAvatarUrl] = useState('');
   const [avatarError, setAvatarError] = useState('');
+  const [saveMessage, setSaveMessage] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -23,15 +29,31 @@ export default function Profile() {
       name: parsed.name || '',
       email: parsed.email || '',
       studentId: parsed.studentId || '',
-      program: parsed.program || '',
-      year: parsed.year || '',
-      advisor: parsed.advisor || '',
-      status: parsed.status || '',
     });
   }, [navigate]);
 
   useEffect(() => {
     if (!user) return;
+
+    fetch('http://localhost:8081/api/profile/me', { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return;
+        const normalized = {
+          ...user,
+          ...data,
+          role: (data.role || user.role || '').toLowerCase(),
+        };
+        setUser(normalized);
+        setForm({
+          name: data.name || normalized.name || '',
+          email: data.email || normalized.email || '',
+          studentId: data.studentId || normalized.studentId || '',
+        });
+        localStorage.setItem('smartCampusUser', JSON.stringify(normalized));
+      })
+      .catch(() => {});
+
     // fetch avatar blob
     fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
       .then((res) => res.ok ? res.blob() : null)
@@ -51,6 +73,7 @@ export default function Profile() {
       .then((data) => {
         if (Array.isArray(data)) {
           const unread = data.filter((n) => !n.isRead && !n.read).length;
+          setNotifications(data);
           setUnreadCount(unread);
         }
       })
@@ -68,12 +91,46 @@ export default function Profile() {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    // Placeholder: persist to backend when API is ready
-    const updated = { ...user, ...form };
-    setUser(updated);
-    localStorage.setItem('smartCampusUser', JSON.stringify(updated));
-    setIsEditing(false);
+  const handleSave = async () => {
+    setSaveMessage('');
+    setSaveError('');
+    setSaving(true);
+
+    try {
+      const res = await fetch('http://localhost:8081/api/profile/me', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          studentId: form.studentId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setSaveError(data.error || 'Could not update profile.');
+        return;
+      }
+
+      const normalizedUser = {
+        ...user,
+        ...(data.user || {}),
+        role: (data.user?.role || user.role || '').toLowerCase(),
+      };
+
+      setUser(normalizedUser);
+      localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+      setIsEditing(false);
+      setActiveSection('profile');
+      setSaveMessage('Profile saved successfully.');
+      setTimeout(() => setSaveMessage(''), 2600);
+    } catch (err) {
+      setSaveError('Network error while saving profile.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleAvatarClick = () => {
@@ -121,112 +178,92 @@ export default function Profile() {
     <div className="profile-page">
       <header className="profile-hero">
         <div className="profile-hero__bg" />
-        <div className="profile-hero__top">
-          {/* Navigation Back */}
-          <div style={{ width: '100%', margin: '0 0 20px 0', display: 'flex', justifyContent: 'flex-start' }}>
-            <button
-              onClick={() => navigate('/dashboard')}
-              title="Back to Dashboard"
-              style={{
-                backgroundColor: 'transparent',
-                color: '#9ca3af',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '5px',
-                transition: 'all 0.2s ease',
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.color = '#FF7F50';
-                e.currentTarget.style.transform = 'scale(1.1)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.color = '#9ca3af';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              {/* Circled Left Arrow SVG - Slightly larger since it sits alone */}
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 8 8 12 12 16"></polyline>
-              </svg>
+        <div className="profile-hero__top profile-top-nav">
+          <button className="profile-menu-button" onClick={() => navigate('/dashboard')} title="Back to Dashboard">
+            Dashboard
+          </button>
+
+          <div className="profile-menu-wrap">
+            <button className="profile-menu-button profile-menu-button-accent" onClick={() => setIsMenuOpen((v) => !v)}>
+              Profile Menu
             </button>
-          </div>
-          <div className="hero-meta">
-            <div className="meta-item">
-              <span className="meta-dot" aria-hidden="true" />
-              <p className="muted small">Profile overview</p>
-            </div>
-            <span className="pill pill-light meta-pill" title="Unread notifications">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-               {unreadCount}
-            </span>
+            {isMenuOpen && (
+              <div className="profile-menu-dropdown">
+                <button onClick={() => { setActiveSection('profile'); setIsMenuOpen(false); }}>Profile</button>
+                <button onClick={() => { setActiveSection('edit'); setIsMenuOpen(false); }}>Edit Profile</button>
+                <button onClick={() => { setActiveSection('notifications'); setIsMenuOpen(false); }}>Notifications</button>
+                <button onClick={() => { setActiveSection('account'); setIsMenuOpen(false); }}>Account Settings</button>
+              </div>
+            )}
           </div>
         </div>
+
+        <div className="profile-avatar-block">
+          <button className="avatar avatar-xl actionable" onClick={handleAvatarClick} aria-label="Change profile image" title={isEditing ? 'Update profile photo' : 'Click Edit Profile to change photo'}>
+            {avatarUrl ? <img src={avatarUrl} alt="Profile" /> : <span>{user.name?.[0]?.toUpperCase()}</span>}
+          </button>
+          <input
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            onChange={handleAvatarChange}
+          />
+          <h1 className="profile-name">{user.name}</h1>
+          <p className="profile-role">{(user.role || 'student').toUpperCase()}</p>
+          {isEditing && <p className="muted small">Tap profile photo to edit</p>}
+          {avatarError && <p className="error" style={{ margin: '10px auto 0 auto', maxWidth: '430px' }}>{avatarError}</p>}
+        </div>
+
         <div className="profile-hero__content">
-          <div className="profile-hero__id">
-            <button className="avatar actionable" onClick={handleAvatarClick} aria-label="Change profile image" title={isEditing ? 'Update profile photo' : 'Click Edit Profile to change photo'}>
-              {avatarUrl ? <img src={avatarUrl} alt="Profile" /> : <span>{user.name?.[0]?.toUpperCase()}</span>}
-            </button>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleAvatarChange}
-            />
-            <div>
-              <p className="eyebrow">Campus profile</p>
-              <h1>{user.name}</h1>
-              <p className="muted">{user.email}</p>
-              <p className="muted small">Tap the avatar while editing to update your photo</p>
-              {avatarError && <p className="error" style={{ margin: '8px 0 0 0' }}>{avatarError}</p>}
-            </div>
-          </div>
           <div className="profile-hero__actions">
-            {!isEditing && (
-              <button className="primary-btn" onClick={handleEditToggle}>Edit Profile</button>
-            )}
+            {!isEditing && <button className="primary-btn" onClick={handleEditToggle}>Edit Profile</button>}
             {isEditing && (
               <div className="action-group">
-                <button className="primary-btn" onClick={handleSave}>Save</button>
+                <button className="primary-btn" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Profile'}</button>
                 <button className="ghost-btn" onClick={handleEditToggle}>Cancel</button>
               </div>
             )}
-            <div className="action-group">
-              <button className="danger-btn" onClick={handleLogout}>Logout</button>
-            </div>
+            <button className="danger-btn" onClick={handleLogout}>Logout</button>
           </div>
         </div>
       </header>
 
       <main className="profile-grid">
-        <section className="panel span-2">
+        {saveMessage && <div className="profile-toast success">{saveMessage}</div>}
+        {saveError && <div className="profile-toast error-tone">{saveError}</div>}
+
+        {activeSection === 'profile' && (
+        <section className="panel span-2 profile-section-animate">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Profile</p>
+              <h2>Profile overview</h2>
+            </div>
+          </div>
+          <div className="info-grid">
+            <div>
+              <p className="label">Full Name</p>
+              <p className="value">{user.name || '—'}</p>
+            </div>
+            <div>
+              <p className="label">Role</p>
+              <p className="pill">{(user.role || 'student').toUpperCase()}</p>
+            </div>
+            <div>
+              <p className="label">Email</p>
+              <p className="value">{user.email || '—'}</p>
+            </div>
+            <div>
+              <p className="label">Unread Notifications</p>
+              <p className="value">{unreadCount}</p>
+            </div>
+          </div>
+        </section>
+        )}
+
+        {activeSection === 'edit' && (
+        <section className="panel span-2 profile-section-animate">
           <div className="panel-head">
             <div>
               <p className="eyebrow">Identity</p>
@@ -264,103 +301,68 @@ export default function Profile() {
             </div>
           </div>
         </section>
-        <section className="panel">
+        )}
+
+        {activeSection === 'notifications' && (
+        <section className="panel span-2 profile-section-animate">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Messages</p>
+              <h2>Notification Center</h2>
+            </div>
+          </div>
+          <p className="muted small" style={{ marginTop: 8 }}>Unread notifications: {unreadCount}</p>
+          <ul className="activity-list" style={{ marginTop: 12 }}>
+            {notifications.length === 0 && (
+              <li>
+                <div>
+                  <p className="value">No notifications</p>
+                  <p className="muted">Your inbox is clear.</p>
+                </div>
+                <span className="pill pill-light">Clean</span>
+              </li>
+            )}
+            {notifications.map((item, index) => (
+              <li key={item.id || index}>
+                <div>
+                  <p className="value">{item.title || 'Notification'}</p>
+                  <p className="muted">{item.message || 'No message provided'}</p>
+                </div>
+                <span className="pill pill-light">{item.type || 'General'}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+        )}
+
+        {activeSection === 'account' && (
+        <section className="panel span-2 profile-section-animate">
           <div className="panel-head">
             <div>
               <p className="eyebrow">Security</p>
-              <h2>Access controls</h2>
-            </div>
-          </div>
-          <ul className="badge-list">
-            <li>
-              <span className="dot green" />
-              Session active
-            </li>
-            <li>
-              <span className="dot amber" />
-              MFA pending setup
-            </li>
-            <li>
-              <span className="dot blue" />
-              OAuth2 enabled (Google)
-            </li>
-          </ul>
-        </section>
-
-        <section className="panel">
-          <div className="panel-head">
-            <div>
-              <p className="eyebrow">Academic</p>
-              <h2>Enrollment</h2>
+              <h2>Account settings</h2>
             </div>
           </div>
           <div className="info-grid">
             <div>
-              <p className="label">Program</p>
-              {isEditing ? (
-                <input className="input" value={form.program} placeholder="Add Program" onChange={(e) => handleChange('program', e.target.value)} />
-              ) : (
-                <p className="value">{user.program || '—'}</p>
-              )}
+              <p className="label">Authentication</p>
+              <p className="value">Google OAuth + Session</p>
             </div>
             <div>
-              <p className="label">Year</p>
-              {isEditing ? (
-                <input className="input" value={form.year} placeholder="Add Year" onChange={(e) => handleChange('year', e.target.value)} />
-              ) : (
-                <p className="value">{user.year || '—'}</p>
-              )}
+              <p className="label">Session state</p>
+              <p className="value">Active</p>
             </div>
             <div>
-              <p className="label">Advisor</p>
-              {isEditing ? (
-                <input className="input" value={form.advisor} placeholder="Add Advisor" onChange={(e) => handleChange('advisor', e.target.value)} />
-              ) : (
-                <p className="value">{user.advisor || '—'}</p>
-              )}
+              <p className="label">Primary email</p>
+              <p className="value">{user.email}</p>
             </div>
             <div>
-              <p className="label">Status</p>
-              {isEditing ? (
-                <input className="input" value={form.status} placeholder="Add Status" onChange={(e) => handleChange('status', e.target.value)} />
-              ) : (
-                <p className="pill">{user.status || 'Pending'}</p>
-              )}
+              <p className="label">Role</p>
+              <p className="pill">{(user.role || 'student').toUpperCase()}</p>
             </div>
           </div>
         </section>
-
-        <section className="panel span-2">
-          <div className="panel-head">
-            <div>
-              <p className="eyebrow">Highlights</p>
-              <h2>Recent activity</h2>
-            </div>
-          </div>
-          <ul className="activity-list">
-            <li>
-              <div>
-                <p className="value">TPSM proposal</p>
-                <p className="muted">Submitted to Faculty of Computing</p>
-              </div>
-              <span className="pill pill-light">Submitted</span>
-            </li>
-            <li>
-              <div>
-                <p className="value">Library booking</p>
-                <p className="muted">Room B4 · 2h slot</p>
-              </div>
-              <span className="pill pill-light">Confirmed</span>
-            </li>
-            <li>
-              <div>
-                <p className="value">Notification digest</p>
-                <p className="muted">Unread items:  {unreadCount}</p>
-              </div>
-              <span className="pill pill-light">Inbox</span>
-            </li>
-          </ul>
-        </section>
+        )}
       </main>
     </div>
   );

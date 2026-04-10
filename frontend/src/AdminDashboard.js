@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SITE_BRAND } from './siteConfig';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -38,6 +39,27 @@ export default function AdminDashboard({ user: userProp }) {
     navigate('/login');
   };
 
+  const handleOpenProfile = () => {
+    navigate('/profile');
+  };
+
+  useEffect(() => {
+    if (!user) return;
+
+    fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => {
+        if (blob && blob.size > 0) {
+          const url = URL.createObjectURL(blob);
+          setAvatarUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return url;
+          });
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
   if (!user) {
     return <div style={{ color: '#e5e7eb', minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0b1120' }}>Loading...</div>;
   }
@@ -73,7 +95,7 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="admin-nav-group">
           <MenuCategory title="Main" />
           <NavButton active={activeTab === 'command-center'} onClick={() => setActiveTab('command-center')} text="Command Center" icon="dashboard" />
 
@@ -159,13 +181,14 @@ const CARD_STYLE = {
 };
 
 const MenuCategory = ({ title }) => (
-  <p style={{ margin: 0, fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '1.1px', fontWeight: 700 }}>
+  <p className="admin-menu-category">
     {title}
   </p>
 );
 
 const NavButton = ({ active, onClick, text, icon }) => (
   <button
+    className={`admin-nav-btn ${active ? 'is-active' : ''}`}
     onClick={onClick}
     style={{
       padding: '12px 15px',

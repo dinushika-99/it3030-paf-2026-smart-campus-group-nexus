@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import './App.css';
+import { SITE_BRAND } from './siteConfig';
 
 const BACKEND_BASE = 'http://localhost:8081';
 const ALLOWED_ROLES = ['student', 'lecturer'];
@@ -86,8 +87,8 @@ export default function Register() {
       <div className="auth-split">
         <section className="auth-left" style={{ '--auth-left-image': `url(${process.env.PUBLIC_URL}/authleft.jpg)` }}>
           <div className="auth-left-brand">
-            <div className="auth-left-top">NEXUS</div>
-            <img src={`${process.env.PUBLIC_URL}/LOGO.png`} alt="Nexus logo" className="auth-left-logo" />
+            <div className="auth-left-top">{SITE_BRAND.name}</div>
+            <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} className="auth-left-logo" />
           </div>
           <h1>Welcome back.</h1>
           <p>Securely access your campus workspace, notifications, and role-based dashboard from one place.</p>
