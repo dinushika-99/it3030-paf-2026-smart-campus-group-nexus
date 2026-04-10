@@ -301,42 +301,12 @@ export default function Dashboard() {
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px', marginLeft: 'auto' }}>
-          <button
-            title="Notifications"
-            style={{
-              position: 'relative',
-              width: '38px',
-              height: '38px',
-              borderRadius: '999px',
-              border: '1px solid #e5e7eb',
-              background: '#fff',
-              color: '#111827',
-              cursor: 'pointer',
-              display: 'grid',
-              placeItems: 'center',
-            }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-            {unreadCount > 0 && (
-              <span style={{ position: 'absolute', top: '-5px', right: '-4px', minWidth: '18px', height: '18px', borderRadius: '999px', background: '#ef4444', color: '#fff', fontSize: '11px', display: 'grid', placeItems: 'center', fontWeight: 700, padding: '0 4px' }}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            Create Ticket
+          </button>
+          <button onClick={() => navigate('/profile')} style={{ backgroundColor: 'transparent', border: '1px solid #d1d5db', color: '#374151', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
+            Profile
           </button>
 
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
