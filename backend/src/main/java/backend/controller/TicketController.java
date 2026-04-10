@@ -1,6 +1,8 @@
 package backend.controller;
 
 import backend.model.Ticket;
+import backend.model.TicketStatusHistory;
+import backend.model.TicketStatusUpdateRequest;
 import backend.service.TicketService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,4 +48,18 @@ public class TicketController {
         ticketService.deleteTicket(id, authentication);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Ticket> updateTicketStatus(
+            @PathVariable Long id,
+            @RequestBody TicketStatusUpdateRequest request) {
+        Ticket updatedTicket = ticketService.updateTicketStatus(id, request);
+        return ResponseEntity.ok(updatedTicket);
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<TicketStatusHistory>> getTicketHistory(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getHistoryByTicketId(id));
+    }
+
 }
