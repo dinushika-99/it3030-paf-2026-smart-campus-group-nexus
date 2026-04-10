@@ -38,7 +38,7 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final JwtDecoder googleIdTokenDecoder;
+    private JwtDecoder googleIdTokenDecoder;
     private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 
     private static final Set<Role> SELF_REGISTRATION_ROLES = Set.of(Role.STUDENT, Role.LECTURER);
@@ -46,7 +46,14 @@ public class AuthController {
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.googleIdTokenDecoder = JwtDecoders.fromIssuerLocation("https://accounts.google.com");
+        this.googleIdTokenDecoder = null;
+    }
+
+    private JwtDecoder getGoogleIdTokenDecoder() {
+        if (googleIdTokenDecoder == null) {
+            googleIdTokenDecoder = JwtDecoders.fromIssuerLocation("https://accounts.google.com");
+        }
+        return googleIdTokenDecoder;
     }
 
     @GetMapping("/me")
@@ -161,7 +168,7 @@ public class AuthController {
 
         Jwt jwt;
         try {
-            jwt = googleIdTokenDecoder.decode(request.token());
+            jwt = getGoogleIdTokenDecoder().decode(request.token());
         } catch (JwtException ex) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid Google token"));
         }
