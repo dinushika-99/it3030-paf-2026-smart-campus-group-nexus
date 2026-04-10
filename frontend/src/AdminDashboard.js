@@ -8,6 +8,7 @@ export default function AdminDashboard({ user: userProp }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('command-center');
   const [user, setUser] = useState(userProp || null);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -81,8 +82,8 @@ export default function AdminDashboard({ user: userProp }) {
 
           <div style={{ marginTop: '16px', padding: '12px', borderRadius: '12px', border: '1px solid #374151', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #BF932A', backgroundColor: '#1f2937', display: 'grid', placeItems: 'center', color: '#BF932A', fontWeight: 700 }}>
-              {user.avatarUrl ? (
-                <img src={`${API_BASE}${user.avatarUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              {(avatarUrl || user.avatarUrl) ? (
+                <img src={avatarUrl || `${API_BASE}${user.avatarUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 getInitials(user.name)
               )}

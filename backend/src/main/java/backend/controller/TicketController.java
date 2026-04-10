@@ -34,31 +34,32 @@ public class TicketController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ticket> getTicketById(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<Ticket> getTicketById(@PathVariable Integer id, Authentication authentication) {
         return ResponseEntity.ok(ticketService.getTicketById(id, authentication));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @RequestBody Ticket ticket, Authentication authentication) {
+    public ResponseEntity<Ticket> updateTicket(@PathVariable Integer id, @RequestBody Ticket ticket, Authentication authentication) {
         return ResponseEntity.ok(ticketService.updateTicket(id, ticket, authentication));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTicket(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<Void> deleteTicket(@PathVariable Integer id, Authentication authentication) {
         ticketService.deleteTicket(id, authentication);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/status")
     public ResponseEntity<Ticket> updateTicketStatus(
-            @PathVariable Long id,
-            @RequestBody TicketStatusUpdateRequest request) {
-        Ticket updatedTicket = ticketService.updateTicketStatus(id, request);
+            @PathVariable Integer id,
+            @RequestBody TicketStatusUpdateRequest request,
+            Authentication authentication) {
+        Ticket updatedTicket = ticketService.updateTicketStatus(id, request, authentication);
         return ResponseEntity.ok(updatedTicket);
     }
 
     @GetMapping("/{id}/history")
-    public ResponseEntity<List<TicketStatusHistory>> getTicketHistory(@PathVariable Long id) {
+    public ResponseEntity<List<TicketStatusHistory>> getTicketHistory(@PathVariable Integer id) {
         return ResponseEntity.ok(ticketService.getHistoryByTicketId(id));
     }
 

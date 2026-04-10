@@ -7,7 +7,7 @@ public class TicketStatusUpdateRequest {
     private String changeNote;
     private String rejectionReason;
     private String resolutionNotes;
-    private Long changedByUserId;
+    private String changedByUserId;
 
     public TicketStatusUpdateRequest() {
     }
@@ -44,11 +44,11 @@ public class TicketStatusUpdateRequest {
         this.resolutionNotes = resolutionNotes;
     }
 
-    public Long getChangedByUserId() {
+    public String getChangedByUserId() {
         return changedByUserId;
     }
 
-    public void setChangedByUserId(Long changedByUserId) {
+    public void setChangedByUserId(String changedByUserId) {
         this.changedByUserId = changedByUserId;
     }
 }

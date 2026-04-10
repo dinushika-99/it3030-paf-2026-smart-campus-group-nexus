@@ -113,7 +113,7 @@ public class AdminStaffController {
     }
 
     @PatchMapping("/staff/{id}/role")
-    public ResponseEntity<?> updateStaffRole(@PathVariable Long id,
+    public ResponseEntity<?> updateStaffRole(@PathVariable String id,
                                              @RequestBody UpdateRoleRequest request,
                                              Authentication authentication) {
         User requester = getCurrentUser(authentication);
@@ -158,7 +158,7 @@ public class AdminStaffController {
     }
 
     @DeleteMapping("/staff/{id}")
-    public ResponseEntity<?> deleteStaff(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<?> deleteStaff(@PathVariable String id, Authentication authentication) {
         User requester = getCurrentUser(authentication);
         if (requester == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
