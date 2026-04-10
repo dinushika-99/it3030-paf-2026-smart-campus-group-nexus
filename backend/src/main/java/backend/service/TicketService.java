@@ -1,8 +1,12 @@
 package backend.service;
 
 import backend.model.Ticket;
+import backend.model.TicketStatus;
+import backend.model.TicketStatusHistory;
+import backend.model.TicketStatusUpdateRequest;
 import backend.model.User;
 import backend.repository.TicketRepository;
+import backend.repository.TicketStatusHistoryRepository;
 import backend.repository.UserRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +14,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 
@@ -22,10 +27,16 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final UserRepository userRepository;
 
-    public TicketService(TicketRepository ticketRepository, UserRepository userRepository) {
+    public TicketService(
+            TicketRepository ticketRepository,
+            TicketStatusHistoryRepository ticketStatusHistoryRepository,
+            UserRepository userRepository
+    ) {
         this.ticketRepository = ticketRepository;
+        this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
     }
 
@@ -136,4 +147,64 @@ public class TicketService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Logged-in user account not found"));
     }
+
+    public Ticket updateTicketStatus(Long ticketId, TicketStatusUpdateRequest request) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+
+        TicketStatus oldStatus = ticket.getStatus();
+        TicketStatus newStatus = TicketStatus.valueOf(request.getStatus().toUpperCase());
+
+        if (!isValidStatusTransition(oldStatus, newStatus)) {
+            throw new RuntimeException("Invalid status transition from " + oldStatus + " to " + newStatus);
+        }
+
+        ticket.setStatus(newStatus);
+
+        if (newStatus == TicketStatus.REJECTED) {
+            ticket.setRejectionReason(request.getRejectionReason());
+        }
+
+        if (newStatus == TicketStatus.RESOLVED) {
+            ticket.setResolutionNotes(request.getResolutionNotes());
+            ticket.setResolvedAt(LocalDateTime.now());
+        }
+
+        if (newStatus == TicketStatus.CLOSED) {
+            ticket.setClosedAt(LocalDateTime.now());
+        }
+
+        if (newStatus == TicketStatus.IN_PROGRESS && ticket.getAssignedAt() == null) {
+            ticket.setAssignedAt(LocalDateTime.now());
+        }
+
+        Ticket updatedTicket = ticketRepository.save(ticket);
+
+        TicketStatusHistory history = new TicketStatusHistory(
+                updatedTicket,
+                oldStatus.name(),
+                newStatus.name(),
+                request.getChangedByUserId(),
+                request.getChangeNote()
+        );
+
+        ticketStatusHistoryRepository.save(history);
+
+        return updatedTicket;
+    }
+
+    private boolean isValidStatusTransition(TicketStatus oldStatus, TicketStatus newStatus) {
+        return switch (oldStatus) {
+            case OPEN -> newStatus == TicketStatus.IN_PROGRESS || newStatus == TicketStatus.REJECTED;
+            case IN_PROGRESS -> newStatus == TicketStatus.RESOLVED;
+            case RESOLVED -> newStatus == TicketStatus.CLOSED;
+            default -> false;
+        };
+    }
+
+    public List<TicketStatusHistory> getHistoryByTicketId(Long ticketId) {
+        return ticketStatusHistoryRepository.findByTicketTicketIdOrderByChangedAtAsc(ticketId);
+    }
+
+
 }
