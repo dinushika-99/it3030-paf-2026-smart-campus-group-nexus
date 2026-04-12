@@ -1,17 +1,18 @@
-package backend.controller;
+package backend.Ticketing.controller;
 
-import backend.model.Ticket;
-import backend.model.TicketStatusHistory;
-import backend.model.TicketStatusUpdateRequest;
-import backend.service.TicketService;
+import backend.Ticketing.dto.AssignTechnicianRequest;
+import backend.Ticketing.model.Ticket;
+import backend.Ticketing.model.TicketAssignment;
+import backend.Ticketing.model.TicketStatusHistory;
+import backend.Ticketing.model.TicketStatusUpdateRequest;
+import backend.Ticketing.services.TicketService;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import backend.dto.AssignTechnicianRequest;
-import backend.model.TicketAssignment;
 
 @RestController
 @RequestMapping("/api/tickets")

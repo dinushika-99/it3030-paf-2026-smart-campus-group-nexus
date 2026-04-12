@@ -1,4 +1,4 @@
-package backend.model;
+package backend.Ticketing.model;
 
 public enum TicketPriority {
     LOW,

@@ -1,4 +1,4 @@
-package backend.dto;
+package backend.Ticketing.dto;
 
 public class AssignTechnicianRequest {
 

@@ -1,7 +1,8 @@
-package backend.repository;
+package backend.Ticketing.repository;
 
-import backend.model.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import backend.Ticketing.model.Ticket;
 
 import java.util.List;
 
