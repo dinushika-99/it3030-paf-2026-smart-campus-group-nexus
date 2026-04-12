@@ -3,6 +3,8 @@ package backend.modulea.service;
 import backend.modulea.model.ResourceCategory;
 import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
+import backend.repository.UserRepository;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,7 @@ import static org.springframework.http.HttpStatus.*;
 public class ResourceService {
 
     private final ResourceRepository resourceRepository;
+    private final UserRepository userRepository;
 
     // 🔹 Static Mapping: Category → Allowed Types (enforces business rule)
     private static final Map<ResourceCategory, Set<String>> ALLOWED_TYPES = Map.of(
@@ -34,12 +37,17 @@ public class ResourceService {
     );
 
     // 🔹 Constructor Injection (matches TicketService style)
-    public ResourceService(ResourceRepository resourceRepository) {
+    public ResourceService(ResourceRepository resourceRepository, UserRepository userRepository) {
         this.resourceRepository = resourceRepository;
+        this.userRepository = userRepository;
     }
 
     // 🔹 CREATE Resource
     public ResourceResponseDTO createResource(ResourceRequestDTO dto, Authentication authentication) {
+
+        if (!isAdmin(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can create resources");
+        }
 
         Resource resource = ResourceMapper.toEntity(dto);
 
@@ -105,6 +113,11 @@ public class ResourceService {
             ResourceRequestDTO dto,
             Authentication authentication
     ) {
+
+        if (!isAdmin(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can update resources");
+        }
+
         Resource existing = resourceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Resource not found with id: " + id));
@@ -126,10 +139,9 @@ public class ResourceService {
         Resource existing = resourceRepository.findById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Resource not found with id: " + id));
 
-        // Optional: Add admin-only check here if needed
-        // if (!isAdmin(authentication)) {
-        //     throw new ResponseStatusException(FORBIDDEN, "Only admins can delete resources");
-        // }
+        if (!isAdmin(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can delete resources");
+        }
 
         resourceRepository.delete(existing);
     }
@@ -222,6 +234,29 @@ public class ResourceService {
             }
         }
     }
+
+    private boolean isAdmin(Authentication authentication) {
+    if (authentication == null || !authentication.isAuthenticated()) {
+        return false;
+    }
+
+    Object principal = authentication.getPrincipal();
+    String email = null;
+
+    if (principal instanceof org.springframework.security.oauth2.core.user.OAuth2User oauth2User) {
+        email = oauth2User.getAttribute("email");
+    } else if (principal instanceof org.springframework.security.core.userdetails.UserDetails userDetails) {
+        email = userDetails.getUsername();
+    } else if (principal instanceof String str && !"anonymousUser".equals(str)) {
+        email = str;
+    }
+
+    if (email == null) return false;
+
+    return userRepository.findByEmail(email)
+            .map(user -> user.getRole().name().equals("ADMIN"))
+            .orElse(false);
+}
 
     
 }
