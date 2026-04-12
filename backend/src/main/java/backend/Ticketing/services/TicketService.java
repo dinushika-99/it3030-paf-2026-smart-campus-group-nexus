@@ -1,28 +1,42 @@
 package backend.Ticketing.services;
 
 import backend.Ticketing.dto.AssignTechnicianRequest;
+import backend.Ticketing.dto.TicketAttachmentResponse;
 import backend.Ticketing.model.Ticket;
 import backend.Ticketing.model.TicketAssignment;
+import backend.Ticketing.model.TicketAttachment;
 import backend.Ticketing.model.TicketStatus;
 import backend.Ticketing.model.TicketStatusHistory;
 import backend.Ticketing.model.TicketStatusUpdateRequest;
 import backend.Ticketing.repository.TicketAssignmentRepository;
+import backend.Ticketing.repository.TicketAttachmentRepository;
 import backend.Ticketing.repository.TicketRepository;
 import backend.Ticketing.repository.TicketStatusHistoryRepository;
 import backend.model.Role;
 import backend.model.User;
 import backend.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
@@ -36,25 +50,38 @@ public class TicketService {
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final UserRepository userRepository;
     private final TicketAssignmentRepository ticketAssignmentRepository;
+    private final TicketAttachmentRepository ticketAttachmentRepository;
+
+    @Value("${app.upload.dir:uploads/tickets}")
+    private String uploadDir;
+
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    private static final int MAX_ATTACHMENTS_PER_TICKET = 3;
+    private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "image/jpg",
+            "image/webp"
+    );
 
     public TicketService(
             TicketRepository ticketRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             UserRepository userRepository,
-            TicketAssignmentRepository ticketAssignmentRepository
+            TicketAssignmentRepository ticketAssignmentRepository,
+            TicketAttachmentRepository ticketAttachmentRepository
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
         this.ticketAssignmentRepository = ticketAssignmentRepository;
+        this.ticketAttachmentRepository = ticketAttachmentRepository;
     }
 
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
         ticket.setCreatedByUserId(currentUser.getId());
 
-        // Until resources table flow is finalized, do not persist resources FK values.
-        // This prevents FK violations when users type free-text resource info.
         ticket.setResourceId(null);
 
         if (ticket.getPreferredContactName() == null || ticket.getPreferredContactName().isBlank()) {
@@ -101,7 +128,6 @@ public class TicketService {
         existingTicket.setPreferredContactEmail(updatedTicket.getPreferredContactEmail());
         existingTicket.setPreferredContactPhone(updatedTicket.getPreferredContactPhone());
         existingTicket.setLocationId(updatedTicket.getLocationId());
-        // Keep detached from resources table until resource management is in place.
         existingTicket.setResourceId(null);
 
         if (!Objects.equals(existingTicket.getAssignedTechnicianId(), updatedTicket.getAssignedTechnicianId())) {
@@ -198,13 +224,11 @@ public class TicketService {
         Ticket updatedTicket = ticketRepository.save(ticket);
 
         User currentUser = resolveCurrentUser(authentication);
-        String changedByUserId = currentUser.getId();
-
         TicketStatusHistory history = new TicketStatusHistory(
                 updatedTicket,
                 oldStatus.name(),
                 newStatus.name(),
-            changedByUserId,
+                currentUser.getId(),
                 request.getChangeNote()
         );
 
@@ -292,13 +316,121 @@ public class TicketService {
         return updatedTicket;
     }
 
-public List<Ticket> getTicketsByTechnician(String technicianId) {
-    return ticketRepository.findByAssignedTechnicianId(technicianId);
-}
+    public List<Ticket> getTicketsByTechnician(String technicianId) {
+        return ticketRepository.findByAssignedTechnicianId(technicianId);
+    }
 
-public List<TicketAssignment> getAssignmentHistory(Integer ticketId) {
-    return ticketAssignmentRepository.findByTicketTicketIdOrderByAssignedAtDesc(ticketId);
-}
+    public List<TicketAssignment> getAssignmentHistory(Integer ticketId) {
+        return ticketAssignmentRepository.findByTicketTicketIdOrderByAssignedAtDesc(ticketId);
+    }
 
+    @Transactional
+    public TicketAttachmentResponse uploadAttachment(Integer ticketId,
+                                                     MultipartFile file,
+                                                     String caption,
+                                                     String uploadedByUserId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
 
+        if (uploadedByUserId == null || uploadedByUserId.trim().isEmpty()) {
+            throw new RuntimeException("Uploaded by user ID is required");
+        }
+
+        if (!userRepository.existsById(uploadedByUserId)) {
+            throw new RuntimeException("User not found with user_id: " + uploadedByUserId);
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new RuntimeException("Attachment file is required");
+        }
+
+        long currentCount = ticketAttachmentRepository.countByTicketTicketId(ticketId);
+        if (currentCount >= MAX_ATTACHMENTS_PER_TICKET) {
+            throw new RuntimeException("Maximum 3 attachments allowed per ticket");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
+            throw new RuntimeException("Only image files (JPG, JPEG, PNG, WEBP) are allowed");
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new RuntimeException("File size exceeds 5MB limit");
+        }
+
+        String originalFileName = file.getOriginalFilename();
+        String safeOriginalName = originalFileName == null ? "image" : Paths.get(originalFileName).getFileName().toString();
+
+        String extension = "";
+        int dotIndex = safeOriginalName.lastIndexOf('.');
+        if (dotIndex >= 0) {
+            extension = safeOriginalName.substring(dotIndex);
+        }
+
+        String newFileName = UUID.randomUUID() + extension;
+        Path ticketFolderPath = Paths.get(uploadDir, String.valueOf(ticketId)).toAbsolutePath().normalize();
+
+        try {
+            Files.createDirectories(ticketFolderPath);
+
+            Path targetPath = ticketFolderPath.resolve(newFileName);
+            try (InputStream inputStream = file.getInputStream()) {
+                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+
+            TicketAttachment attachment = new TicketAttachment();
+            attachment.setTicket(ticket);
+            attachment.setFileName(safeOriginalName);
+            attachment.setFileUrl("uploads/tickets/" + ticketId + "/" + newFileName);
+            attachment.setFileType(contentType);
+            attachment.setFileSize(Math.toIntExact(file.getSize()));
+            attachment.setCaption(caption);
+            attachment.setUploadedByUserId(uploadedByUserId);
+            attachment.setUploadedAt(LocalDateTime.now());
+
+            TicketAttachment savedAttachment = ticketAttachmentRepository.save(attachment);
+            return mapToAttachmentResponse(savedAttachment);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to store attachment file", e);
+        }
+    }
+
+    public List<TicketAttachmentResponse> getAttachmentsByTicketId(Integer ticketId) {
+        ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+
+        return ticketAttachmentRepository.findByTicketTicketIdOrderByUploadedAtDesc(ticketId)
+                .stream()
+                .map(this::mapToAttachmentResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteAttachment(Integer attachmentId) {
+        TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
+                .orElseThrow(() -> new RuntimeException("Attachment not found with id: " + attachmentId));
+
+        try {
+            Path filePath = Paths.get(attachment.getFileUrl()).toAbsolutePath().normalize();
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to delete attachment file", e);
+        }
+
+        ticketAttachmentRepository.deleteById(attachmentId);
+    }
+
+    private TicketAttachmentResponse mapToAttachmentResponse(TicketAttachment attachment) {
+        TicketAttachmentResponse response = new TicketAttachmentResponse();
+        response.setAttachmentId(attachment.getAttachmentId());
+        response.setTicketId(attachment.getTicket().getTicketId());
+        response.setFileName(attachment.getFileName());
+        response.setFileUrl(attachment.getFileUrl());
+        response.setFileType(attachment.getFileType());
+        response.setFileSize(attachment.getFileSize());
+        response.setCaption(attachment.getCaption());
+        response.setUploadedByUserId(attachment.getUploadedByUserId());
+        response.setUploadedAt(attachment.getUploadedAt());
+        return response;
+    }
 }

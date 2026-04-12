@@ -12,7 +12,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import backend.Ticketing.dto.TicketAttachmentResponse;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/tickets")
@@ -84,5 +89,28 @@ public class TicketController {
     public ResponseEntity<List<TicketAssignment>> getAssignmentHistory(@PathVariable Integer id) {
         return ResponseEntity.ok(ticketService.getAssignmentHistory(id));
     }
+
+
+    @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+public ResponseEntity<TicketAttachmentResponse> uploadAttachment(
+        @PathVariable Integer id,
+        @RequestParam("file") MultipartFile file,
+        @RequestParam(value = "caption", required = false) String caption,
+        @RequestParam("uploadedByUserId") String uploadedByUserId) {
+
+    TicketAttachmentResponse response = ticketService.uploadAttachment(id, file, caption, uploadedByUserId);
+    return ResponseEntity.ok(response);
+}
+
+@GetMapping("/{id}/attachments")
+public ResponseEntity<List<TicketAttachmentResponse>> getAttachmentsByTicketId(@PathVariable Integer id) {
+    return ResponseEntity.ok(ticketService.getAttachmentsByTicketId(id));
+}
+
+@DeleteMapping("/attachments/{attachmentId}")
+public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId) {
+    ticketService.deleteAttachment(attachmentId);
+    return ResponseEntity.ok("Attachment deleted successfully");
+}
 
 }

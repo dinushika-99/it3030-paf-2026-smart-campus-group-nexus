@@ -220,6 +220,13 @@ function normalizeError(error, fallback) {
   return error.message || fallback;
 }
 
+function attachmentUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalized = String(path).replace(/^\/+/, '');
+  return `${API_BASE}/${normalized}`;
+}
+
 function canReject(ticket) {
   return ticket?.status === 'OPEN';
 }
@@ -238,6 +245,8 @@ export default function AdminTicketManagementPage() {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [history, setHistory] = useState([]);
   const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -276,13 +285,17 @@ export default function AdminTicketManagementPage() {
     ? 'Ticket Management'
     : ticketView === 'status'
       ? 'Status History'
-      : 'Assignment History';
+      : ticketView === 'assignment'
+        ? 'Assignment History'
+        : 'Ticket Attachments';
 
   const viewSubtitle = ticketView === 'manager'
     ? 'Review ticket details, assign technicians, and reject requests.'
     : ticketView === 'status'
       ? 'View status transitions for the selected ticket.'
-      : 'View technician assignment timeline for the selected ticket.';
+      : ticketView === 'assignment'
+        ? 'View technician assignment timeline for the selected ticket.'
+        : 'View, preview, and manage ticket evidence files.';
 
   const fetchTickets = useCallback(async () => {
     const response = await fetch(`${API_BASE}/api/tickets`, {
@@ -347,6 +360,30 @@ export default function AdminTicketManagementPage() {
 
     const data = await response.json();
     setAssignmentHistory(Array.isArray(data) ? data : []);
+  };
+
+  const fetchAttachments = async (ticketId) => {
+    if (!ticketId) {
+      setAttachments([]);
+      return;
+    }
+
+    setAttachmentsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/${ticketId}/attachments`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        setAttachments([]);
+        return;
+      }
+
+      const data = await response.json();
+      setAttachments(Array.isArray(data) ? data : []);
+    } finally {
+      setAttachmentsLoading(false);
+    }
   };
 
   const refreshData = useCallback(async () => {
@@ -423,6 +460,7 @@ export default function AdminTicketManagementPage() {
       setAssignTechnicianId('');
       setHistory([]);
       setAssignmentHistory([]);
+      setAttachments([]);
       return;
     }
 
@@ -430,6 +468,7 @@ export default function AdminTicketManagementPage() {
     setAssignTechnicianId(selected?.assignedTechnicianId || '');
     fetchHistory(selectedTicketId);
     fetchAssignmentHistory(selectedTicketId);
+    fetchAttachments(selectedTicketId);
   }, [selectedTicketId, tickets]);
 
   const handleAssignTechnician = async () => {
@@ -528,6 +567,41 @@ export default function AdminTicketManagementPage() {
       await fetchAssignmentHistory(selectedTicket.ticketId);
     } catch (rejectError) {
       setError(normalizeError(rejectError, 'Failed to reject ticket.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const canDeleteAttachment = (attachment) => {
+    if (!user || !attachment) return false;
+    const role = String(user.role || '').toLowerCase();
+    if (role === 'admin' || role === 'manager') return true;
+    return String(attachment.uploadedByUserId || '') === String(user.id || user.userId || '');
+  };
+
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (!selectedTicketId || !attachmentId) return;
+
+    const confirmed = window.confirm('Delete this attachment?');
+    if (!confirmed) return;
+
+    setIsSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/attachments/${attachmentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete attachment.');
+      }
+
+      setMessage('Attachment deleted successfully.');
+      await fetchAttachments(selectedTicketId);
+    } catch (deleteError) {
+      setError(normalizeError(deleteError, 'Failed to delete attachment.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -673,6 +747,22 @@ export default function AdminTicketManagementPage() {
           }}
         >
           Assignment History
+        </button>
+        <button
+          type="button"
+          onClick={() => setTicketView('attachments')}
+          style={{
+            border: ticketView === 'attachments' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'attachments' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'attachments' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Attachments
         </button>
       </div>
 
@@ -849,6 +939,7 @@ export default function AdminTicketManagementPage() {
                     <p style={{ ...valueStyle, color: '#fecaca', marginTop: '6px' }}>{selectedTicket.rejectionReason}</p>
                   </div>
                 )}
+
               </>
             )}
           </div>
@@ -945,6 +1036,74 @@ export default function AdminTicketManagementPage() {
                 {isSubmitting ? 'Working...' : 'Reject Ticket'}
               </button>
             </div>
+          </div>
+          )}
+
+          {ticketView === 'attachments' && (
+          <div style={cardStyle}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Ticket Attachments</h3>
+            {!selectedTicket ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Select a ticket to view attachments.</p>
+            ) : attachmentsLoading ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Loading attachments...</p>
+            ) : attachments.length === 0 ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>No attachments uploaded for this ticket.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.attachmentId || `${attachment.fileUrl}-${attachment.uploadedAt}`}
+                    style={{ border: '1px solid #1f2937', borderRadius: '10px', background: '#0f172a', overflow: 'hidden' }}
+                  >
+                    <a href={attachmentUrl(attachment.fileUrl)} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                      <img
+                        src={attachmentUrl(attachment.fileUrl)}
+                        alt={attachment.fileName || 'Ticket attachment'}
+                        style={{ width: '100%', height: '132px', objectFit: 'cover', display: 'block' }}
+                      />
+                    </a>
+
+                    <div style={{ padding: '10px' }}>
+                      <p style={{ margin: 0, color: '#f8fafc', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {attachment.fileName || 'Attachment'}
+                      </p>
+
+                      <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '12px' }}>
+                        Caption: {attachment.caption || '-'}
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+                        Uploaded by: {formatUserWithId(attachment.uploadedByUserId)}
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+                        Uploaded at: {formatDate(attachment.uploadedAt)}
+                      </p>
+
+                      {canDeleteAttachment(attachment) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAttachment(attachment.attachmentId)}
+                          disabled={isSubmitting}
+                          style={{
+                            marginTop: '8px',
+                            width: '100%',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '7px 10px',
+                            background: '#dc2626',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          Delete Attachment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           )}
 
