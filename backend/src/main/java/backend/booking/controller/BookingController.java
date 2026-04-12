@@ -1,5 +1,94 @@
 package backend.booking.controller;
 
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import backend.booking.dto.BookingRequestDTO;
+import backend.booking.dto.BookingResponseDTO;
+import backend.booking.services.BookingServices;
+import jakarta.validation.Valid;
+
+import java.security.Principal;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/bookings")
+@CrossOrigin(origins = "*") 
 public class BookingController {
-    
+
+    private final BookingServices bookingService;
+
+    public BookingController(BookingServices bookingService) {
+        this.bookingService = bookingService;
+    }
+
+    //Create a new booking request
+    @PostMapping
+    public ResponseEntity<?> createBooking(
+            @Valid @RequestBody BookingRequestDTO requestDTO,
+            Principal principal) {
+        
+        try {
+            String userId = getCurrentUserId(principal);
+            BookingResponseDTO response = bookingService.createBooking(requestDTO, userId);
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                createSuccessResponse("Booking request created successfully", response)
+            );
+        } catch (BookingService.BookingConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    private String getCurrentUserId(Principal principal) {
+        if (principal == null) {
+            throw new RuntimeException("User not authenticated");
+        }
+        
+        if (principal instanceof OAuth2User) {
+            OAuth2User oAuth2User = (OAuth2User) principal;
+            return oAuth2User.getAttribute("sub"); // Google OAuth2 user ID
+        }
+        
+        return principal.getName();
+    }
+
+    private boolean checkIfAdmin(Principal principal) {
+        // TODO: Implement role checking from database or OAuth2 attributes
+        // For now, return false - implement based on your security configuration
+        return false;
+    }
+
+    private Map<String, Object> createSuccessResponse(String message, Object data) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", message);
+        response.put("data", data);
+        return response;
+    }
+
+    private Map<String, Object> createErrorResponse(String message) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", message);
+        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        return response;
+    }
 }
