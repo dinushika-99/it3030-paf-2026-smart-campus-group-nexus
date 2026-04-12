@@ -5,8 +5,6 @@ import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -70,27 +68,26 @@ public class ResourceService {
     }
 
     // 🔹 READ: Get all resources (with optional filters)
-    public List<Resource> getAllResources(String type, String category, String location, Integer minCapacity, String status) {
+    public List<Resource> getAllResources(String type, String category, Integer minCapacity, String status) {
         // Simple in-memory filtering (replace with JPA Specifications for production)
         List<Resource> resources = resourceRepository.findAll();
         
         return resources.stream()
             .filter(r -> type == null || r.getType().equalsIgnoreCase(type))
             .filter(r -> category == null || r.getCategory().name().equalsIgnoreCase(category))
-            .filter(r -> location == null || r.getLocation().toLowerCase().contains(location.toLowerCase()))
             .filter(r -> minCapacity == null || r.getCapacity() >= minCapacity)
             .filter(r -> status == null || r.getStatus().equalsIgnoreCase(status))
             .toList();
     }
 
     // 🔹 READ: Get resource by ID
-    public Resource getResourceById(Integer id) {
+    public Resource getResourceById(Long id) {
         return resourceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Resource not found with id: " + id));
     }
 
     // 🔹 UPDATE Resource
-    public Resource updateResource(Integer id, Resource updatedResource, Authentication authentication) {
+    public Resource updateResource(Long id, Resource updatedResource, Authentication authentication) {
         Resource existingResource = resourceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Resource not found with id: " + id));
 
@@ -114,9 +111,6 @@ public class ResourceService {
 
         if (updatedResource.getCapacity() != null) 
             existingResource.setCapacity(updatedResource.getCapacity());
-
-        if (updatedResource.getLocation() != null) 
-            existingResource.setLocation(updatedResource.getLocation());
 
         if (updatedResource.getStatus() != null) 
             existingResource.setStatus(updatedResource.getStatus().toUpperCase());
@@ -156,7 +150,7 @@ public class ResourceService {
     }
 
     // 🔹 DELETE Resource
-    public void deleteResource(Integer id, Authentication authentication) {
+    public void deleteResource(Long id, Authentication authentication) {
         Resource existingResource = resourceRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Resource not found with id: " + id));
 
@@ -219,6 +213,14 @@ public class ResourceService {
             throw new ResponseStatusException(BAD_REQUEST, "Capacity must be greater than 0");
         }
 
+        if (resource.getMaxBookingDurationHours() != null && resource.getMaxBookingDurationHours() <= 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "Max booking duration must be > 0");
+        }
+
+        if (resource.getMaxQuantity() != null && resource.getMaxQuantity() < 1) {
+            throw new ResponseStatusException(BAD_REQUEST, "Max quantity must be >= 1");
+        }
+
         // Validate indoor/outdoor location rules
         if (resource.getBuilding() != null && !resource.getBuilding().isBlank()) {
             // Indoor resource: must have floor and room number
@@ -230,9 +232,9 @@ public class ResourceService {
             }
         } else {
             // Outdoor resource: must have area name or location
-            if ((resource.getAreaName() == null || resource.getAreaName().isBlank()) &&
-                (resource.getLocation() == null || resource.getLocation().isBlank())) {
-                throw new ResponseStatusException(BAD_REQUEST, "Outdoor resources must have area name or location");
+            if (resource.getAreaName() == null || resource.getAreaName().isBlank()) {
+                throw new ResponseStatusException(BAD_REQUEST,
+                        "Outdoor resource needs area name");
             }
         }
     }

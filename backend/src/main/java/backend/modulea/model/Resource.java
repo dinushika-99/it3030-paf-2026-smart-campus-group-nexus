@@ -36,10 +36,6 @@ public class Resource {
     @Column(name = "capacity", nullable = false)
     private Integer capacity;
 
-    @NotBlank(message = "Location is required")
-    @Size(max = 255, message = "Location cannot exceed 255 characters")
-    @Column(name = "location", nullable = false, length = 255)
-    private String location;
 
     // ==================== AVAILABILITY & STATUS ====================
     @Column(name = "status", nullable = false, length = 30)
@@ -82,13 +78,17 @@ public class Resource {
     @Column(name = "area_name", length = 150)
     private String areaName;
 
+    @Column(name = "max_booking_duration_hours")
+    private Integer maxBookingDurationHours;
+
+    @Column(name = "max_quantity")
+    private Integer maxQuantity;
+
     // ==================== CONSTRUCTORS ====================
-    public Resource() {
-        // Required by JPA for proxy instantiation
-    }
+    public Resource() {}
 
     public Resource(Long resourcesId, String name, String type, ResourceCategory category, Integer capacity,
-                    String location, String status, LocalTime dailyOpenTime, LocalTime dailyCloseTime,
+                    String status, LocalTime dailyOpenTime, LocalTime dailyCloseTime,
                     String description, String imageUrl, Boolean isBookable, LocalDateTime createdAt,
                     LocalDateTime updatedAt, String building, Integer floor, String roomNumber, String areaName) {
         this.resourcesId = resourcesId;
@@ -96,7 +96,6 @@ public class Resource {
         this.type = type;
         this.category = category;
         this.capacity = capacity;
-        this.location = location;
         this.status = status;
         this.dailyOpenTime = dailyOpenTime;
         this.dailyCloseTime = dailyCloseTime;
@@ -130,10 +129,6 @@ public class Resource {
 
     public Integer getCapacity() { 
         return capacity; 
-    }
-
-    public String getLocation() { 
-        return location; 
     }
 
     public String getStatus() { 
@@ -184,6 +179,14 @@ public class Resource {
         return areaName; 
     }
 
+    public Integer getMaxBookingDurationHours() { 
+        return maxBookingDurationHours; 
+    }
+
+    public Integer getMaxQuantity() { 
+        return maxQuantity; 
+    }
+
     // ==================== SETTERS ====================
     public void setResourcesId(Long resourcesId) { 
         this.resourcesId = resourcesId; 
@@ -203,10 +206,6 @@ public class Resource {
 
     public void setCapacity(Integer capacity) { 
         this.capacity = capacity; 
-    }
-
-    public void setLocation(String location) { 
-        this.location = location; 
     }
 
     public void setStatus(String status) { 
@@ -257,6 +256,14 @@ public class Resource {
         this.areaName = areaName; 
     }
 
+    public void setMaxBookingDurationHours(Integer maxBookingDurationHours) {
+        this.maxBookingDurationHours = maxBookingDurationHours;
+    }
+
+    public void setMaxQuantity(Integer maxQuantity) {
+        this.maxQuantity = maxQuantity;
+    }   
+
     @PrePersist
     @PreUpdate
     private void normalizeAndValidate() {
@@ -284,8 +291,8 @@ public class Resource {
                 ", type='" + type + '\'' +
                 ", category=" + category +
                 ", capacity=" + capacity +
-                ", location='" + location + '\'' +
                 ", status='" + status + '\'' +
                 '}';
     }
 }
+

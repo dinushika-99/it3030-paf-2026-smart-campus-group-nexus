@@ -8,10 +8,10 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ResourceRepository extends JpaRepository<Resource, Integer> {
+public interface ResourceRepository extends JpaRepository<Resource, Long> {
     
-    // ✅ Check if a resource name exists (excluding the current resource)
-    boolean existsByNameAndResourcesIdNot(String name, Integer excludeId);
+    // Check if a resource name exists (excluding the current resource)
+    boolean existsByNameAndResourcesIdNot(String name, Long resourcesId);
     
     // Optional: Other useful query methods
     Optional<Resource> findByName(String name);

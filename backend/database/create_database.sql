@@ -1,10 +1,15 @@
+use smart_campus_db;
 
+DROP TABLE IF EXISTS ticket_assignments;
+DROP TABLE IF EXISTS ticket_status_history;
+DROP TABLE IF EXISTS ticket_comments;
+DROP TABLE IF EXISTS ticket_attachments;
 DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS tickets;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS resources;
 DROP TABLE IF EXISTS users;
-DROP DATABASE smartcampus;
 
-CREATE DATABASE IF NOT EXISTS smart_campus_db;
-USE smart_campus_db;
 
 -- ==========================================
 -- 1. USERS (Roles merged into single table)
@@ -28,39 +33,50 @@ CREATE TABLE users (
 -- 2. RESOURCES (id changed to VARCHAR)
 -- ==========================================
 CREATE TABLE resources (
-    resources_id VARCHAR(255) PRIMARY KEY,
+    resources_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     type VARCHAR(50) NOT NULL,
     category VARCHAR(100),
-    capacity INT,
-    location VARCHAR(255) NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    capacity INT NOT NULL,
+    location VARCHAR(255) ,
+    status ENUM('ACTIVE','OUT_OF_SERVICE') NOT NULL DEFAULT 'ACTIVE',
     daily_open_time TIME NOT NULL DEFAULT '08:00:00',
     daily_close_time TIME NOT NULL DEFAULT '18:00:00',
     description TEXT,
     image_url VARCHAR(500),
     is_bookable BOOLEAN DEFAULT TRUE,
+    building VARCHAR(100),
+    floor INT,
+    room_number VARCHAR(50),
+    area_name VARCHAR(150),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_resource_type_status (type, status),
     INDEX idx_resource_location (location)
 );
 
-ALTER TABLE resources 
-ADD COLUMN building VARCHAR(100),
-ADD COLUMN floor INT,
-ADD COLUMN room_number VARCHAR(50),
-ADD COLUMN area_name VARCHAR(150);
+
+
+ALTER TABLE resources
+ADD COLUMN max_booking_duration_hours INT NOT NULL DEFAULT 4,
+ADD CONSTRAINT chk_max_duration CHECK (max_booking_duration_hours > 0);
+
+ALTER TABLE resources
+ADD max_quantity INT NOT NULL DEFAULT 1,
+ADD CONSTRAINT chk_max_quantity CHECK (max_quantity >= 1);
+
+ALTER TABLE resources
+DROP COLUMN location;
 
 
 
--- ==========================================
--- 3. BOOKINGS (Added for ER completeness)
--- ==========================================
+
+
+
 CREATE TABLE bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
-    resources_id VARCHAR(255) NOT NULL,
+    resources_id BIGINT NOT NULL,
     start_time DATETIME(6) NOT NULL,
     end_time DATETIME(6) NOT NULL,
     status VARCHAR(30) DEFAULT 'PENDING',
@@ -70,6 +86,7 @@ CREATE TABLE bookings (
     FOREIGN KEY (resources_id) REFERENCES resources(resources_id) ON DELETE CASCADE,
     INDEX idx_booking_resource_time (resources_id, start_time, end_time)
 );
+
 
 -- ==========================================
 -- 4. TICKETS CORE
@@ -85,7 +102,7 @@ CREATE TABLE tickets (
     preferred_contact_name VARCHAR(255),
     preferred_contact_email VARCHAR(255),
     preferred_contact_phone VARCHAR(50),
-    resources_id VARCHAR(255),
+    resources_id BIGINT,
     location_id VARCHAR(255),
     created_by_user_id VARCHAR(255) NOT NULL,
     assigned_technician_id VARCHAR(255),
@@ -190,6 +207,19 @@ CREATE TABLE notifications (
     INDEX idx_notification_user_read (user_id, read_flag),
     INDEX idx_notification_created (created_at)
 );
+
+
+select * from resources;
+
+DESCRIBE tickets;
+DESCRIBE resources;
+
+ALTER TABLE tickets DROP FOREIGN KEY tickets_ibfk_3;
+ALTER TABLE tickets MODIFY resources_id BIGINT;
+
+SHOW CREATE TABLE resources;
+SHOW CREATE TABLE tickets;
+
 
 
 
