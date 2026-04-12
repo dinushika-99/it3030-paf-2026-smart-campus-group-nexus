@@ -37,5 +37,63 @@ public class BookingStatusHistory {
     @Column(name = "changed_at", nullable = false, updatable = false)
     private LocalDateTime changedAt;
 
+    //GETTERS AND SETTERS
+    public Integer getHistoryId() {
+        return historyId;
+    }
+
+    public void setHistoryId(Integer historyId) {
+        this.historyId = historyId;
+    }
+
+     public String getBookingId() {
+        return bookingId;
+    }
+
+    public void setBookingId(String bookingId) {
+        this.bookingId = bookingId;
+    }
+
+    public String getOldStatus() {
+        return oldStatus;
+    }
+
+    public void setOldStatus(String oldStatus) {
+        this.oldStatus = oldStatus;
+    }
+
+    public String getNewStatus() {
+        return newStatus;
+    }
+
+    public void setNewStatus(String newStatus) {
+        this.newStatus = newStatus;
+    }
+
+    public String getChangedByUserId() {
+        return changedByUserId;
+    }
+
+    public void setChangedByUserId(String changedByUserId) {
+        this.changedByUserId = changedByUserId;
+    }
+
+    public String getChangeNote() {
+        return changeNote;
+    }
+
+    public void setChangeNote(String changeNote) {
+        this.changeNote = changeNote;
+    }
+
+    public LocalDateTime getChangedAt() {
+        return changedAt;
+    }
+
+    public void setChangedAt(LocalDateTime changedAt) {
+        this.changedAt = changedAt;
+    }
+    
+
     
 }
