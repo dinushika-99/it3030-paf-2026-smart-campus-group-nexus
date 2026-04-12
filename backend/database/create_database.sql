@@ -1,10 +1,18 @@
 
-DROP TABLE IF EXISTS notifications;
-DROP TABLE IF EXISTS users;
-DROP DATABASE smartcampus;
 
 CREATE DATABASE IF NOT EXISTS smart_campus_db;
 USE smart_campus_db;
+
+DROP TABLE IF EXISTS ticket_assignments;
+DROP TABLE IF EXISTS ticket_status_history;
+DROP TABLE IF EXISTS ticket_comments;
+DROP TABLE IF EXISTS ticket_attachments;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS tickets;
+DROP TABLE IF EXISTS bookings;
+DROP TABLE IF EXISTS resources;
+DROP TABLE IF EXISTS users;
+
 
 -- ==========================================
 -- 1. USERS (Roles merged into single table)
@@ -28,13 +36,12 @@ CREATE TABLE users (
 -- 2. RESOURCES (id changed to VARCHAR)
 -- ==========================================
 CREATE TABLE resources (
-    resources_id VARCHAR(255) PRIMARY KEY,
+    resources_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     type VARCHAR(50) NOT NULL,
     category VARCHAR(100),
-    capacity INT,
-    location VARCHAR(255) NOT NULL,
-    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    capacity INT NOT NULL,
+    status ENUM('ACTIVE','OUT_OF_SERVICE') NOT NULL DEFAULT 'ACTIVE',
     daily_open_time TIME NOT NULL DEFAULT '08:00:00',
     daily_close_time TIME NOT NULL DEFAULT '18:00:00',
     description TEXT,
@@ -42,34 +49,94 @@ CREATE TABLE resources (
     is_bookable BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_resource_type_status (type, status),
-    INDEX idx_resource_location (location)
+    building VARCHAR(100),
+    floor INT,
+    room_number VARCHAR(50),
+    area_name VARCHAR(150),
+    max_booking_duration_hours INT NOT NULL DEFAULT 4,
+    max_quantity INT NOT NULL DEFAULT 1,
+    
+    
+    CONSTRAINT chk_max_duration CHECK (max_booking_duration_hours > 0),
+    
+     INDEX idx_resource_building (building), 
+    INDEX idx_resource_type_status (type, status)
+
+    
 );
-
-ALTER TABLE resources 
-ADD COLUMN building VARCHAR(100),
-ADD COLUMN floor INT,
-ADD COLUMN room_number VARCHAR(50),
-ADD COLUMN area_name VARCHAR(150);
-
 
 
 -- ==========================================
--- 3. BOOKINGS (Added for ER completeness)
+-- 3. BOOKINGS CORE (Module B)
 -- ==========================================
 CREATE TABLE bookings (
-    booking_id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    resources_id VARCHAR(255) NOT NULL,
+    booking_id VARCHAR(255) PRIMARY KEY,
+    booking_code VARCHAR(50) UNIQUE NOT NULL,       -- ✅ Added (Human readable reference)
+    
+    -- Foreign Keys (✅ FIXED: Types match parent tables)
+    user_id VARCHAR(255) NOT NULL,                  -- Matches users.user_id (VARCHAR)
+    resources_id BIGINT NOT NULL,                   -- ✅ FIXED: Matches resources.resources_id (BIGINT)
+    
+    -- Time Management
     start_time DATETIME(6) NOT NULL,
     end_time DATETIME(6) NOT NULL,
-    status VARCHAR(30) DEFAULT 'PENDING',
-    purpose VARCHAR(500),
+    
+    -- Booking Details
+    purpose VARCHAR(255) NOT NULL,
+    expected_attendees INT DEFAULT 1,
+    quantity_requested INT NOT NULL DEFAULT 1,      -- For equipment multiple units
+    
+    -- Workflow Status (Assignment Requirement)
+    status ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
+    rejection_reason TEXT,
+    
+    -- Audit & Ownership
+    created_by_user_id VARCHAR(255) NOT NULL,
+    approved_by_user_id VARCHAR(255),
+    cancelled_by_user_id VARCHAR(255),
+    
+    -- Timestamps
     created_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    updated_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+    approved_at DATETIME(6),
+    cancelled_at DATETIME(6),
+    
+    -- Constraints
+    CONSTRAINT chk_booking_time CHECK (end_time > start_time),
+    CONSTRAINT chk_quantity CHECK (quantity_requested >= 1),
+    CONSTRAINT chk_attendees CHECK (expected_attendees >= 1),
+    
+    -- Foreign Keys
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (resources_id) REFERENCES resources(resources_id) ON DELETE CASCADE,
-    INDEX idx_booking_resource_time (resources_id, start_time, end_time)
+    FOREIGN KEY (created_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (approved_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    FOREIGN KEY (cancelled_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL,
+    
+    -- Indexes for Performance & Conflict Detection
+    INDEX idx_booking_user (user_id, status),
+    INDEX idx_booking_resource_time (resources_id, start_time, end_time, status), -- ✅ Critical for Overlap Check
+    INDEX idx_booking_status (status),
+    INDEX idx_booking_code (booking_code)           -- ✅ Now valid
 );
+
+-- ==========================================
+-- 3.1 BOOKING STATUS HISTORY (Audit Trail)
+-- ==========================================
+CREATE TABLE booking_status_history (
+    history_id INT AUTO_INCREMENT PRIMARY KEY,
+    booking_id VARCHAR(255) NOT NULL,
+    old_status VARCHAR(50),
+    new_status VARCHAR(50) NOT NULL,
+    changed_by_user_id VARCHAR(255) NOT NULL,
+    change_note TEXT,                             -- Stores rejection reason or approval note
+    changed_at DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
+    
+    FOREIGN KEY (booking_id) REFERENCES bookings(booking_id) ON DELETE CASCADE,
+    FOREIGN KEY (changed_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    INDEX idx_history_booking (booking_id, changed_at)
+);
+
 
 -- ==========================================
 -- 4. TICKETS CORE
@@ -85,7 +152,7 @@ CREATE TABLE tickets (
     preferred_contact_name VARCHAR(255),
     preferred_contact_email VARCHAR(255),
     preferred_contact_phone VARCHAR(50),
-    resources_id VARCHAR(255),
+    resources_id BIGINT,
     location_id VARCHAR(255),
     created_by_user_id VARCHAR(255) NOT NULL,
     assigned_technician_id VARCHAR(255),
@@ -190,7 +257,6 @@ CREATE TABLE notifications (
     INDEX idx_notification_user_read (user_id, read_flag),
     INDEX idx_notification_created (created_at)
 );
-
 
 
 
