@@ -1,16 +1,16 @@
-package backend.service;
+package backend.Ticketing.services;
 
-import backend.model.Ticket;
+import backend.Ticketing.dto.AssignTechnicianRequest;
+import backend.Ticketing.model.Ticket;
+import backend.Ticketing.model.TicketAssignment;
+import backend.Ticketing.model.TicketStatus;
+import backend.Ticketing.model.TicketStatusHistory;
+import backend.Ticketing.model.TicketStatusUpdateRequest;
+import backend.Ticketing.repository.TicketAssignmentRepository;
+import backend.Ticketing.repository.TicketRepository;
+import backend.Ticketing.repository.TicketStatusHistoryRepository;
 import backend.model.Role;
-import backend.model.TicketStatus;
-import backend.model.TicketStatusHistory;
-import backend.model.TicketStatusUpdateRequest;
-import backend.model.TicketAssignment;
 import backend.model.User;
-import backend.dto.AssignTechnicianRequest;
-import backend.repository.TicketAssignmentRepository;
-import backend.repository.TicketRepository;
-import backend.repository.TicketStatusHistoryRepository;
 import backend.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;

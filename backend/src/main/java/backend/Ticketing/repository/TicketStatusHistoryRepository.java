@@ -1,7 +1,9 @@
-package backend.repository;
+package backend.Ticketing.repository;
 
-import backend.model.TicketStatusHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import backend.Ticketing.model.TicketStatusHistory;
+
 import java.util.List;
 
 public interface TicketStatusHistoryRepository extends JpaRepository<TicketStatusHistory, Integer> {

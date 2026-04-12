@@ -1,7 +1,8 @@
-package backend.repository;
+package backend.Ticketing.repository;
 
-import backend.model.TicketAssignment;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import backend.Ticketing.model.TicketAssignment;
 
 import java.util.List;
 import java.util.Optional;

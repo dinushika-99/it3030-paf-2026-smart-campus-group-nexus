@@ -1,5 +1,4 @@
-package backend.model;
-
+package backend.Ticketing.model;
 
 public class TicketStatusUpdateRequest {
 

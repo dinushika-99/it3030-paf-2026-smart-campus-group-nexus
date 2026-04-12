@@ -1,4 +1,4 @@
-package backend.model;
+package backend.Ticketing.model;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
