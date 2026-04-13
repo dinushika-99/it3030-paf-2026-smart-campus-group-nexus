@@ -17,7 +17,6 @@ import backend.booking.repository.BookingHistoryRepository;
 import backend.booking.repository.BookingRepository;
 import backend.booking.services.BookingServices;
 
-
 @Service
 @Transactional
 public class BookingServiceImpl implements BookingServices{

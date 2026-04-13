@@ -18,6 +18,9 @@ import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
 import backend.booking.dto.StatusUpdateDTO;
 import backend.booking.services.BookingServices;
+import backend.booking.exception.BookingConflictException;
+import backend.booking.exception.ResourceNotFoundException;
+import backend.booking.exception.AccessDeniedException;
 import jakarta.validation.Valid;
 
 import java.security.Principal;
@@ -49,7 +52,7 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 createSuccessResponse("Booking request created successfully", response)
             );
-        } catch (BookingService.BookingConflictException e) {
+        } catch (BookingConflictException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 createErrorResponse(e.getMessage())
             );
@@ -79,7 +82,7 @@ public class BookingController {
             return ResponseEntity.ok(
                 createSuccessResponse("Booking retrieved successfully", booking)
             );
-        } catch (BookingService.ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 createErrorResponse(e.getMessage())
             );
@@ -113,11 +116,11 @@ public class BookingController {
             return ResponseEntity.ok(
                 createSuccessResponse("Booking status updated successfully", response)
             );
-        } catch (BookingService.ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 createErrorResponse(e.getMessage())
             );
-        } catch (BookingService.AccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 createErrorResponse(e.getMessage())
             );
@@ -139,11 +142,11 @@ public class BookingController {
             bookingService.cancelBooking(bookingId, currentUserId);
             
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
-        } catch (BookingService.ResourceNotFoundException e) {
+        } catch (ResourceNotFoundException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 createErrorResponse(e.getMessage())
             );
-        } catch (BookingService.AccessDeniedException e) {
+        } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 createErrorResponse(e.getMessage())
             );
