@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -127,10 +128,34 @@ public class BookingController {
         }
     }
 
-    
+    //Cancel booking
+     @DeleteMapping("/{bookingId}")
+    public ResponseEntity<?> cancelBooking(
+            @PathVariable String bookingId,
+            Principal principal) {
+        
+        try {
+            String currentUserId = getCurrentUserId(principal);
+            bookingService.cancelBooking(bookingId, currentUserId);
+            
+            return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        } catch (BookingService.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (BookingService.AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
+    }
 
 
-    // ==================== HELPER METHODS ====================
+    //HELPER METHODS
 
     private String getCurrentUserId(Principal principal) {
         if (principal == null) {
