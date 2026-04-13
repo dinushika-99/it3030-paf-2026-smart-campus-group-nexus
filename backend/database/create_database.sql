@@ -71,11 +71,11 @@ CREATE TABLE resources (
 -- ==========================================
 CREATE TABLE bookings (
     booking_id VARCHAR(255) PRIMARY KEY,
-    booking_code VARCHAR(50) UNIQUE NOT NULL,       -- ✅ Added (Human readable reference)
+    booking_code VARCHAR(50) UNIQUE NOT NULL,    
     
     -- Foreign Keys (✅ FIXED: Types match parent tables)
-    user_id VARCHAR(255) NOT NULL,                  -- Matches users.user_id (VARCHAR)
-    resources_id BIGINT NOT NULL,                   -- ✅ FIXED: Matches resources.resources_id (BIGINT)
+    user_id VARCHAR(255) NOT NULL,                 
+    resources_id BIGINT NOT NULL,                
     
     -- Time Management
     start_time DATETIME(6) NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE bookings (
     -- Booking Details
     purpose VARCHAR(255) NOT NULL,
     expected_attendees INT DEFAULT 1,
-    quantity_requested INT NOT NULL DEFAULT 1,      -- For equipment multiple units
+    quantity_requested INT NOT NULL DEFAULT 1,     
     
     -- Workflow Status (Assignment Requirement)
     status ENUM('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED') NOT NULL DEFAULT 'PENDING',
@@ -117,7 +117,7 @@ CREATE TABLE bookings (
     INDEX idx_booking_user (user_id, status),
     INDEX idx_booking_resource_time (resources_id, start_time, end_time, status), -- ✅ Critical for Overlap Check
     INDEX idx_booking_status (status),
-    INDEX idx_booking_code (booking_code)           -- ✅ Now valid
+    INDEX idx_booking_code (booking_code)     
 );
 
 -- ==========================================

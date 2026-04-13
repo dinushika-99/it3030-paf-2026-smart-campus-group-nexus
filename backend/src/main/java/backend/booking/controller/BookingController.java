@@ -5,6 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -53,6 +54,17 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
+    }
+
+    // Get all bookings for current user
+     @GetMapping("/my")
+    public ResponseEntity<?> getMyBookings(Principal principal) {
+        String userId = getCurrentUserId(principal);
+        List<BookingResponseDTO> bookings = bookingService.getMyBookings(userId);
+        
+        return ResponseEntity.ok(
+            createSuccessResponse("Bookings retrieved successfully", bookings)
+        );
     }
 
     // ==================== HELPER METHODS ====================
