@@ -83,7 +83,15 @@ public class BookingController {
         }
     }
 
-    
+    // Get all bookings (Admin only)
+     @GetMapping("/all")
+    public ResponseEntity<?> getAllBookings() {
+        List<BookingResponseDTO> bookings = bookingService.getAllBookings();
+        return ResponseEntity.ok(
+            createSuccessResponse("All bookings retrieved successfully", bookings)
+        );
+    }
+
 
 
 
