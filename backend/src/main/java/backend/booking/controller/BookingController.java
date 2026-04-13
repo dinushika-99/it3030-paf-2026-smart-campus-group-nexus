@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
+import backend.booking.dto.StatusUpdateDTO;
 import backend.booking.services.BookingServices;
 import jakarta.validation.Valid;
 
@@ -92,7 +94,40 @@ public class BookingController {
         );
     }
 
+    //Update booking status (Approve/Reject/Cancel)
+    @PatchMapping("/{bookingId}/status")
+    public ResponseEntity<?> updateBookingStatus(
+            @PathVariable String bookingId,
+            @Valid @RequestBody StatusUpdateDTO statusUpdateDTO,
+            Principal principal) {
+        
+        try {
+            String currentUserId = getCurrentUserId(principal);
+            boolean isAdmin = checkIfAdmin(principal);
+            
+            BookingResponseDTO response = bookingService.updateBookingStatus(
+                bookingId, statusUpdateDTO, currentUserId, isAdmin
+            );
+            
+            return ResponseEntity.ok(
+                createSuccessResponse("Booking status updated successfully", response)
+            );
+        } catch (BookingService.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (BookingService.AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
+    }
 
+    
 
 
     // ==================== HELPER METHODS ====================
