@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -66,6 +67,25 @@ public class BookingController {
             createSuccessResponse("Bookings retrieved successfully", bookings)
         );
     }
+
+    //Get booking by ID
+    @GetMapping("/{bookingId}")
+    public ResponseEntity<?> getBookingById(@PathVariable String bookingId) {
+        try {
+            BookingResponseDTO booking = bookingService.getBookingById(bookingId);
+            return ResponseEntity.ok(
+                createSuccessResponse("Booking retrieved successfully", booking)
+            );
+        } catch (BookingService.ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
+    }
+
+    
+
+
 
     // ==================== HELPER METHODS ====================
 
