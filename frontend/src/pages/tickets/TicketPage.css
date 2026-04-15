@@ -98,6 +98,11 @@
   cursor: pointer;
 }
 
+.btn-view {
+  background: #111827;
+  color: #f9fafb;
+}
+
 .ticket-action-row button {
   background: #bf932a;
   color: #111827;
