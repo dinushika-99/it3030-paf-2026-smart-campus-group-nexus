@@ -25,14 +25,21 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
+import backend.Ticketing.dto.TicketCommentRequest;
+import backend.Ticketing.dto.TicketCommentResponse;
+import backend.Ticketing.dto.TicketCommentUpdateRequest;
+import backend.Ticketing.model.TicketComment;
+import backend.Ticketing.repository.TicketCommentRepository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -45,6 +52,8 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
 public class TicketService {
+
+    private final TicketCommentRepository ticketCommentRepository;
 
     private final TicketRepository ticketRepository;
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
@@ -69,13 +78,15 @@ public class TicketService {
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
             UserRepository userRepository,
             TicketAssignmentRepository ticketAssignmentRepository,
-            TicketAttachmentRepository ticketAttachmentRepository
+            TicketAttachmentRepository ticketAttachmentRepository,
+            TicketCommentRepository ticketCommentRepository
     ) {
         this.ticketRepository = ticketRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
         this.ticketAssignmentRepository = ticketAssignmentRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
+        this.ticketCommentRepository = ticketCommentRepository;
     }
 
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
@@ -433,4 +444,125 @@ public class TicketService {
         response.setUploadedAt(attachment.getUploadedAt());
         return response;
     }
+
+    @Transactional
+public TicketCommentResponse addComment(Integer ticketId, TicketCommentRequest request) {
+    Ticket ticket = ticketRepository.findById(ticketId)
+            .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+
+    if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
+        throw new RuntimeException("User ID is required");
+    }
+
+    if (!userRepository.existsById(request.getUserId())) {
+        throw new RuntimeException("User not found with user_id: " + request.getUserId());
+    }
+
+    if (request.getCommentText() == null || request.getCommentText().trim().isEmpty()) {
+        throw new RuntimeException("Comment text is required");
+    }
+
+    TicketComment parentComment = null;
+    if (request.getParentCommentId() != null) {
+        parentComment = ticketCommentRepository.findById(request.getParentCommentId())
+                .orElseThrow(() -> new RuntimeException("Parent comment not found with id: " + request.getParentCommentId()));
+
+        if (!parentComment.getTicket().getTicketId().equals(ticketId)) {
+            throw new RuntimeException("Parent comment does not belong to this ticket");
+        }
+
+        if (parentComment.getDeletedAt() != null) {
+            throw new RuntimeException("Cannot reply to a deleted comment");
+        }
+    }
+
+    TicketComment comment = new TicketComment();
+    comment.setTicket(ticket);
+    comment.setUserId(request.getUserId());
+    comment.setCommentText(request.getCommentText().trim());
+    comment.setParentComment(parentComment);
+    comment.setIsInternal(request.getIsInternal() != null ? request.getIsInternal() : false);
+    comment.setIsEdited(false);
+    comment.setCreatedAt(LocalDateTime.now());
+    comment.setUpdatedAt(LocalDateTime.now());
+
+    TicketComment savedComment = ticketCommentRepository.save(comment);
+    return mapToCommentResponse(savedComment);
+}
+
+public List<TicketCommentResponse> getCommentsByTicketId(Integer ticketId) {
+    ticketRepository.findById(ticketId)
+            .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
+
+    return ticketCommentRepository.findByTicketTicketIdAndDeletedAtIsNullOrderByCreatedAtAsc(ticketId)
+            .stream()
+            .map(this::mapToCommentResponse)
+            .collect(Collectors.toList());
+}
+
+@Transactional
+public TicketCommentResponse updateComment(Integer commentId, TicketCommentUpdateRequest request) {
+    TicketComment comment = ticketCommentRepository.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found with id: " + commentId));
+
+    if (comment.getDeletedAt() != null) {
+        throw new RuntimeException("Cannot update a deleted comment");
+    }
+
+    if (request.getUserId() == null || request.getUserId().trim().isEmpty()) {
+        throw new RuntimeException("User ID is required");
+    }
+
+    if (!comment.getUserId().equals(request.getUserId())) {
+        throw new RuntimeException("You can only edit your own comment");
+    }
+
+    if (request.getCommentText() == null || request.getCommentText().trim().isEmpty()) {
+        throw new RuntimeException("Comment text is required");
+    }
+
+    comment.setCommentText(request.getCommentText().trim());
+    comment.setIsEdited(true);
+    comment.setUpdatedAt(LocalDateTime.now());
+
+    TicketComment updatedComment = ticketCommentRepository.save(comment);
+    return mapToCommentResponse(updatedComment);
+}
+
+@Transactional
+public void deleteComment(Integer commentId, String userId) {
+    TicketComment comment = ticketCommentRepository.findById(commentId)
+            .orElseThrow(() -> new RuntimeException("Comment not found with id: " + commentId));
+
+    if (comment.getDeletedAt() != null) {
+        throw new RuntimeException("Comment already deleted");
+    }
+
+    if (userId == null || userId.trim().isEmpty()) {
+        throw new RuntimeException("User ID is required");
+    }
+
+    if (!comment.getUserId().equals(userId)) {
+        throw new RuntimeException("You can only delete your own comment");
+    }
+
+    comment.setDeletedAt(LocalDateTime.now());
+    comment.setUpdatedAt(LocalDateTime.now());
+    ticketCommentRepository.save(comment);
+}
+
+private TicketCommentResponse mapToCommentResponse(TicketComment comment) {
+    TicketCommentResponse response = new TicketCommentResponse();
+    response.setCommentId(comment.getCommentId());
+    response.setTicketId(comment.getTicket().getTicketId());
+    response.setUserId(comment.getUserId());
+    response.setCommentText(comment.getCommentText());
+    response.setParentCommentId(comment.getParentComment() != null ? comment.getParentComment().getCommentId() : null);
+    response.setIsInternal(comment.getIsInternal());
+    response.setIsEdited(comment.getIsEdited());
+    response.setCreatedAt(comment.getCreatedAt());
+    response.setUpdatedAt(comment.getUpdatedAt());
+    response.setDeletedAt(comment.getDeletedAt());
+    return response;
+}
 }

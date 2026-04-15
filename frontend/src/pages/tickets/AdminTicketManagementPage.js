@@ -718,6 +718,23 @@ export default function AdminTicketManagementPage() {
         </button>
         <button
           type="button"
+          onClick={() => setTicketView('attachments')}
+          style={{
+            border: ticketView === 'attachments' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'attachments' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'attachments' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Attachments
+        </button>
+        
+        <button
+          type="button"
           onClick={() => setTicketView('status')}
           style={{
             border: ticketView === 'status' ? '1px solid #BF932A' : '1px solid #334155',
@@ -748,22 +765,7 @@ export default function AdminTicketManagementPage() {
         >
           Assignment History
         </button>
-        <button
-          type="button"
-          onClick={() => setTicketView('attachments')}
-          style={{
-            border: ticketView === 'attachments' ? '1px solid #BF932A' : '1px solid #334155',
-            background: ticketView === 'attachments' ? 'rgba(191,147,42,0.18)' : '#0f172a',
-            color: ticketView === 'attachments' ? '#FDE68A' : '#cbd5e1',
-            borderRadius: '999px',
-            padding: '7px 12px',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          Attachments
-        </button>
+        
       </div>
 
       {message && (

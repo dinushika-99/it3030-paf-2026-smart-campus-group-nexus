@@ -17,6 +17,10 @@ import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import backend.Ticketing.dto.TicketCommentRequest;
+import backend.Ticketing.dto.TicketCommentResponse;
+import backend.Ticketing.dto.TicketCommentUpdateRequest;
+
 
 
 @RestController
@@ -111,6 +115,33 @@ public ResponseEntity<List<TicketAttachmentResponse>> getAttachmentsByTicketId(@
 public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId) {
     ticketService.deleteAttachment(attachmentId);
     return ResponseEntity.ok("Attachment deleted successfully");
+}
+
+@PostMapping("/{id}/comments")
+public ResponseEntity<TicketCommentResponse> addComment(
+        @PathVariable Integer id,
+        @RequestBody TicketCommentRequest request) {
+    return ResponseEntity.ok(ticketService.addComment(id, request));
+}
+
+@GetMapping("/{id}/comments")
+public ResponseEntity<List<TicketCommentResponse>> getCommentsByTicketId(@PathVariable Integer id) {
+    return ResponseEntity.ok(ticketService.getCommentsByTicketId(id));
+}
+
+@PutMapping("/comments/{commentId}")
+public ResponseEntity<TicketCommentResponse> updateComment(
+        @PathVariable Integer commentId,
+        @RequestBody TicketCommentUpdateRequest request) {
+    return ResponseEntity.ok(ticketService.updateComment(commentId, request));
+}
+
+@DeleteMapping("/comments/{commentId}")
+public ResponseEntity<String> deleteComment(
+        @PathVariable Integer commentId,
+        @RequestParam("userId") String userId) {
+    ticketService.deleteComment(commentId, userId);
+    return ResponseEntity.ok("Comment deleted successfully");
 }
 
 }
