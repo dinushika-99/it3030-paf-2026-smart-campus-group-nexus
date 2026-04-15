@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './TicketPage.css';
 
 const API_BASE = 'http://localhost:8081/api/tickets';
@@ -40,6 +41,7 @@ function toPayload(form, editingTicket) {
 }
 
 export default function TicketManager({ user }) {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -273,6 +275,10 @@ export default function TicketManager({ user }) {
     }
   };
 
+  const openTicketDetails = (ticketId) => {
+    navigate(`/tickets/${ticketId}`);
+  };
+
   return (
     <section className="ticket-manager">
       <h3 className="ticket-manager-title">Ticket Management</h3>
@@ -416,14 +422,13 @@ export default function TicketManager({ user }) {
                 <th>Title</th>
                 <th>Status</th>
                 <th>Priority</th>
-                <th>Owner</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tickets.length === 0 && (
                 <tr>
-                  <td colSpan="7">No tickets found.</td>
+                  <td colSpan="6">No tickets found.</td>
                 </tr>
               )}
 
@@ -434,8 +439,10 @@ export default function TicketManager({ user }) {
                   <td>{ticket.title}</td>
                   <td>{ticket.status}</td>
                   <td>{ticket.priority}</td>
-                  <td>{ticket.createdByUserId || user?.id || '-'}</td>
                   <td className="ticket-row-actions">
+                    <button type="button" className="btn-view" onClick={() => openTicketDetails(ticket.ticketId)}>
+                      View
+                    </button>
                     <button type="button" className="btn-secondary" onClick={() => handleEdit(ticket)}>
                       Edit
                     </button>
