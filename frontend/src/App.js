@@ -13,7 +13,7 @@ import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
 
-const clientId = '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
+const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
 export default function App() {
   useEffect(() => {

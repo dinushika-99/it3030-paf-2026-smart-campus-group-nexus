@@ -2,6 +2,7 @@ package backend.controller;
 
 import backend.model.User;
 import backend.repository.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -109,10 +110,30 @@ public class ProfileController {
             return ResponseEntity.badRequest().body(Map.of("error", "Email already in use"));
         }
 
+        String normalizedStudentId = null;
+        if (request.studentId() != null) {
+            String candidate = request.studentId().trim();
+            if (!candidate.isEmpty()) {
+                normalizedStudentId = candidate;
+            }
+        }
+
+        if (normalizedStudentId != null) {
+            Optional<User> existingByStudentId = userRepository.findByStudentId(normalizedStudentId);
+            if (existingByStudentId.isPresent() && !existingByStudentId.get().getId().equals(user.getId())) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Student ID already in use"));
+            }
+        }
+
         user.setName(request.name().trim());
         user.setEmail(normalizedEmail);
-        user.setStudentId(request.studentId() != null ? request.studentId().trim() : null);
-        userRepository.save(user);
+        user.setStudentId(normalizedStudentId);
+
+        try {
+            userRepository.save(user);
+        } catch (DataIntegrityViolationException ex) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Profile data conflicts with an existing account"));
+        }
 
         Map<String, Object> userBody = new LinkedHashMap<>();
         userBody.put("id", user.getId());

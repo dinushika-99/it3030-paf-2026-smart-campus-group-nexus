@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './TicketPage.css';
+import api from '../../api/axiosClient';
 
-const API_BASE = 'http://localhost:8081/api/tickets';
+const API_BASE = '/api/tickets';
 
 const EMPTY_FORM = {
   title: '',
@@ -57,19 +58,11 @@ export default function TicketManager({ user }) {
     setIsLoading(true);
     setError('');
     try {
-      const response = await fetch(API_BASE, {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to load tickets.');
-      }
-
-      const data = await response.json();
+      const response = await api.get(API_BASE);
+      const data = response.data;
       setTickets(Array.isArray(data) ? data : []);
     } catch (fetchError) {
-      setError(fetchError.message || 'Could not load tickets.');
+      setError(fetchError.response?.data?.error || fetchError.message || 'Could not load tickets.');
     } finally {
       setIsLoading(false);
     }
@@ -174,19 +167,10 @@ export default function TicketManager({ user }) {
       const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
       const payload = toPayload(form, editingTicket);
       const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
-      const method = editingId ? 'PUT' : 'POST';
-
-      const response = await fetch(endpoint, {
-        method,
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        throw new Error(editingId ? 'Failed to update ticket.' : 'Failed to create ticket.');
+      if (editingId) {
+        await api.put(endpoint, payload);
+      } else {
+        await api.post(endpoint, payload);
       }
 
       const savedTicket = await response.json();
@@ -223,7 +207,7 @@ export default function TicketManager({ user }) {
       resetForm();
       await fetchTickets();
     } catch (submitError) {
-      setError(submitError.message || 'Ticket request failed.');
+      setError(submitError.response?.data?.error || submitError.message || 'Ticket request failed.');
     } finally {
       setIsSubmitting(false);
     }
@@ -256,14 +240,7 @@ export default function TicketManager({ user }) {
     setMessage('');
     setError('');
     try {
-      const response = await fetch(`${API_BASE}/${ticketId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete ticket.');
-      }
+      await api.delete(`${API_BASE}/${ticketId}`);
 
       setMessage('Ticket deleted successfully.');
       if (editingId === ticketId) {
@@ -271,7 +248,7 @@ export default function TicketManager({ user }) {
       }
       await fetchTickets();
     } catch (deleteError) {
-      setError(deleteError.message || 'Delete request failed.');
+      setError(deleteError.response?.data?.error || deleteError.message || 'Delete request failed.');
     }
   };
 

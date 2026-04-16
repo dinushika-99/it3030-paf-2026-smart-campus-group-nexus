@@ -3,8 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import './App.css';
 import { SITE_BRAND } from './siteConfig';
+import api from './api/axiosClient';
 
-const BACKEND_BASE = 'http://localhost:8081';
 const ALLOWED_ROLES = ['student', 'lecturer'];
 
 export default function Register() {
@@ -26,14 +26,9 @@ export default function Register() {
     setError('');
     setSuccess('');
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token, role: selectedRole }),
-      });
-      const data = await res.json();
-      if (res.ok && data.user) {
+      const res = await api.post('/api/auth/google', { token, role: selectedRole }, { skipAuthRefresh: true });
+      const data = res.data;
+      if (data?.user) {
         const normalizedUser = {
           ...data.user,
           role: data.user.role ? data.user.role.toLowerCase() : undefined,
@@ -41,10 +36,10 @@ export default function Register() {
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
       } else {
-        setError(data.error || 'Google sign-up failed.');
+        setError('Google sign-up failed.');
       }
     } catch (err) {
-      setError('Network error. Is the backend running?');
+      setError(err.response?.data?.error || 'Network error. Is the backend running?');
     }
   };
 
@@ -59,26 +54,18 @@ export default function Register() {
     }
 
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formFields.name,
-          email: formFields.email,
-          password: formFields.password,
-          studentId: formFields.studentId,
-          role: selectedRole,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess('Registration successful. You can now log in.');
-        setTimeout(() => navigate('/login'), 1200);
-      } else {
-        setError(data.error || 'Registration failed.');
-      }
+      await api.post('/api/auth/register', {
+        name: formFields.name,
+        email: formFields.email,
+        password: formFields.password,
+        studentId: formFields.studentId,
+        role: selectedRole,
+      }, { skipAuthRefresh: true });
+
+      setSuccess('Registration successful. You can now log in.');
+      setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
-      setError('Network error. Is the backend running?');
+      setError(err.response?.data?.error || 'Network error. Is the backend running?');
     }
   };
 
@@ -121,7 +108,7 @@ export default function Register() {
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => setError('Google sign-up was cancelled or failed.')}
-            width="100%"
+            width={380}
             text="continue_with"
             shape="rectangular"
           />
