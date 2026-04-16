@@ -1,7 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SITE_BRAND } from './siteConfig';
-import api from './api/axiosClient';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -80,94 +78,6 @@ export default function AdminDashboard({ user: userProp }) {
     }
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
-  };
-
-  const handleOpenProfile = () => {
-    setProfileOpen(true);
-    setProfileTab('profile');
-    setProfileNotice('');
-  };
-
-  const selectProfileTab = (tab) => {
-    setProfileTab(tab);
-    setProfileNotice('');
-  };
-
-  const handleProfileDraft = (field, value) => {
-    setProfileDraft((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const saveProfileDraft = async () => {
-    setProfileNotice('');
-    setProfileSaving(true);
-
-    try {
-      const res = await api.put('/api/profile/me', {
-        name: profileDraft.name,
-        email: profileDraft.email,
-        studentId: profileDraft.studentId,
-      });
-
-      const data = res.data || {};
-
-      const normalizedUser = {
-        ...user,
-        ...(data.user || {}),
-        role: (data.user?.role || user.role || '').toLowerCase(),
-      };
-
-      setUser(normalizedUser);
-      setProfileDraft({
-        name: normalizedUser.name || '',
-        email: normalizedUser.email || '',
-        studentId: normalizedUser.studentId || '',
-      });
-      localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-
-      setProfileNoticeTone('success');
-      setProfileNotice('Profile saved successfully.');
-      setProfileTab('profile');
-      setRefreshKey((v) => v + 1);
-    } catch (err) {
-      setProfileNoticeTone('error');
-      setProfileNotice(err.response?.data?.error || 'Network error while saving profile.');
-    } finally {
-      setProfileSaving(false);
-    }
-  };
-
-  const triggerProfileAvatarPick = () => {
-    profileAvatarInputRef.current?.click();
-  };
-
-  const handleProfileAvatarChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const previewUrl = URL.createObjectURL(file);
-    setAvatarUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return previewUrl;
-    });
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setProfileAvatarUploading(true);
-    setProfileNotice('');
-    try {
-      await api.post('/api/profile/avatar', formData);
-
-      setProfileNoticeTone('success');
-      setProfileNotice('Profile photo updated successfully.');
-      setRefreshKey((v) => v + 1);
-    } catch (err) {
-      setProfileNoticeTone('error');
-      setProfileNotice(err.response?.data?.error || 'Network error while uploading profile photo.');
-    } finally {
-      setProfileAvatarUploading(false);
-      e.target.value = '';
-    }
   };
 
   useEffect(() => {
@@ -250,6 +160,7 @@ export default function AdminDashboard({ user: userProp }) {
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
+          <NavButton active={false} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
           <NavButton active={activeTab === 'asset-directory'} onClick={() => setActiveTab('asset-directory')} text="Asset Directory" icon="asset" />
           <NavButton active={activeTab === 'scheduling'} onClick={() => setActiveTab('scheduling')} text="Resource Scheduling" icon="schedule" />
 
@@ -598,6 +509,11 @@ const MenuIcon = ({ type }) => {
   if (type === 'schedule') {
     return (
       <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+    );
+  }
+  if (type === 'ticket') {
+    return (
+      <svg {...common}><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z"></path><path d="M9 9v6"></path><path d="M15 9v6"></path></svg>
     );
   }
   if (type === 'incident') {

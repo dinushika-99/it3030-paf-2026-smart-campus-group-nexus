@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './TicketPage.css';
 import api from '../../api/axiosClient';
 
@@ -9,7 +10,6 @@ const EMPTY_FORM = {
   category: '',
   description: '',
   priority: 'MEDIUM',
-  status: 'OPEN',
   preferredContactName: '',
   preferredContactEmail: '',
   preferredContactPhone: '',
@@ -17,10 +17,12 @@ const EMPTY_FORM = {
   locationId: '',
 };
 
-const STATUS_OPTIONS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED'];
 const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+const MAX_ATTACHMENTS = 3;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
 
-function toPayload(form) {
+function toPayload(form, editingTicket) {
   const resourceId = form.resourceId.trim();
   const locationId = form.locationId.trim();
 
@@ -29,7 +31,8 @@ function toPayload(form) {
     category: form.category.trim(),
     description: form.description.trim(),
     priority: form.priority,
-    status: form.status,
+    // New tickets must always start in OPEN; edits preserve current status.
+    status: editingTicket?.status || 'OPEN',
     preferredContactName: form.preferredContactName.trim(),
     preferredContactEmail: form.preferredContactEmail.trim(),
     preferredContactPhone: form.preferredContactPhone.trim(),
@@ -39,8 +42,10 @@ function toPayload(form) {
 }
 
 export default function TicketManager({ user }) {
+  const navigate = useNavigate();
   const [tickets, setTickets] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [selectedImages, setSelectedImages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -67,6 +72,12 @@ export default function TicketManager({ user }) {
     fetchTickets();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      selectedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    };
+  }, [selectedImages]);
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({
@@ -75,9 +86,75 @@ export default function TicketManager({ user }) {
     }));
   };
 
+  const resetSelectedImages = () => {
+    setSelectedImages((prev) => {
+      prev.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+      return [];
+    });
+  };
+
+  const handleImageSelect = (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+
+    if (files.length === 0) {
+      return;
+    }
+
+    setError('');
+
+    const availableSlots = MAX_ATTACHMENTS - selectedImages.length;
+    if (availableSlots <= 0) {
+      setError('Maximum 3 images allowed. Remove one to add another.');
+      return;
+    }
+
+    const nextImages = [];
+
+    for (const file of files) {
+      if (nextImages.length >= availableSlots) {
+        break;
+      }
+
+      const type = (file.type || '').toLowerCase();
+      if (!ALLOWED_ATTACHMENT_TYPES.includes(type)) {
+        setError('Only JPG, JPEG, PNG, and WEBP images are allowed.');
+        continue;
+      }
+
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setError('Each image must be 5MB or smaller.');
+        continue;
+      }
+
+      nextImages.push({
+        id: `${file.name}-${file.lastModified}-${Math.random().toString(36).slice(2)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+
+    if (nextImages.length === 0) {
+      return;
+    }
+
+    setSelectedImages((prev) => [...prev, ...nextImages]);
+  };
+
+  const removeSelectedImage = (imageId) => {
+    setSelectedImages((prev) => {
+      const target = prev.find((image) => image.id === imageId);
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((image) => image.id !== imageId);
+    });
+  };
+
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingId(null);
+    resetSelectedImages();
   };
 
   const handleSubmit = async (event) => {
@@ -87,12 +164,43 @@ export default function TicketManager({ user }) {
     setError('');
 
     try {
-      const payload = toPayload(form);
+      const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
+      const payload = toPayload(form, editingTicket);
       const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
       if (editingId) {
         await api.put(endpoint, payload);
       } else {
         await api.post(endpoint, payload);
+      }
+
+      const savedTicket = await response.json();
+
+      if (!editingId && selectedImages.length > 0) {
+        const createdTicketId = savedTicket?.ticketId;
+        const uploadedByUserId = user?.id || user?.userId;
+
+        if (!createdTicketId) {
+          throw new Error('Ticket created but attachment upload could not start (missing ticket ID).');
+        }
+        if (!uploadedByUserId) {
+          throw new Error('Ticket created but attachment upload failed (missing user ID).');
+        }
+
+        for (const image of selectedImages) {
+          const formData = new FormData();
+          formData.append('file', image.file);
+          formData.append('uploadedByUserId', uploadedByUserId);
+
+          const uploadResponse = await fetch(`${API_BASE}/${createdTicketId}/attachments`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData,
+          });
+
+          if (!uploadResponse.ok) {
+            throw new Error('Ticket created, but one or more image uploads failed.');
+          }
+        }
       }
 
       setMessage(editingId ? 'Ticket updated successfully.' : 'Ticket created successfully.');
@@ -107,12 +215,12 @@ export default function TicketManager({ user }) {
 
   const handleEdit = (ticket) => {
     setEditingId(ticket.ticketId);
+    resetSelectedImages();
     setForm({
       title: ticket.title || '',
       category: ticket.category || '',
       description: ticket.description || '',
       priority: ticket.priority || 'MEDIUM',
-      status: ticket.status || 'OPEN',
       preferredContactName: ticket.preferredContactName || '',
       preferredContactEmail: ticket.preferredContactEmail || '',
       preferredContactPhone: ticket.preferredContactPhone || '',
@@ -142,6 +250,10 @@ export default function TicketManager({ user }) {
     } catch (deleteError) {
       setError(deleteError.response?.data?.error || deleteError.message || 'Delete request failed.');
     }
+  };
+
+  const openTicketDetails = (ticketId) => {
+    navigate(`/tickets/${ticketId}`);
   };
 
   return (
@@ -178,14 +290,6 @@ export default function TicketManager({ user }) {
             {PRIORITY_OPTIONS.map((priority) => (
               <option key={priority} value={priority}>
                 {priority}
-              </option>
-            ))}
-          </select>
-
-          <select name="status" value={form.status} onChange={handleChange}>
-            {STATUS_OPTIONS.map((status) => (
-              <option key={status} value={status}>
-                {status}
               </option>
             ))}
           </select>
@@ -232,6 +336,42 @@ export default function TicketManager({ user }) {
           required
         />
 
+        {!editingId && (
+          <div className="attachment-section">
+            <label className="attachment-label" htmlFor="ticket-attachments">Attach images (optional)</label>
+            <input
+              id="ticket-attachments"
+              type="file"
+              accept="image/jpeg,image/png,image/jpg,image/webp"
+              multiple
+              onChange={handleImageSelect}
+            />
+            <p className="attachment-rules">
+              Max 3 images. Only JPG/PNG/JPEG/WEBP. Max 5MB per image.
+            </p>
+
+            {selectedImages.length > 0 && (
+              <div className="attachment-preview-grid">
+                {selectedImages.map((image) => (
+                  <div className="attachment-preview-card" key={image.id}>
+                    <img src={image.previewUrl} alt={image.file.name} className="attachment-preview-image" />
+                    <div className="attachment-preview-meta">
+                      <span className="attachment-file-name">{image.file.name}</span>
+                      <button
+                        type="button"
+                        className="btn-danger attachment-remove-btn"
+                        onClick={() => removeSelectedImage(image.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="ticket-action-row">
           <button type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Saving...' : submitLabel}
@@ -259,14 +399,13 @@ export default function TicketManager({ user }) {
                 <th>Title</th>
                 <th>Status</th>
                 <th>Priority</th>
-                <th>Owner</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {tickets.length === 0 && (
                 <tr>
-                  <td colSpan="7">No tickets found.</td>
+                  <td colSpan="6">No tickets found.</td>
                 </tr>
               )}
 
@@ -277,8 +416,10 @@ export default function TicketManager({ user }) {
                   <td>{ticket.title}</td>
                   <td>{ticket.status}</td>
                   <td>{ticket.priority}</td>
-                  <td>{ticket.createdByUserId || user?.id || '-'}</td>
                   <td className="ticket-row-actions">
+                    <button type="button" className="btn-view" onClick={() => openTicketDetails(ticket.ticketId)}>
+                      View
+                    </button>
                     <button type="button" className="btn-secondary" onClick={() => handleEdit(ticket)}>
                       Edit
                     </button>

@@ -78,6 +78,20 @@ public class ProfileController {
         return ResponseEntity.ok(body);
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<?> getUserById(@PathVariable String userId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", "User not found"));
+        }
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("id", user.getId());
+        body.put("name", user.getName());
+        body.put("email", user.getEmail());
+        return ResponseEntity.ok(body);
+    }
+
     @PutMapping("/me")
     public ResponseEntity<?> updateProfile(@RequestBody ProfileUpdateRequest request,
                                            @AuthenticationPrincipal Object principal) {

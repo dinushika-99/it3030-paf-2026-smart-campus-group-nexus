@@ -1,33 +1,10 @@
 {
   "properties": [
     {
-      "name": "app.auth.jwt.secret",
+      "name": "app.upload.dir",
       "type": "java.lang.String",
-      "description": "Secret used to sign JWT tokens. Use a long random value in production."
-    },
-    {
-      "name": "app.auth.jwt.access-token-minutes",
-      "type": "java.lang.Integer",
-      "description": "Access token validity period in minutes.",
-      "defaultValue": 15
-    },
-    {
-      "name": "app.auth.jwt.refresh-token-days",
-      "type": "java.lang.Integer",
-      "description": "Refresh token validity period in days.",
-      "defaultValue": 14
-    },
-    {
-      "name": "app.auth.jwt.cookie-secure",
-      "type": "java.lang.Boolean",
-      "description": "Whether auth cookies are marked Secure.",
-      "defaultValue": false
-    },
-    {
-      "name": "app.auth.jwt.cookie-same-site",
-      "type": "java.lang.String",
-      "description": "SameSite policy for auth cookies.",
-      "defaultValue": "Lax"
+      "description": "Base directory for ticket attachment uploads.",
+      "defaultValue": "uploads/tickets"
     }
   ]
 }
