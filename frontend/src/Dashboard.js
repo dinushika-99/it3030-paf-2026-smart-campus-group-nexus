@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
+import api from './api/axiosClient';
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -49,8 +49,8 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user) return;
 
-    fetch('http://localhost:8081/api/profile/me', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
+    api.get('/api/profile/me')
+      .then((res) => res.data)
       .then((data) => {
         if (!data) return;
         const normalized = {
@@ -68,8 +68,8 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
-      .then((res) => (res.ok ? res.blob() : null))
+    api.get('/api/profile/avatar', { responseType: 'blob' })
+      .then((res) => res.data)
       .then((blob) => {
         if (blob && blob.size > 0) {
           const url = URL.createObjectURL(blob);
@@ -81,13 +81,12 @@ export default function Dashboard() {
       })
       .catch(() => {});
 
-    fetch('http://localhost:8081/api/notifications/me', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : []))
+    api.get('/api/notifications/me')
+      .then((res) => res.data || [])
       .then((data) => {
         if (Array.isArray(data)) {
           const sorted = [...data].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
           setNotifications(sorted);
-          setUnreadCount(sorted.filter((n) => !n.isRead && !n.read).length);
         }
       })
       .catch((err) => console.error('Failed to fetch notifications', err));
@@ -113,23 +112,13 @@ export default function Dashboard() {
     setProfileSaving(true);
 
     try {
-      const res = await fetch('http://localhost:8081/api/profile/me', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: profileDraft.name,
-          email: profileDraft.email,
-          studentId: profileDraft.studentId,
-        }),
+      const res = await api.put('/api/profile/me', {
+        name: profileDraft.name,
+        email: profileDraft.email,
+        studentId: profileDraft.studentId,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setProfileNoticeTone('error');
-        setProfileNotice(data.error || 'Could not save profile.');
-        return;
-      }
+      const data = res.data;
 
       const normalizedUser = {
         ...user,
@@ -150,7 +139,7 @@ export default function Dashboard() {
       setProfileTab('profile');
     } catch (err) {
       setProfileNoticeTone('error');
-      setProfileNotice('Network error while saving profile.');
+      setProfileNotice(err.response?.data?.error || 'Network error while saving profile.');
     } finally {
       setProfileSaving(false);
     }
@@ -176,31 +165,25 @@ export default function Dashboard() {
     setProfileAvatarUploading(true);
     setProfileNotice('');
     try {
-      const res = await fetch('http://localhost:8081/api/profile/avatar', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setProfileNoticeTone('error');
-        setProfileNotice(data.error || 'Could not update profile photo.');
-        return;
-      }
+      await api.post('/api/profile/avatar', formData);
 
       setProfileNoticeTone('success');
       setProfileNotice('Profile photo updated successfully.');
     } catch (err) {
       setProfileNoticeTone('error');
-      setProfileNotice('Network error while uploading profile photo.');
+      setProfileNotice(err.response?.data?.error || 'Network error while uploading profile photo.');
     } finally {
       setProfileAvatarUploading(false);
       e.target.value = '';
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout', null, { skipAuthRefresh: true });
+    } catch (err) {
+      // Continue with client-side logout even if network fails.
+    }
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
   };

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from './api/axiosClient';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -35,8 +36,8 @@ export default function Profile() {
   useEffect(() => {
     if (!user) return;
 
-    fetch('http://localhost:8081/api/profile/me', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
+    api.get('/api/profile/me')
+      .then((res) => res.data)
       .then((data) => {
         if (!data) return;
         const normalized = {
@@ -55,8 +56,8 @@ export default function Profile() {
       .catch(() => {});
 
     // fetch avatar blob
-    fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
-      .then((res) => res.ok ? res.blob() : null)
+    api.get('/api/profile/avatar', { responseType: 'blob' })
+      .then((res) => res.data)
       .then((blob) => {
         if (blob && blob.size > 0) {
           const url = URL.createObjectURL(blob);
@@ -68,8 +69,8 @@ export default function Profile() {
       })
       .catch(() => {});
 
-    fetch('http://localhost:8081/api/notifications/me', { credentials: 'include' })
-      .then((res) => res.ok ? res.json() : [])
+    api.get('/api/notifications/me')
+      .then((res) => res.data || [])
       .then((data) => {
         if (Array.isArray(data)) {
           const unread = data.filter((n) => !n.isRead && !n.read).length;
@@ -80,7 +81,12 @@ export default function Profile() {
       .catch(() => {});
   }, [user]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout', null, { skipAuthRefresh: true });
+    } catch (err) {
+      // Continue with client-side logout even if network fails.
+    }
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
   };
@@ -97,22 +103,13 @@ export default function Profile() {
     setSaving(true);
 
     try {
-      const res = await fetch('http://localhost:8081/api/profile/me', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          studentId: form.studentId,
-        }),
+      const res = await api.put('/api/profile/me', {
+        name: form.name,
+        email: form.email,
+        studentId: form.studentId,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        setSaveError(data.error || 'Could not update profile.');
-        return;
-      }
+      const data = res.data;
 
       const normalizedUser = {
         ...user,
@@ -127,7 +124,7 @@ export default function Profile() {
       setSaveMessage('Profile saved successfully.');
       setTimeout(() => setSaveMessage(''), 2600);
     } catch (err) {
-      setSaveError('Network error while saving profile.');
+      setSaveError(err.response?.data?.error || 'Network error while saving profile.');
     } finally {
       setSaving(false);
     }
@@ -154,16 +151,9 @@ export default function Profile() {
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://localhost:8081/api/profile/avatar', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        setAvatarError('Could not save image. Use an image under 2MB.');
-      }
+      await api.post('/api/profile/avatar', formData);
     } catch (err) {
-      setAvatarError('Upload failed. Please try again.');
+      setAvatarError(err.response?.data?.error || 'Upload failed. Please try again.');
     }
 
     // allow re-selecting same file later

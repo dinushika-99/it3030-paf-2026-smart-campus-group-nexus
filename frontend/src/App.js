@@ -10,8 +10,11 @@ import AdminDashboard from './AdminDashboard';
 import Profile from './Profile';
 import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
+import { AuthProvider } from './AuthContext';
+import ProtectedRoute from './ProtectedRoute';
+import Unauthorized from './Unauthorized';
 
-const clientId = '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
+const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
 export default function App() {
   useEffect(() => {
@@ -20,17 +23,48 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/tickets" element={<TicketPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/profile" element={<Profile />} />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tickets"
+              element={
+                <ProtectedRoute>
+                  <TicketPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </GoogleOAuthProvider>
   );
 }

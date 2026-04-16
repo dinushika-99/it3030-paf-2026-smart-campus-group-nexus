@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
+import api from './api/axiosClient';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -9,7 +10,20 @@ export default function AdminDashboard({ user: userProp }) {
   const [activeTab, setActiveTab] = useState('command-center');
   const [user, setUser] = useState(userProp || null);
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState('profile');
+  const [profileDraft, setProfileDraft] = useState({
+    name: '',
+    email: '',
+    studentId: '',
+  });
+  const [profileNotice, setProfileNotice] = useState('');
+  const [profileNoticeTone, setProfileNoticeTone] = useState('success');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const profileAvatarInputRef = useRef(null);
 
   useEffect(() => {
     if (userProp) {
@@ -33,22 +47,143 @@ export default function AdminDashboard({ user: userProp }) {
   }, [navigate, userProp]);
 
   const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'manager';
   const roleLabel = isAdmin ? 'Admin' : 'Manager';
 
-  const handleLogout = () => {
+  const navigationTabs = useMemo(() => {
+    const baseTabs = [
+      'command-center',
+      'asset-directory',
+      'scheduling',
+      'incident-desk',
+      'dispatch',
+    ];
+
+    if (isAdmin) {
+      return [...baseTabs, 'admin-users', 'admin-communication'];
+    }
+
+    return [...baseTabs, 'manager-ops', 'manager-communication'];
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!navigationTabs.includes(activeTab)) {
+      setActiveTab('command-center');
+    }
+  }, [activeTab, navigationTabs]);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout', null, { skipAuthRefresh: true });
+    } catch (err) {
+      // Continue with client-side logout even if network fails.
+    }
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
   };
 
   const handleOpenProfile = () => {
-    navigate('/profile');
+    setProfileOpen(true);
+    setProfileTab('profile');
+    setProfileNotice('');
+  };
+
+  const selectProfileTab = (tab) => {
+    setProfileTab(tab);
+    setProfileNotice('');
+  };
+
+  const handleProfileDraft = (field, value) => {
+    setProfileDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const saveProfileDraft = async () => {
+    setProfileNotice('');
+    setProfileSaving(true);
+
+    try {
+      const res = await api.put('/api/profile/me', {
+        name: profileDraft.name,
+        email: profileDraft.email,
+        studentId: profileDraft.studentId,
+      });
+
+      const data = res.data || {};
+
+      const normalizedUser = {
+        ...user,
+        ...(data.user || {}),
+        role: (data.user?.role || user.role || '').toLowerCase(),
+      };
+
+      setUser(normalizedUser);
+      setProfileDraft({
+        name: normalizedUser.name || '',
+        email: normalizedUser.email || '',
+        studentId: normalizedUser.studentId || '',
+      });
+      localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+
+      setProfileNoticeTone('success');
+      setProfileNotice('Profile saved successfully.');
+      setProfileTab('profile');
+      setRefreshKey((v) => v + 1);
+    } catch (err) {
+      setProfileNoticeTone('error');
+      setProfileNotice(err.response?.data?.error || 'Network error while saving profile.');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const triggerProfileAvatarPick = () => {
+    profileAvatarInputRef.current?.click();
+  };
+
+  const handleProfileAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return previewUrl;
+    });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setProfileAvatarUploading(true);
+    setProfileNotice('');
+    try {
+      await api.post('/api/profile/avatar', formData);
+
+      setProfileNoticeTone('success');
+      setProfileNotice('Profile photo updated successfully.');
+      setRefreshKey((v) => v + 1);
+    } catch (err) {
+      setProfileNoticeTone('error');
+      setProfileNotice(err.response?.data?.error || 'Network error while uploading profile photo.');
+    } finally {
+      setProfileAvatarUploading(false);
+      e.target.value = '';
+    }
   };
 
   useEffect(() => {
     if (!user) return;
+    setProfileDraft({
+      name: user.name || '',
+      email: user.email || '',
+      studentId: user.studentId || '',
+    });
+  }, [user]);
 
-    fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
-      .then((res) => (res.ok ? res.blob() : null))
+  useEffect(() => {
+    if (!user) return;
+
+    api.get('/api/profile/avatar', { responseType: 'blob' })
+      .then((res) => res.data)
       .then((blob) => {
         if (blob && blob.size > 0) {
           const url = URL.createObjectURL(blob);
@@ -59,7 +194,17 @@ export default function AdminDashboard({ user: userProp }) {
         }
       })
       .catch(() => {});
-  }, [user]);
+
+    api.get('/api/notifications/me')
+      .then((res) => res.data || [])
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const sorted = [...data].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+          setNotifications(sorted);
+        }
+      })
+      .catch(() => {});
+  }, [user, refreshKey]);
 
   if (!user) {
     return <div style={{ color: '#e5e7eb', minHeight: '100vh', display: 'grid', placeItems: 'center', background: '#0b1120' }}>Loading...</div>;
@@ -71,16 +216,19 @@ export default function AdminDashboard({ user: userProp }) {
         <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #374151' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img
-              src={`${process.env.PUBLIC_URL}/LOGO.png`}
-              alt="Site logo"
+              src={SITE_BRAND.logoPath}
+              alt={SITE_BRAND.logoAlt}
               style={{ width: '46px', height: '46px', objectFit: 'contain' }}
             />
             <h2 style={{ color: '#fff', margin: 0, fontSize: '24px', letterSpacing: '1px' }}>
-              NEXUS
+              {SITE_BRAND.name}
             </h2>
           </div>
 
-          <div style={{ marginTop: '16px', padding: '12px', borderRadius: '12px', border: '1px solid #374151', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            onClick={handleOpenProfile}
+            style={{ marginTop: '16px', width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #374151', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', cursor: 'pointer' }}
+          >
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #BF932A', backgroundColor: '#1f2937', display: 'grid', placeItems: 'center', color: '#BF932A', fontWeight: 700 }}>
               {(avatarUrl || user.avatarUrl) ? (
                 <img src={avatarUrl || `${API_BASE}${user.avatarUrl}`} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -93,7 +241,7 @@ export default function AdminDashboard({ user: userProp }) {
               <p style={{ margin: '2px 0 0 0', fontSize: '15px', color: '#fff', fontWeight: 700 }}>{user.name || 'Admin User'}</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{roleLabel}</p>
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="admin-nav-group">
@@ -111,9 +259,21 @@ export default function AdminDashboard({ user: userProp }) {
           <NavButton active={activeTab === 'dispatch'} onClick={() => setActiveTab('dispatch')} text="Active Dispatch" icon="dispatch" />
 
           <div style={{ marginTop: '14px' }}></div>
-          <MenuCategory title="Administration" />
-          <NavButton active={activeTab === 'admin-users'} onClick={() => setActiveTab('admin-users')} text="Access & Identity" icon="identity" />
-          <NavButton active={activeTab === 'admin-communication'} onClick={() => setActiveTab('admin-communication')} text="Broadcast & Audit" icon="audit" />
+          {isAdmin && (
+            <>
+              <MenuCategory title="Administration" />
+              <NavButton active={activeTab === 'admin-users'} onClick={() => setActiveTab('admin-users')} text="Access & Identity" icon="identity" />
+              <NavButton active={activeTab === 'admin-communication'} onClick={() => setActiveTab('admin-communication')} text="Broadcast & Audit" icon="audit" />
+            </>
+          )}
+
+          {isManager && (
+            <>
+              <MenuCategory title="Manager Workspace" />
+              <NavButton active={activeTab === 'manager-ops'} onClick={() => setActiveTab('manager-ops')} text="Team Operations" icon="identity" />
+              <NavButton active={activeTab === 'manager-communication'} onClick={() => setActiveTab('manager-communication')} text="Service Updates" icon="audit" />
+            </>
+          )}
         </div>
       </aside>
 
@@ -127,14 +287,18 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <TopNavIconButton label="Profile" onClick={() => navigate('/profile')}>
+            <TopNavIconButton label="Profile" onClick={handleOpenProfile}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21a8 8 0 0 0-16 0"></path>
                 <circle cx="12" cy="7" r="4"></circle>
               </svg>
             </TopNavIconButton>
 
-            <TopNavIconButton label="Notifications">
+            <TopNavIconButton label="Notifications" onClick={() => {
+              setProfileOpen(true);
+              setProfileTab('notifications');
+              setProfileNotice('');
+            }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
@@ -152,13 +316,183 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
         </div>
 
-        {activeTab === 'command-center' && <OverviewTab isAdmin={isAdmin} onJump={setActiveTab} refreshKey={refreshKey} />}
+        {activeTab === 'command-center' && (
+          isAdmin
+            ? <OverviewTab onJump={setActiveTab} refreshKey={refreshKey} />
+            : <ManagerOverviewTab notifications={notifications} onJump={setActiveTab} />
+        )}
         {activeTab === 'asset-directory' && <PlaceholderPanel title="Asset Directory" description="Track spaces, facilities, and assets across NEXUS." />}
         {activeTab === 'scheduling' && <PlaceholderPanel title="Resource Scheduling" description="Manage bookings, time slots, and allocation calendars." />}
         {activeTab === 'incident-desk' && <PlaceholderPanel title="Incident Desk" description="Review, triage, and resolve technical incidents." />}
         {activeTab === 'dispatch' && <PlaceholderPanel title="Active Dispatch" description="Coordinate live assignments for technician teams." />}
         {activeTab === 'admin-users' && <AdminUsersTab isAdmin={isAdmin} refreshKey={refreshKey} onChanged={() => setRefreshKey((v) => v + 1)} />}
         {activeTab === 'admin-communication' && <AdminCommunicationTab isAdmin={isAdmin} refreshKey={refreshKey} />}
+        {activeTab === 'manager-ops' && <ManagerOpsTab notifications={notifications} />}
+        {activeTab === 'manager-communication' && <ManagerCommunicationTab notifications={notifications} />}
+
+        {profileOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(4, 8, 20, 0.62)',
+              backdropFilter: 'blur(9px)',
+              WebkitBackdropFilter: 'blur(9px)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}
+            onClick={() => setProfileOpen(false)}
+          >
+            <div
+              style={{
+                width: 'min(980px, 100%)',
+                minHeight: 'min(640px, 88vh)',
+                borderRadius: '18px',
+                overflow: 'hidden',
+                background: '#0b1120',
+                border: '1px solid #334155',
+                boxShadow: '0 35px 80px rgba(0,0,0,0.45)',
+                display: 'grid',
+                gridTemplateColumns: '230px 1fr',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <aside style={{ borderRight: '1px solid #334155', background: '#111827', padding: '20px 14px' }}>
+                <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', marginBottom: '18px' }}>
+                  <div style={{ width: '78px', height: '78px', borderRadius: '999px', background: '#0f172a', color: '#BF932A', border: '2px solid #BF932A', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '26px', overflow: 'hidden' }}>
+                    {avatarUrl
+                      ? <img src={avatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : (user.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <p style={{ margin: '10px 0 0 0', fontWeight: 700, fontSize: '14px', color: '#fff' }}>{user.name}</p>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#9ca3af', textTransform: 'capitalize' }}>{roleLabel}</p>
+                </div>
+
+                <AdminProfileTabButton active={profileTab === 'profile'} onClick={() => selectProfileTab('profile')} icon="👤" label="Profile" />
+                <AdminProfileTabButton active={profileTab === 'edit'} onClick={() => selectProfileTab('edit')} icon="✏️" label="Edit Profile" />
+                <AdminProfileTabButton active={profileTab === 'notifications'} onClick={() => selectProfileTab('notifications')} icon="🔔" label="Notifications" />
+                <AdminProfileTabButton active={profileTab === 'account'} onClick={() => selectProfileTab('account')} icon="⚙️" label="Account Settings" />
+              </aside>
+
+              <section style={{ padding: '26px 28px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', color: '#fff' }}>
+                    {profileTab === 'profile' && 'Profile'}
+                    {profileTab === 'edit' && 'Edit Profile'}
+                    {profileTab === 'notifications' && 'Notifications'}
+                    {profileTab === 'account' && 'Account Settings'}
+                  </h2>
+                  <button onClick={() => setProfileOpen(false)} style={{ border: '1px solid #334155', background: '#111827', color: '#e5e7eb', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}>
+                    Close
+                  </button>
+                </div>
+
+                {profileNotice && (
+                  <p style={{ marginTop: 0, marginBottom: '14px', padding: '10px 12px', borderRadius: '10px', border: profileNoticeTone === 'success' ? '1px solid #14532d' : '1px solid #7f1d1d', color: profileNoticeTone === 'success' ? '#86efac' : '#fca5a5', background: profileNoticeTone === 'success' ? 'rgba(20,83,45,0.26)' : 'rgba(127,29,29,0.22)' }}>
+                    {profileNotice}
+                  </p>
+                )}
+
+                {profileTab === 'profile' && (
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Full Name</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user.name || '—'}</p>
+                    </div>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Role</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff', textTransform: 'capitalize' }}>{roleLabel}</p>
+                    </div>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Email</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user.email || '—'}</p>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'edit' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ gridColumn: '1 / -1', display: 'grid', justifyItems: 'center', textAlign: 'center', marginBottom: '2px' }}>
+                      <button
+                        onClick={triggerProfileAvatarPick}
+                        disabled={profileAvatarUploading}
+                        style={{ width: '92px', height: '92px', borderRadius: '999px', border: '2px solid #BF932A', background: '#111827', color: '#BF932A', fontWeight: 700, fontSize: '30px', cursor: profileAvatarUploading ? 'not-allowed' : 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0, opacity: profileAvatarUploading ? 0.8 : 1 }}
+                        title="Change profile photo"
+                      >
+                        {avatarUrl
+                          ? <img src={avatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          : (profileDraft.name || user.name || 'U').charAt(0).toUpperCase()}
+                      </button>
+                      <input
+                        ref={profileAvatarInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={handleProfileAvatarChange}
+                      />
+                      <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#9ca3af' }}>
+                        {profileAvatarUploading ? 'Uploading photo...' : 'Edit profile photo'}
+                      </p>
+                    </div>
+                    <AdminProfileField label="Full Name" value={profileDraft.name} onChange={(v) => handleProfileDraft('name', v)} />
+                    <AdminProfileField label="Email" value={profileDraft.email} onChange={(v) => handleProfileDraft('email', v)} />
+                    <AdminProfileField label="Staff ID" value={profileDraft.studentId} onChange={(v) => handleProfileDraft('studentId', v)} />
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', marginTop: '6px' }}>
+                      <button onClick={saveProfileDraft} disabled={profileSaving} style={{ border: 'none', background: '#BF932A', color: '#111827', borderRadius: '10px', padding: '10px 16px', fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', opacity: profileSaving ? 0.8 : 1 }}>
+                        {profileSaving ? 'Saving...' : 'Save Profile'}
+                      </button>
+                      <button onClick={() => setProfileDraft({
+                        name: user.name || '',
+                        email: user.email || '',
+                        studentId: user.studentId || '',
+                      })} style={{ border: '1px solid #334155', background: '#111827', color: '#e5e7eb', borderRadius: '10px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'notifications' && (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {notifications.length === 0 && <p style={{ margin: 0, color: '#9ca3af' }}>No notifications available.</p>}
+                    {notifications.map((item, index) => (
+                      <div key={item.id || index} style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                          <p style={{ margin: 0, fontWeight: 700, color: '#fff' }}>{item.title || 'Notification'}</p>
+                          <span style={{ fontSize: '12px', color: '#9ca3af' }}>{item.type || 'GENERAL'}</span>
+                        </div>
+                        <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '13px' }}>{item.message || 'No message provided.'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {profileTab === 'account' && (
+                  <div style={{ display: 'grid', gap: '14px' }}>
+                    <div style={{ border: '1px solid #334155', borderRadius: '12px', background: '#111827', padding: '14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Role</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff', textTransform: 'capitalize' }}>{roleLabel}</p>
+                    </div>
+                    <div style={{ border: '1px solid #334155', borderRadius: '12px', background: '#111827', padding: '14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Email</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user.email}</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button style={{ border: '1px solid #334155', background: '#0f172a', borderRadius: '10px', padding: '10px 14px', color: '#94a3b8', fontWeight: 600, cursor: 'not-allowed', opacity: 0.7 }} disabled>
+                        Change Password
+                      </button>
+                      <button onClick={handleLogout} style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 14px', color: '#111827', fontWeight: 700, cursor: 'pointer' }}>
+                        Logout Now
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -172,6 +506,8 @@ const TAB_TITLES = {
   dispatch: 'Active Dispatch',
   'admin-users': 'Access & Identity',
   'admin-communication': 'Broadcast & Audit',
+  'manager-ops': 'Team Operations',
+  'manager-communication': 'Service Updates',
 };
 
 const CARD_STYLE = {
@@ -294,26 +630,50 @@ const getInitials = (name) =>
     .join('')
     .toUpperCase();
 
-function OverviewTab({ isAdmin, onJump, refreshKey }) {
+const AdminProfileField = ({ label, value, onChange }) => (
+  <label style={{ display: 'grid', gap: '6px' }}>
+    <span style={{ fontSize: '12px', color: '#9ca3af', fontWeight: 600 }}>{label}</span>
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#111827', outline: 'none' }}
+    />
+  </label>
+);
+
+const AdminProfileTabButton = ({ active, onClick, icon, label }) => (
+  <button
+    onClick={onClick}
+    style={{
+      width: '100%',
+      border: active ? 'none' : '1px solid #334155',
+      borderRadius: '10px',
+      background: active ? '#BF932A' : '#0f172a',
+      color: active ? '#111827' : '#d1d5db',
+      padding: '10px 12px',
+      marginBottom: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontWeight: 700,
+      cursor: 'pointer',
+      textAlign: 'left',
+    }}
+  >
+    <span aria-hidden="true">{icon}</span>
+    <span>{label}</span>
+  </button>
+);
+
+function OverviewTab({ onJump, refreshKey }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
-    if (!isAdmin) return;
-
-    fetch(`${API_BASE}/api/admin/summary`, { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
+    api.get('/api/admin/summary')
+      .then((res) => res.data)
       .then((data) => setSummary(data))
       .catch(() => setSummary(null));
-  }, [isAdmin, refreshKey]);
-
-  if (!isAdmin) {
-    return (
-      <div style={{ ...CARD_STYLE, color: '#fcd34d' }}>
-        <h3 style={{ marginTop: 0, color: '#fff' }}>Restricted Area</h3>
-        <p style={{ marginBottom: 0 }}>Only administrator accounts can use Administration functions.</p>
-      </div>
-    );
-  }
+  }, [refreshKey]);
 
   return (
     <div>
@@ -331,6 +691,92 @@ function OverviewTab({ isAdmin, onJump, refreshKey }) {
           <button onClick={() => onJump('admin-communication')} style={ShortcutButtonStyle}>Broadcast & Audit</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ManagerOverviewTab({ notifications, onJump }) {
+  const totalNotifications = notifications.length;
+  const unreadNotifications = notifications.filter((item) => !item.isRead && !item.read).length;
+  const warningCount = notifications.filter((item) => String(item.type || '').toUpperCase() === 'WARNING').length;
+
+  return (
+    <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
+        <MetricCard title="Assigned Alerts" value={totalNotifications} borderColor="#BF932A" />
+        <MetricCard title="Unread" value={unreadNotifications} borderColor="#ef4444" />
+        <MetricCard title="Warnings" value={warningCount} borderColor="#f59e0b" />
+      </div>
+
+      <div style={{ ...CARD_STYLE, color: '#d1d5db' }}>
+        <h3 style={{ marginTop: 0, color: '#fff' }}>Manager Actions</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+          <button onClick={() => onJump('manager-ops')} style={ShortcutButtonStyle}>Open Team Operations</button>
+          <button onClick={() => onJump('manager-communication')} style={ShortcutButtonStyle}>Review Service Updates</button>
+          <button onClick={() => onJump('dispatch')} style={ShortcutButtonStyle}>Check Dispatch Queue</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManagerOpsTab({ notifications }) {
+  const recent = notifications.slice(0, 6);
+
+  return (
+    <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={CARD_STYLE}>
+        <h3 style={{ marginTop: 0, color: '#fff' }}>Team Operations Board</h3>
+        <p style={{ marginTop: 0, color: '#9ca3af' }}>
+          Manager workspace for coordinating field updates and prioritizing service issues.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          <ManagerBadge title="High Priority" value={recent.filter((n) => String(n.type || '').toUpperCase() === 'ALERT').length} />
+          <ManagerBadge title="Warnings" value={recent.filter((n) => String(n.type || '').toUpperCase() === 'WARNING').length} />
+          <ManagerBadge title="Recent Updates" value={recent.length} />
+        </div>
+      </div>
+
+      <div style={CARD_STYLE}>
+        <h3 style={{ marginTop: 0, color: '#fff' }}>Recommended Workflow</h3>
+        <ul style={{ margin: 0, paddingLeft: '18px', color: '#d1d5db' }}>
+          <li style={{ marginBottom: '8px' }}>Review new alerts from the Notifications tab in your profile panel.</li>
+          <li style={{ marginBottom: '8px' }}>Coordinate with technicians using the Dispatch workspace.</li>
+          <li>Escalate critical cases to administrators when policy-level changes are required.</li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function ManagerCommunicationTab({ notifications }) {
+  return (
+    <div style={CARD_STYLE}>
+      <h3 style={{ marginTop: 0, color: '#fff' }}>Service Updates</h3>
+      {notifications.length === 0 ? (
+        <p style={{ marginBottom: 0, color: '#9ca3af' }}>No updates available for your team.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: '10px' }}>
+          {notifications.slice(0, 10).map((item, index) => (
+            <div key={item.id || index} style={{ border: '1px solid #334155', background: '#0f172a', borderRadius: '10px', padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                <p style={{ margin: 0, color: '#fff', fontWeight: 700 }}>{item.title || 'Update'}</p>
+                <span style={{ color: '#BF932A', fontSize: '11px', letterSpacing: '0.5px' }}>{String(item.type || 'INFO').toUpperCase()}</span>
+              </div>
+              <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '13px' }}>{item.message || 'No details provided.'}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManagerBadge({ title, value }) {
+  return (
+    <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', padding: '12px' }}>
+      <p style={{ margin: 0, color: '#9ca3af', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</p>
+      <p style={{ margin: '6px 0 0 0', color: '#fff', fontSize: '24px', fontWeight: 700 }}>{value}</p>
     </div>
   );
 }
@@ -380,29 +826,20 @@ function AccessIdentityTab({ isAdmin, onCreated }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/create-staff`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: form.name.trim(),
-          email: form.email.trim(),
-          newRole: form.newRole,
-        }),
+      const res = await api.post('/api/users/invite', {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.newRole,
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || 'Failed to create account.');
-        return;
-      }
+      const data = res.data || {};
 
       const tempPassword = data.defaultPassword ? ` Temporary password: ${data.defaultPassword}` : '';
       setSuccess((data.message || 'Account created successfully.') + tempPassword);
       setForm({ name: '', email: '', newRole: 'technician' });
       onCreated();
     } catch (err) {
-      setError('Network error while creating account.');
+      setError(err.response?.data?.error || 'Network error while creating account.');
     } finally {
       setLoading(false);
     }
@@ -468,12 +905,9 @@ function StaffDirectoryTab({ isAdmin, refreshKey, onChanged }) {
 
     setLoading(true);
     setError('');
-    fetch(`${API_BASE}/api/admin/staff`, { credentials: 'include' })
-      .then(async (res) => {
-        const data = await res.json().catch(() => []);
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to load staff list');
-        }
+    api.get('/api/users')
+      .then((res) => {
+        const data = res.data;
         setRows(Array.isArray(data) ? data : []);
       })
       .catch((err) => setError(err.message || 'Failed to load staff list'))
@@ -488,23 +922,13 @@ function StaffDirectoryTab({ isAdmin, refreshKey, onChanged }) {
     setError('');
     setMessage('');
     try {
-      const res = await fetch(`${API_BASE}/api/admin/staff/${id}/role`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ newRole }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || 'Could not update role');
-        return;
-      }
+      await api.patch(`/api/users/${id}/role`, { role: newRole });
 
       setMessage('Role updated successfully.');
       onChanged();
       load();
     } catch (err) {
-      setError('Network error while updating role.');
+      setError(err.response?.data?.error || 'Network error while updating role.');
     }
   };
 
@@ -516,21 +940,13 @@ function StaffDirectoryTab({ isAdmin, refreshKey, onChanged }) {
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/admin/staff/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || 'Could not delete user');
-        return;
-      }
+      await api.delete(`/api/users/${id}`);
 
       setMessage('User deleted successfully.');
       onChanged();
       load();
     } catch (err) {
-      setError('Network error while deleting user.');
+      setError(err.response?.data?.error || 'Network error while deleting user.');
     }
   };
 
@@ -618,22 +1034,12 @@ function BroadcastTab({ isAdmin }) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/admin/notifications/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) {
-        setError('Failed to send broadcast notification.');
-        return;
-      }
+      await api.post('/api/admin/notifications/broadcast', form);
 
       setSuccess('Broadcast sent successfully.');
       setForm({ title: '', message: '', type: 'INFO', targetRole: 'ALL' });
     } catch (err) {
-      setError('Network error while sending broadcast.');
+      setError(err.response?.data?.error || 'Network error while sending broadcast.');
     } finally {
       setLoading(false);
     }
@@ -715,8 +1121,8 @@ function AuditTab({ isAdmin, refreshKey }) {
 
     setError('');
     Promise.all([
-      fetch(`${API_BASE}/api/admin/summary`, { credentials: 'include' }).then((res) => (res.ok ? res.json() : null)),
-      fetch(`${API_BASE}/api/admin/staff`, { credentials: 'include' }).then((res) => (res.ok ? res.json() : [])),
+      api.get('/api/admin/summary').then((res) => res.data),
+      api.get('/api/users').then((res) => res.data || []),
     ])
       .then(([summaryData, staffData]) => {
         setSummary(summaryData);

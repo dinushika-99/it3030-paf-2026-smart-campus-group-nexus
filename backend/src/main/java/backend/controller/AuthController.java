@@ -4,27 +4,27 @@ import backend.model.AuthProvider;
 import backend.model.Role;
 import backend.model.User;
 import backend.repository.UserRepository;
+import backend.security.JwtAuthenticationFilter;
+import backend.security.JwtService;
+import backend.security.RefreshTokenService;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
-import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.oauth2.core.user.OAuth2User;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
-import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,14 +38,26 @@ public class AuthController {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private JwtDecoder googleIdTokenDecoder;
-    private final SecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
+    private final boolean cookieSecure;
+    private final String cookieSameSite;
 
     private static final Set<Role> SELF_REGISTRATION_ROLES = Set.of(Role.STUDENT, Role.LECTURER);
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthController(UserRepository userRepository,
+                          PasswordEncoder passwordEncoder,
+                          JwtService jwtService,
+                          RefreshTokenService refreshTokenService,
+                          @Value("${app.auth.jwt.cookie-secure:false}") boolean cookieSecure,
+                          @Value("${app.auth.jwt.cookie-same-site:Lax}") String cookieSameSite) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
+        this.refreshTokenService = refreshTokenService;
+        this.cookieSecure = cookieSecure;
+        this.cookieSameSite = cookieSameSite;
         this.googleIdTokenDecoder = null;
     }
 
@@ -57,38 +69,28 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public Map<String, Object> me(@AuthenticationPrincipal OAuth2User principal) {
-        if (principal == null) {
-            return Map.of();
-        }
-
-        String email = principal.getAttribute("email");
-        if (email == null) {
-            return Map.of();
-        }
-
-        User user = userRepository.findByEmail(email).orElse(null);
+    public ResponseEntity<?> me(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
         if (user == null) {
-            return Map.of();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
         }
 
-        return Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole().name()
-        );
+        return ResponseEntity.ok(Map.of(
+            "id", user.getId(),
+            "name", user.getName(),
+            "email", user.getEmail(),
+            "role", user.getRole().name()
+        ));
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request,
-                                   HttpServletRequest httpRequest,
-                                   HttpServletResponse httpResponse) {
+                                   HttpServletResponse response) {
         if (request.email() == null || request.password() == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing email or password"));
         }
 
-        var user = userRepository.findByEmail(request.email()).orElse(null);
+        var user = userRepository.findByEmail(request.email().trim().toLowerCase(Locale.ROOT)).orElse(null);
         if (user == null || user.getPasswordHash() == null) {
             if (user != null && user.getAuthProvider() == AuthProvider.GOOGLE) {
                 return ResponseEntity.status(401).body(Map.of("error", "This account uses Google sign-in. Use Continue with Google."));
@@ -103,16 +105,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                user.getEmail(),
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-        );
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(auth);
-        SecurityContextHolder.setContext(context);
-        httpRequest.getSession(true); // ensure session is created
-        securityContextRepository.saveContext(context, httpRequest, httpResponse);
+        issueAuthCookies(user, response);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -160,8 +153,7 @@ public class AuthController {
 
     @PostMapping("/google")
     public ResponseEntity<?> googleAuth(@RequestBody GoogleAuthRequest request,
-                                        HttpServletRequest httpRequest,
-                                        HttpServletResponse httpResponse) {
+                                        HttpServletResponse response) {
         if (request.token() == null || request.token().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Missing Google token"));
         }
@@ -217,16 +209,7 @@ public class AuthController {
             userRepository.save(user);
         }
 
-        var auth = new UsernamePasswordAuthenticationToken(
-                user.getEmail(),
-                null,
-                List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
-        );
-        SecurityContext context = SecurityContextHolder.createEmptyContext();
-        context.setAuthentication(auth);
-        SecurityContextHolder.setContext(context);
-        httpRequest.getSession(true);
-        securityContextRepository.saveContext(context, httpRequest, httpResponse);
+        issueAuthCookies(user, response);
 
         HttpStatus responseStatus = isNewUser ? HttpStatus.CREATED : HttpStatus.OK;
 
@@ -240,6 +223,125 @@ public class AuthController {
                         "role", user.getRole().name()
                 )
         ));
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = getCookieValue(request, JwtAuthenticationFilter.REFRESH_TOKEN_COOKIE);
+        if (refreshToken == null || refreshToken.isBlank()) {
+            clearAuthCookies(response);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Missing refresh token"));
+        }
+
+        try {
+            if (!jwtService.isRefreshToken(refreshToken)) {
+                clearAuthCookies(response);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
+            }
+
+            String email = jwtService.extractEmail(refreshToken);
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null || !refreshTokenService.isValidRefreshToken(user, refreshToken)) {
+                clearAuthCookies(response);
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Refresh token expired or revoked"));
+            }
+
+            issueAuthCookies(user, response);
+            return ResponseEntity.ok(Map.of("success", true));
+        } catch (JwtException | IllegalArgumentException ex) {
+            clearAuthCookies(response);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid refresh token"));
+        }
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+        String refreshToken = getCookieValue(request, JwtAuthenticationFilter.REFRESH_TOKEN_COOKIE);
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                String email = jwtService.extractEmail(refreshToken);
+                userRepository.findByEmail(email).ifPresent(refreshTokenService::revokeRefreshToken);
+            } catch (JwtException | IllegalArgumentException ignored) {
+            }
+        } else {
+            User user = resolveCurrentUser(authentication);
+            if (user != null) {
+                refreshTokenService.revokeRefreshToken(user);
+            }
+        }
+
+        clearAuthCookies(response);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    private void issueAuthCookies(User user, HttpServletResponse response) {
+        String accessToken = jwtService.generateAccessToken(user);
+        String refreshToken = jwtService.generateRefreshToken(user);
+
+        refreshTokenService.saveRefreshToken(user, refreshToken, LocalDateTime.now().plus(jwtService.getRefreshTokenTtl()));
+
+        ResponseCookie accessCookie = ResponseCookie.from(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, accessToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(jwtService.getAccessTokenTtl())
+                .build();
+
+        ResponseCookie refreshCookie = ResponseCookie.from(JwtAuthenticationFilter.REFRESH_TOKEN_COOKIE, refreshToken)
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(jwtService.getRefreshTokenTtl())
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+    }
+
+    private void clearAuthCookies(HttpServletResponse response) {
+        ResponseCookie accessCookie = ResponseCookie.from(JwtAuthenticationFilter.ACCESS_TOKEN_COOKIE, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(0)
+                .build();
+        ResponseCookie refreshCookie = ResponseCookie.from(JwtAuthenticationFilter.REFRESH_TOKEN_COOKIE, "")
+                .httpOnly(true)
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+    }
+
+    private String getCookieValue(HttpServletRequest request, String cookieName) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+        for (Cookie cookie : cookies) {
+            if (cookieName.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+        return null;
+    }
+
+    private User resolveCurrentUser(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return null;
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof String email && !email.isBlank() && !"anonymousUser".equals(email)) {
+            return userRepository.findByEmail(email).orElse(null);
+        }
+        return null;
     }
 
     private Role parseRole(String role) {
