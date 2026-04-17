@@ -14,7 +14,7 @@ export default function Login() {
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential;
     if (!token) {
-      setShowRegisterPrompt(false);
+    setShowRegisterPrompt(false);
       setError('Google login did not return a token. Please try again.');
       return;
     }

@@ -105,13 +105,15 @@ export default function Register() {
             </div>
           </div>
 
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Google sign-up was cancelled or failed.')}
-            width={380}
-            text="continue_with"
-            shape="rectangular"
-          />
+          <div className="clean-google-row">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-up was cancelled or failed.')}
+              width={380}
+              text="continue_with"
+              shape="rectangular"
+            />
+          </div>
 
           <div className="divider clean-divider">
             <span>or continue with email</span>
