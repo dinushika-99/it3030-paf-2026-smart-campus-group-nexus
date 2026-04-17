@@ -7,7 +7,6 @@ import Login from './Login';
 import Register from './Register';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
-import Profile from './Profile';
 import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
@@ -32,7 +31,6 @@ export default function App() {
           <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
-          <Route path="/profile" element={<Profile />} />
         </Routes>
       </Router>
     </GoogleOAuthProvider>

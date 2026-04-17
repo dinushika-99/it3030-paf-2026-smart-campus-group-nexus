@@ -167,13 +167,14 @@ export default function TicketManager({ user }) {
       const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
       const payload = toPayload(form, editingTicket);
       const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+      let ticketResponse;
       if (editingId) {
-        await api.put(endpoint, payload);
+        ticketResponse = await api.put(endpoint, payload);
       } else {
-        await api.post(endpoint, payload);
+        ticketResponse = await api.post(endpoint, payload);
       }
 
-      const savedTicket = await response.json();
+      const savedTicket = ticketResponse?.data;
 
       if (!editingId && selectedImages.length > 0) {
         const createdTicketId = savedTicket?.ticketId;

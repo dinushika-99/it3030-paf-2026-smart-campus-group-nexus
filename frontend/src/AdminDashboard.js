@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from './api/axiosClient';
+import { SITE_BRAND } from './siteConfig';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -79,6 +81,129 @@ export default function AdminDashboard({ user: userProp }) {
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
   };
+
+  const handleOpenProfile = useCallback(() => {
+    setProfileOpen(true);
+    setProfileTab('profile');
+    setProfileNotice('');
+    setProfileNoticeTone('success');
+  }, []);
+
+  const selectProfileTab = useCallback((tab) => {
+    setProfileTab(tab);
+    setProfileNotice('');
+  }, []);
+
+  const triggerProfileAvatarPick = useCallback(() => {
+    profileAvatarInputRef.current?.click();
+  }, []);
+
+  const handleProfileDraft = useCallback((field, value) => {
+    setProfileDraft((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const saveProfileDraft = useCallback(async () => {
+    const name = String(profileDraft.name || '').trim();
+    const email = String(profileDraft.email || '').trim();
+    const studentId = String(profileDraft.studentId || '').trim();
+
+    if (!name || !email) {
+      setProfileNotice('Name and email are required.');
+      setProfileNoticeTone('error');
+      return;
+    }
+
+    setProfileSaving(true);
+    setProfileNotice('');
+
+    try {
+      const response = await api.put('/api/profile/me', {
+        name,
+        email,
+        studentId: studentId || null,
+      });
+
+      const nextUser = {
+        ...user,
+        ...(response.data?.user || {}),
+        role: String(response.data?.user?.role || user?.role || '').toLowerCase(),
+      };
+
+      setUser(nextUser);
+      localStorage.setItem('smartCampusUser', JSON.stringify(nextUser));
+
+      setProfileNotice(response.data?.message || 'Profile updated successfully.');
+      setProfileNoticeTone('success');
+    } catch (error) {
+      setProfileNotice(error.response?.data?.error || 'Could not update profile.');
+      setProfileNoticeTone('error');
+    } finally {
+      setProfileSaving(false);
+    }
+  }, [profileDraft, user]);
+
+  const handleProfileAvatarChange = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+      return;
+    }
+
+    if (!String(file.type || '').startsWith('image/')) {
+      setProfileNotice('Please select an image file.');
+      setProfileNoticeTone('error');
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setProfileNotice('Image must be under 2MB.');
+      setProfileNoticeTone('error');
+      return;
+    }
+
+    setProfileAvatarUploading(true);
+    setProfileNotice('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post('/api/profile/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const nextAvatarUrl = response.data?.avatarUrl;
+      if (nextAvatarUrl) {
+        setAvatarUrl((prev) => {
+          if (prev && prev.startsWith('blob:')) {
+            URL.revokeObjectURL(prev);
+          }
+          return `${API_BASE}${nextAvatarUrl}?t=${Date.now()}`;
+        });
+
+        setUser((prev) => {
+          const next = {
+            ...prev,
+            avatarUrl: nextAvatarUrl,
+          };
+          localStorage.setItem('smartCampusUser', JSON.stringify(next));
+          return next;
+        });
+      }
+
+      setProfileNotice('Profile photo updated.');
+      setProfileNoticeTone('success');
+    } catch (error) {
+      setProfileNotice(error.response?.data?.error || 'Could not upload profile photo.');
+      setProfileNoticeTone('error');
+    } finally {
+      setProfileAvatarUploading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;

@@ -359,6 +359,8 @@
 
 .clean-google-row {
   margin-top: 2px;
+  display: flex;
+  justify-content: center;
 }
 
 .clean-divider {

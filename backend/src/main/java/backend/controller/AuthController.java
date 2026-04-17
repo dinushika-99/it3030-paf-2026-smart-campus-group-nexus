@@ -31,6 +31,7 @@ import java.util.Set;
 record RegisterRequest(String name, String email, String password, String role, String studentId) {}
 record LoginRequest(String email, String password) {}
 record GoogleAuthRequest(String token, String role) {}
+record ChangePasswordRequest(String currentPassword, String newPassword, String confirmPassword) {}
 
 @RestController
 @RequestMapping("/api/auth")
@@ -272,6 +273,56 @@ public class AuthController {
 
         clearAuthCookies(response);
         return ResponseEntity.ok(Map.of("success", true));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request,
+                                            Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        if (user.getAuthProvider() == AuthProvider.GOOGLE) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error",
+                    "This account uses Google sign-in. Password changes are managed by Google."
+            ));
+        }
+
+        if (request.currentPassword() == null || request.newPassword() == null || request.confirmPassword() == null
+                || request.currentPassword().isBlank() || request.newPassword().isBlank() || request.confirmPassword().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "All password fields are required"));
+        }
+
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password and confirm password must match"));
+        }
+
+        if (request.newPassword().length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password must be at least 8 characters long"));
+        }
+
+        if (request.currentPassword().equals(request.newPassword())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password must be different from current password"));
+        }
+
+        String storedPassword = user.getPasswordHash();
+        if (storedPassword == null || storedPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No local password is set for this account"));
+        }
+
+        boolean currentMatches = request.currentPassword().equals(storedPassword)
+                || passwordEncoder.matches(request.currentPassword(), storedPassword);
+        if (!currentMatches) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Current password is incorrect"));
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+        refreshTokenService.revokeRefreshToken(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
     private void issueAuthCookies(User user, HttpServletResponse response) {
