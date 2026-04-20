@@ -192,15 +192,7 @@ export default function TicketManager({ user }) {
           formData.append('file', image.file);
           formData.append('uploadedByUserId', uploadedByUserId);
 
-          const uploadResponse = await fetch(`${API_BASE}/${createdTicketId}/attachments`, {
-            method: 'POST',
-            credentials: 'include',
-            body: formData,
-          });
-
-          if (!uploadResponse.ok) {
-            throw new Error('Ticket created, but one or more image uploads failed.');
-          }
+          await api.post(`${API_BASE}/${createdTicketId}/attachments`, formData);
         }
       }
 
@@ -208,7 +200,8 @@ export default function TicketManager({ user }) {
       resetForm();
       await fetchTickets();
     } catch (submitError) {
-      setError(submitError.response?.data?.error || submitError.message || 'Ticket request failed.');
+      const uploadError = submitError?.response?.data?.error || submitError?.response?.data?.message;
+      setError(uploadError || submitError.message || 'Ticket request failed.');
     } finally {
       setIsSubmitting(false);
     }
