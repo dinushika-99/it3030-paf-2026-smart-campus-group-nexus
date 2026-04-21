@@ -1,10 +1,10 @@
-package backend.controller;
+package backend.notifications.controller;
 
-import backend.model.Notification;
-import backend.model.User;
-import backend.repository.NotificationRepository;
-import backend.repository.UserRepository;
-import backend.service.NotificationService;
+import backend.notifications.model.Notification;
+import backend.auth.model.User;
+import backend.notifications.repository.NotificationRepository;
+import backend.auth.repository.UserRepository;
+import backend.notifications.services.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -101,3 +101,5 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 }
+
+

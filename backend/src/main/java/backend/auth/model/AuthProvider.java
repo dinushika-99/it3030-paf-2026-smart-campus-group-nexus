@@ -1,4 +1,4 @@
-package backend.model;
+package backend.auth.model;
 
 public enum AuthProvider {
     LOCAL,

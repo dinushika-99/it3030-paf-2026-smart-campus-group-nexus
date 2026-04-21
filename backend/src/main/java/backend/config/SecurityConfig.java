@@ -1,6 +1,6 @@
 package backend.config;
 
-import backend.security.JwtAuthenticationFilter;
+import backend.auth.services.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -75,3 +75,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
+

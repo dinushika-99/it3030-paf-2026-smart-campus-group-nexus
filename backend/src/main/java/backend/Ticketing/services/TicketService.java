@@ -12,9 +12,9 @@ import backend.Ticketing.repository.TicketAssignmentRepository;
 import backend.Ticketing.repository.TicketAttachmentRepository;
 import backend.Ticketing.repository.TicketRepository;
 import backend.Ticketing.repository.TicketStatusHistoryRepository;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.UserRepository;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
@@ -566,3 +566,4 @@ private TicketCommentResponse mapToCommentResponse(TicketComment comment) {
     return response;
 }
 }
+

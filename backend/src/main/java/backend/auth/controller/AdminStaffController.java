@@ -1,11 +1,11 @@
-package backend.controller;
+package backend.auth.controller;
 
-import backend.model.AuthProvider;
-import backend.model.Notification;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.NotificationRepository;
-import backend.repository.UserRepository;
+import backend.auth.model.AuthProvider;
+import backend.notifications.model.Notification;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.notifications.repository.NotificationRepository;
+import backend.auth.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -243,3 +243,4 @@ public class AdminStaffController {
     public record UpdateRoleRequest(String newRole) {
     }
 }
+

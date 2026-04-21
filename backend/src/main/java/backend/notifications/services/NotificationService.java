@@ -1,10 +1,10 @@
-package backend.service;
+package backend.notifications.services;
 
-import backend.model.Notification;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.NotificationRepository;
-import backend.repository.UserRepository;
+import backend.notifications.model.Notification;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.notifications.repository.NotificationRepository;
+import backend.auth.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -54,3 +54,5 @@ public class NotificationService {
         notificationRepository.save(notification);
     }
 }
+
+
