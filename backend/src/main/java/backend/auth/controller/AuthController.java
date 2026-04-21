@@ -1,12 +1,12 @@
-package backend.controller;
+package backend.auth.controller;
 
-import backend.model.AuthProvider;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.UserRepository;
-import backend.security.JwtAuthenticationFilter;
-import backend.security.JwtService;
-import backend.security.RefreshTokenService;
+import backend.auth.model.AuthProvider;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
+import backend.auth.services.JwtAuthenticationFilter;
+import backend.auth.services.JwtService;
+import backend.auth.services.RefreshTokenService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -416,3 +416,5 @@ public class AuthController {
         };
     }
 }
+
+

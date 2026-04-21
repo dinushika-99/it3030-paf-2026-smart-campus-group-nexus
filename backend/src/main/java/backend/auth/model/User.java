@@ -1,4 +1,4 @@
-package backend.model;
+package backend.auth.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -166,3 +166,4 @@ public class User {
         }
     }
 }
+

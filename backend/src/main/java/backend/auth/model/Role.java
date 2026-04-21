@@ -1,4 +1,4 @@
-package backend.model;
+package backend.auth.model;
 
 public enum Role {
     STUDENT,
@@ -7,3 +7,4 @@ public enum Role {
     MANAGER,
     ADMIN
 }
+

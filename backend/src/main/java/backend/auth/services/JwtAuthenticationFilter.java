@@ -1,4 +1,4 @@
-package backend.security;
+package backend.auth.services;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -70,3 +70,4 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         return null;
     }
 }
+
