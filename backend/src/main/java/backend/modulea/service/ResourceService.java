@@ -31,9 +31,9 @@ public class ResourceService {
     private static final Map<ResourceCategory, Set<String>> ALLOWED_TYPES = Map.of(
         ResourceCategory.ACADEMIC,       Set.of("LECTURE_HALL", "LABORATORY", "COMPUTER_LAB", "DESIGN_STUDIO", "STUDY_ROOM"),
         ResourceCategory.SPORTS,         Set.of("SWIMMING_POOL", "TENNIS_COURT", "FOOTBALL_FIELD", "BASKETBALL_COURT", "GYM"),
-        ResourceCategory.COMMON,         Set.of("LIBRARY", "CAFETERIA", "OPEN_GROUND", "PARKING_LOT"),
-        ResourceCategory.ADMINISTRATIVE, Set.of("AUDITORIUM", "MEETING_ROOM", "CONFERENCE_ROOM"),
-        ResourceCategory.EQUIPMENT,      Set.of("PROJECTOR", "VIDEO_CAMERA", "LAPTOP_SET", "AUDIO_SYSTEM", "MICROPHONE")
+        ResourceCategory.COMMON,         Set.of("AUDITORIUM", "LIBRARY", "FOOD_AREA", "OPEN_SPACE", "PARKING_LOT"),
+        ResourceCategory.ADMINISTRATIVE, Set.of("MEETING_ROOM", "CONFERENCE_ROOM"),
+        ResourceCategory.EQUIPMENT,      Set.of("PROJECTOR", "VIDEO_CAMERA", "LAPTOP_SET", "AUDIO_SYSTEM", "MICROPHONE", "SPEAKER")
     );
 
     // 🔹 Constructor Injection (matches TicketService style)
