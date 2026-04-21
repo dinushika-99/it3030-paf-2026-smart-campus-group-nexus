@@ -294,7 +294,7 @@
 
 .inline-plain-error {
   margin: 0;
-  color: var(--auth-danger);
+  color: #111827;
   font-weight: 600;
 }
 
@@ -359,6 +359,8 @@
 
 .clean-google-row {
   margin-top: 2px;
+  display: flex;
+  justify-content: center;
 }
 
 .clean-divider {
