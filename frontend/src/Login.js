@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import './App.css';
 import { SITE_BRAND } from './siteConfig';
-
-const BACKEND_BASE = 'http://localhost:8081';
+import api from './api/axiosClient';
 
 export default function Login() {
   const [formFields, setFormFields] = useState({ email: '', password: '' });
@@ -15,7 +14,7 @@ export default function Login() {
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential;
     if (!token) {
-      setShowRegisterPrompt(false);
+    setShowRegisterPrompt(false);
       setError('Google login did not return a token. Please try again.');
       return;
     }
@@ -23,14 +22,9 @@ export default function Login() {
     setError('');
     setShowRegisterPrompt(false);
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ token }),
-      });
-      const data = await res.json();
-      if (res.ok && data.user) {
+      const res = await api.post('/api/auth/google', { token }, { skipAuthRefresh: true });
+      const data = res.data;
+      if (data?.user) {
         const normalizedUser = {
           ...data.user,
           role: data.user.role ? data.user.role.toLowerCase() : undefined,
@@ -38,17 +32,19 @@ export default function Login() {
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
       } else {
-        if (res.status === 404) {
-          setShowRegisterPrompt(true);
-          setError('No account exists for this email. Please register first.');
-        } else {
-          setShowRegisterPrompt(false);
-          setError(data.error || 'Google sign-in failed.');
-        }
+        setShowRegisterPrompt(false);
+        setError('Google sign-in failed.');
       }
     } catch (err) {
+      const status = err.response?.status;
+      const message = err.response?.data?.error;
+      if (status === 404) {
+        setShowRegisterPrompt(true);
+        setError('No account exists for this email. Please register first.');
+        return;
+      }
       setShowRegisterPrompt(false);
-      setError('Network error. Is the backend running?');
+      setError(message || 'Network error. Is the backend running?');
     }
   };
 
@@ -57,14 +53,12 @@ export default function Login() {
     setError('');
     setShowRegisterPrompt(false);
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: formFields.email, password: formFields.password }),
-      });
-      const data = await res.json();
-      if (res.ok && data.user) {
+      const res = await api.post('/api/auth/login', {
+        email: formFields.email,
+        password: formFields.password,
+      }, { skipAuthRefresh: true });
+      const data = res.data;
+      if (data?.user) {
         const normalizedUser = {
           ...data.user,
           role: data.user.role ? data.user.role.toLowerCase() : undefined,
@@ -72,17 +66,19 @@ export default function Login() {
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
       } else {
-        if (res.status === 404) {
-          setShowRegisterPrompt(true);
-          setError('No account exists for this email. Please register first.');
-        } else {
-          setShowRegisterPrompt(false);
-          setError(data.error || 'We could not sign you in. Please check your email and password, then try again.');
-        }
+        setShowRegisterPrompt(false);
+        setError('We could not sign you in. Please check your email and password, then try again.');
       }
     } catch (err) {
+      const status = err.response?.status;
+      const message = err.response?.data?.error;
+      if (status === 404) {
+        setShowRegisterPrompt(true);
+        setError('No account exists for this email. Please register first.');
+        return;
+      }
       setShowRegisterPrompt(false);
-      setError('Network error. Is the backend running?');
+      setError(message || 'Network error. Is the backend running?');
     }
   };
 
@@ -107,7 +103,7 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
               onError={() => setError('Google sign-in was cancelled or failed.')}
-              width="100%"
+              width={380}
               text="continue_with"
               shape="rectangular"
             />

@@ -220,6 +220,13 @@ function normalizeError(error, fallback) {
   return error.message || fallback;
 }
 
+function attachmentUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  const normalized = String(path).replace(/^\/+/, '');
+  return `${API_BASE}/${normalized}`;
+}
+
 function canReject(ticket) {
   return ticket?.status === 'OPEN';
 }
@@ -238,6 +245,17 @@ export default function AdminTicketManagementPage() {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [history, setHistory] = useState([]);
   const [assignmentHistory, setAssignmentHistory] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false);
+  const [comments, setComments] = useState([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState('');
+  const [commentInternal, setCommentInternal] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -263,6 +281,31 @@ export default function AdminTicketManagementPage() {
 
   const creatorInfo = selectedTicket?.createdByUserId ? usersById.get(selectedTicket.createdByUserId) : null;
   const assignedTechnicianInfo = selectedTicket?.assignedTechnicianId ? usersById.get(selectedTicket.assignedTechnicianId) : null;
+  const currentUserId = String(user?.id || user?.userId || '');
+  const canMarkInternal = ['admin', 'manager'].includes(String(user?.role || '').toLowerCase());
+
+  const commentTree = useMemo(() => {
+    const bucket = new Map();
+    comments.forEach((comment) => {
+      const parentKey = comment.parentCommentId ?? null;
+      const entries = bucket.get(parentKey) || [];
+      entries.push(comment);
+      bucket.set(parentKey, entries);
+    });
+
+    const sortByDate = (items) =>
+      [...items].sort((left, right) => new Date(left.createdAt || 0) - new Date(right.createdAt || 0));
+
+    const walk = (parentId = null) => {
+      const branch = sortByDate(bucket.get(parentId) || []);
+      return branch.map((comment) => ({
+        ...comment,
+        replies: walk(comment.commentId),
+      }));
+    };
+
+    return walk();
+  }, [comments]);
 
   const formatUserWithId = (userId) => {
     if (!userId) return '-';
@@ -276,13 +319,21 @@ export default function AdminTicketManagementPage() {
     ? 'Ticket Management'
     : ticketView === 'status'
       ? 'Status History'
-      : 'Assignment History';
+      : ticketView === 'assignment'
+        ? 'Assignment History'
+        : ticketView === 'attachments'
+          ? 'Ticket Attachments'
+          : 'Comments';
 
   const viewSubtitle = ticketView === 'manager'
     ? 'Review ticket details, assign technicians, and reject requests.'
     : ticketView === 'status'
       ? 'View status transitions for the selected ticket.'
-      : 'View technician assignment timeline for the selected ticket.';
+      : ticketView === 'assignment'
+        ? 'View technician assignment timeline for the selected ticket.'
+        : ticketView === 'attachments'
+          ? 'View, preview, and manage ticket evidence files.'
+          : 'View and manage ticket discussion thread and comments.';
 
   const fetchTickets = useCallback(async () => {
     const response = await fetch(`${API_BASE}/api/tickets`, {
@@ -349,6 +400,54 @@ export default function AdminTicketManagementPage() {
     setAssignmentHistory(Array.isArray(data) ? data : []);
   };
 
+  const fetchAttachments = async (ticketId) => {
+    if (!ticketId) {
+      setAttachments([]);
+      return;
+    }
+
+    setAttachmentsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/${ticketId}/attachments`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        setAttachments([]);
+        return;
+      }
+
+      const data = await response.json();
+      setAttachments(Array.isArray(data) ? data : []);
+    } finally {
+      setAttachmentsLoading(false);
+    }
+  };
+
+  const fetchComments = async (ticketId) => {
+    if (!ticketId) {
+      setComments([]);
+      return;
+    }
+
+    setCommentsLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/${ticketId}/comments`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        setComments([]);
+        return;
+      }
+
+      const data = await response.json();
+      setComments(Array.isArray(data) ? data : []);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
   const refreshData = useCallback(async () => {
     setIsLoading(true);
     setError('');
@@ -388,7 +487,7 @@ export default function AdminTicketManagementPage() {
 
     const parsed = JSON.parse(storedUser);
     const role = String(parsed.role || '').toLowerCase();
-    if (role !== 'admin') {
+    if (!['admin', 'manager'].includes(role)) {
       navigate('/admin');
       return;
     }
@@ -423,6 +522,13 @@ export default function AdminTicketManagementPage() {
       setAssignTechnicianId('');
       setHistory([]);
       setAssignmentHistory([]);
+      setAttachments([]);
+      setComments([]);
+      setCommentText('');
+      setReplyText('');
+      setReplyingTo(null);
+      setEditingCommentId(null);
+      setEditingCommentText('');
       return;
     }
 
@@ -430,6 +536,13 @@ export default function AdminTicketManagementPage() {
     setAssignTechnicianId(selected?.assignedTechnicianId || '');
     fetchHistory(selectedTicketId);
     fetchAssignmentHistory(selectedTicketId);
+    fetchAttachments(selectedTicketId);
+    fetchComments(selectedTicketId);
+    setCommentText('');
+    setReplyText('');
+    setReplyingTo(null);
+    setEditingCommentId(null);
+    setEditingCommentText('');
   }, [selectedTicketId, tickets]);
 
   const handleAssignTechnician = async () => {
@@ -533,6 +646,175 @@ export default function AdminTicketManagementPage() {
     }
   };
 
+  const canDeleteAttachment = (attachment) => {
+    if (!user || !attachment) return false;
+    const role = String(user.role || '').toLowerCase();
+    if (role === 'admin' || role === 'manager') return true;
+    return String(attachment.uploadedByUserId || '') === String(user.id || user.userId || '');
+  };
+
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (!selectedTicketId || !attachmentId) return;
+
+    const confirmed = window.confirm('Delete this attachment?');
+    if (!confirmed) return;
+
+    setIsSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/attachments/${attachmentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete attachment.');
+      }
+
+      setMessage('Attachment deleted successfully.');
+      await fetchAttachments(selectedTicketId);
+    } catch (deleteError) {
+      setError(normalizeError(deleteError, 'Failed to delete attachment.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const postComment = async ({ commentBody, parentCommentId = null }) => {
+    if (!selectedTicket || !currentUserId) {
+      setError('Select a ticket and ensure you are signed in.');
+      return;
+    }
+
+    const text = String(commentBody || '').trim();
+    if (!text) {
+      setError('Comment cannot be empty.');
+      return;
+    }
+
+    setCommentSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticketId}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: currentUserId,
+          commentText: text,
+          isInternal: commentInternal && canMarkInternal,
+          parentCommentId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to post comment.');
+      }
+
+      setMessage(parentCommentId ? 'Reply posted successfully.' : 'Comment posted successfully.');
+      setCommentText('');
+      setReplyText('');
+      setReplyingTo(null);
+      await fetchComments(selectedTicket.ticketId);
+    } catch (postError) {
+      setError(normalizeError(postError, 'Failed to post comment.'));
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handlePostComment = async () => {
+    await postComment({ commentBody: commentText, parentCommentId: null });
+  };
+
+  const handlePostReply = async (parentCommentId) => {
+    await postComment({ commentBody: replyText, parentCommentId });
+  };
+
+  const handleStartEditComment = (comment) => {
+    setEditingCommentId(comment.commentId);
+    setEditingCommentText(comment.commentText || '');
+    setReplyingTo(null);
+    setReplyText('');
+  };
+
+  const handleSaveCommentEdit = async () => {
+    if (!selectedTicket || !editingCommentId) return;
+
+    const text = editingCommentText.trim();
+    if (!text) {
+      setError('Comment text cannot be empty.');
+      return;
+    }
+
+    setCommentSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/comments/${editingCommentId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ commentText: text }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update comment.');
+      }
+
+      setMessage('Comment updated successfully.');
+      setEditingCommentId(null);
+      setEditingCommentText('');
+      await fetchComments(selectedTicket.ticketId);
+    } catch (updateError) {
+      setError(normalizeError(updateError, 'Failed to update comment.'));
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId) => {
+    if (!selectedTicket || !commentId) return;
+
+    const confirmed = window.confirm('Delete this comment?');
+    if (!confirmed) return;
+
+    setCommentSubmitting(true);
+    setError('');
+    setMessage('');
+    try {
+      const response = await fetch(`${API_BASE}/api/tickets/comments/${commentId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete comment.');
+      }
+
+      setMessage('Comment deleted successfully.');
+      if (editingCommentId === commentId) {
+        setEditingCommentId(null);
+        setEditingCommentText('');
+      }
+      if (replyingTo === commentId) {
+        setReplyingTo(null);
+        setReplyText('');
+      }
+      await fetchComments(selectedTicket.ticketId);
+    } catch (deleteError) {
+      setError(normalizeError(deleteError, 'Failed to delete comment.'));
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
   if (!user) {
     return <div style={{ ...pageShellStyle, display: 'grid', placeItems: 'center' }}>Loading...</div>;
   }
@@ -540,6 +822,171 @@ export default function AdminTicketManagementPage() {
   const handleLogout = () => {
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
+  };
+
+  const renderCommentNode = (comment, depth = 0) => {
+    const isEditing = editingCommentId === comment.commentId;
+    const isReplying = replyingTo === comment.commentId;
+    const isOwnComment = String(comment.userId || '') === currentUserId;
+    const canModifyComment = isOwnComment;
+
+    return (
+      <div
+        key={comment.commentId || `${comment.userId}-${comment.createdAt}`}
+        style={{
+          border: '1px solid #1f2937',
+          borderRadius: '10px',
+          background: '#0f172a',
+          padding: '12px',
+          marginLeft: `${Math.min(depth, 4) * 18}px`,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px', gap: '8px' }}>
+          <div>
+            <p style={{ margin: 0, color: '#fff', fontSize: '13px', fontWeight: 700 }}>
+              {formatUserWithId(comment.userId)}
+            </p>
+            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+              {formatDate(comment.createdAt)}
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {comment.isInternal && (
+              <span
+                style={{
+                  backgroundColor: '#3b82f6',
+                  color: '#fff',
+                  fontSize: '10px',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 700,
+                }}
+              >
+                Internal
+              </span>
+            )}
+            {comment.isEdited && (
+              <span
+                style={{
+                  backgroundColor: '#f59e0b',
+                  color: '#fff',
+                  fontSize: '10px',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 700,
+                }}
+              >
+                Edited
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setReplyingTo(comment.commentId);
+                setReplyText('');
+                setEditingCommentId(null);
+                setEditingCommentText('');
+              }}
+              style={{ border: '1px solid #334155', background: 'transparent', color: '#cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+            >
+              Reply
+            </button>
+            {canModifyComment && (
+              <button
+                type="button"
+                onClick={() => handleStartEditComment(comment)}
+                style={{ border: '1px solid #334155', background: 'transparent', color: '#cbd5e1', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+              >
+                Edit
+              </button>
+            )}
+            {canModifyComment && (
+              <button
+                type="button"
+                onClick={() => handleDeleteComment(comment.commentId)}
+                disabled={commentSubmitting}
+                style={{ border: '1px solid #dc2626', background: 'transparent', color: '#fca5a5', borderRadius: '6px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
+
+        {isEditing ? (
+          <>
+            <textarea
+              value={editingCommentText}
+              onChange={(event) => setEditingCommentText(event.target.value)}
+              rows={3}
+              style={{ width: '100%', borderRadius: '8px', border: '1px solid #334155', background: '#111827', color: '#f8fafc', padding: '10px', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={handleSaveCommentEdit}
+                disabled={commentSubmitting}
+                style={{ border: 'none', borderRadius: '8px', padding: '8px 10px', background: '#BF932A', color: '#111827', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingCommentId(null);
+                  setEditingCommentText('');
+                }}
+                style={{ border: '1px solid #334155', borderRadius: '8px', padding: '8px 10px', background: 'transparent', color: '#cbd5e1', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <p style={{ margin: 0, color: '#cbd5e1', fontSize: '13px', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+            {comment.commentText}
+          </p>
+        )}
+
+        {isReplying && (
+          <div style={{ marginTop: '10px' }}>
+            <textarea
+              value={replyText}
+              onChange={(event) => setReplyText(event.target.value)}
+              rows={3}
+              placeholder="Write a reply..."
+              style={{ width: '100%', borderRadius: '8px', border: '1px solid #334155', background: '#111827', color: '#f8fafc', padding: '10px', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handlePostReply(comment.commentId)}
+                disabled={commentSubmitting || !replyText.trim()}
+                style={{ border: 'none', borderRadius: '8px', padding: '8px 10px', background: '#BF932A', color: '#111827', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Post Reply
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setReplyingTo(null);
+                  setReplyText('');
+                }}
+                style={{ border: '1px solid #334155', borderRadius: '8px', padding: '8px 10px', background: 'transparent', color: '#cbd5e1', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {Array.isArray(comment.replies) && comment.replies.length > 0 && (
+          <div style={{ marginTop: '10px', display: 'grid', gap: '10px' }}>
+            {comment.replies.map((reply) => renderCommentNode(reply, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -644,6 +1091,23 @@ export default function AdminTicketManagementPage() {
         </button>
         <button
           type="button"
+          onClick={() => setTicketView('attachments')}
+          style={{
+            border: ticketView === 'attachments' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'attachments' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'attachments' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Attachments
+        </button>
+        
+        <button
+          type="button"
           onClick={() => setTicketView('status')}
           style={{
             border: ticketView === 'status' ? '1px solid #BF932A' : '1px solid #334155',
@@ -674,6 +1138,23 @@ export default function AdminTicketManagementPage() {
         >
           Assignment History
         </button>
+        <button
+          type="button"
+          onClick={() => setTicketView('comments')}
+          style={{
+            border: ticketView === 'comments' ? '1px solid #BF932A' : '1px solid #334155',
+            background: ticketView === 'comments' ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: ticketView === 'comments' ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Comments
+        </button>
+        
       </div>
 
       {message && (
@@ -849,6 +1330,7 @@ export default function AdminTicketManagementPage() {
                     <p style={{ ...valueStyle, color: '#fecaca', marginTop: '6px' }}>{selectedTicket.rejectionReason}</p>
                   </div>
                 )}
+
               </>
             )}
           </div>
@@ -948,6 +1430,74 @@ export default function AdminTicketManagementPage() {
           </div>
           )}
 
+          {ticketView === 'attachments' && (
+          <div style={cardStyle}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Ticket Attachments</h3>
+            {!selectedTicket ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Select a ticket to view attachments.</p>
+            ) : attachmentsLoading ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Loading attachments...</p>
+            ) : attachments.length === 0 ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>No attachments uploaded for this ticket.</p>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '10px' }}>
+                {attachments.map((attachment) => (
+                  <div
+                    key={attachment.attachmentId || `${attachment.fileUrl}-${attachment.uploadedAt}`}
+                    style={{ border: '1px solid #1f2937', borderRadius: '10px', background: '#0f172a', overflow: 'hidden' }}
+                  >
+                    <a href={attachmentUrl(attachment.fileUrl)} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                      <img
+                        src={attachmentUrl(attachment.fileUrl)}
+                        alt={attachment.fileName || 'Ticket attachment'}
+                        style={{ width: '100%', height: '132px', objectFit: 'cover', display: 'block' }}
+                      />
+                    </a>
+
+                    <div style={{ padding: '10px' }}>
+                      <p style={{ margin: 0, color: '#f8fafc', fontSize: '12px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {attachment.fileName || 'Attachment'}
+                      </p>
+
+                      <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '12px' }}>
+                        Caption: {attachment.caption || '-'}
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+                        Uploaded by: {formatUserWithId(attachment.uploadedByUserId)}
+                      </p>
+                      <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>
+                        Uploaded at: {formatDate(attachment.uploadedAt)}
+                      </p>
+
+                      {canDeleteAttachment(attachment) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAttachment(attachment.attachmentId)}
+                          disabled={isSubmitting}
+                          style={{
+                            marginTop: '8px',
+                            width: '100%',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '7px 10px',
+                            background: '#dc2626',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          Delete Attachment
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+
           {ticketView === 'status' && (
           <div style={cardStyle}>
             <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Status History</h3>
@@ -1017,6 +1567,60 @@ export default function AdminTicketManagementPage() {
             )}
           </div>
           )}
+
+          {ticketView === 'comments' && (
+          <div style={cardStyle}>
+            <h3 style={{ marginTop: 0, marginBottom: '12px', color: '#fff' }}>Comments & Discussion</h3>
+            {!selectedTicket ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Select a ticket to view comments.</p>
+            ) : commentsLoading ? (
+              <p style={{ margin: 0, color: '#9ca3af' }}>Loading comments...</p>
+            ) : (
+              <>
+                <div style={{ border: '1px solid #1f2937', borderRadius: '10px', background: '#0f172a', padding: '12px', marginBottom: '12px' }}>
+                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '12px' }}>
+                    Add updates, clarify actions, or record internal handling notes for this ticket.
+                  </p>
+                  <textarea
+                    value={commentText}
+                    onChange={(event) => setCommentText(event.target.value)}
+                    rows={4}
+                    placeholder="Write a comment..."
+                    style={{ width: '100%', borderRadius: '8px', border: '1px solid #334155', background: '#111827', color: '#f8fafc', padding: '10px', marginTop: '10px', resize: 'vertical' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginTop: '10px', flexWrap: 'wrap' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#cbd5e1', fontSize: '12px' }}>
+                      <input
+                        type="checkbox"
+                        checked={commentInternal}
+                        onChange={(event) => setCommentInternal(event.target.checked)}
+                        disabled={!canMarkInternal}
+                      />
+                      Mark as internal note
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handlePostComment}
+                      disabled={commentSubmitting || !commentText.trim()}
+                      style={{ border: 'none', borderRadius: '8px', padding: '8px 12px', background: '#BF932A', color: '#111827', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      {commentSubmitting ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
+                </div>
+
+                {commentTree.length === 0 ? (
+                  <p style={{ margin: 0, color: '#9ca3af' }}>No comments yet. Start a discussion!</p>
+                ) : (
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    {commentTree.map((comment) => renderCommentNode(comment, 0))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          )}
+        
         </section>
       </div>
       </main>

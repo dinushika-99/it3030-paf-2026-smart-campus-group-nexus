@@ -1,0 +1,10 @@
+{
+  "properties": [
+    {
+      "name": "app.upload.dir",
+      "type": "java.lang.String",
+      "description": "Base directory for ticket attachment uploads.",
+      "defaultValue": "uploads/tickets"
+    }
+  ]
+}

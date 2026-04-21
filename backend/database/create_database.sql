@@ -258,6 +258,115 @@ CREATE TABLE notifications (
     INDEX idx_notification_created (created_at)
 );
 
+select * from users;
+
+-- Physics Lab, Chemistry Lab, Study Room
+INSERT INTO resources (
+    name, type, category, capacity, status, 
+    daily_open_time, daily_close_time, description, 
+    image_url, is_bookable, building, floor, room_number, 
+    area_name, max_booking_duration_hours, max_quantity
+) VALUES 
+('Physics Lab', 'LAB', 'ACADEMIC', 40, 'ACTIVE', 
+ '08:00:00', '18:00:00', 'Advanced physics experiments lab', 
+ NULL, TRUE, 'ENGINEERING BUILDING', 2, 'E201', 
+ NULL, 4, 1),
+ 
+ ('Chemistry Lab', 'LAB', 'ACADEMIC', 40, 'ACTIVE', 
+ '08:00:00', '18:00:00', 'Chemical experiment laboratory', 
+ NULL, TRUE, 'ENGINEERING BUILDING', 1, 'E102', 
+ NULL, 2, 1),
+
+('Study Room', 'HALL', 'ACADEMIC', 200, 'ACTIVE', 
+ '08:00:00', '22:00:00', 'Silent study environment', 
+ NULL, TRUE, 'COMPUTING BUILDING', 1, 'C401', 
+ NULL, 4, 1);
+
+-- Football Ground, Tennis Court, Gym Area
+INSERT INTO resources (
+    name, type, category, capacity, status, 
+    daily_open_time, daily_close_time, description, 
+    image_url, is_bookable, building, floor, room_number, 
+    area_name, max_booking_duration_hours, max_quantity
+) VALUES 
+('Football Ground', 'FIELD', 'SPORTS', 60, 'ACTIVE', 
+ '06:00:00', '20:00:00', 'Full-size football ground', 
+ NULL, TRUE, NULL, NULL, NULL, 
+ 'Near Engineering Building', 4, 1),
+
+('Tennis Court', 'COURT', 'SPORTS', 4, 'ACTIVE', 
+ '06:00:00', '20:00:00', 'Outdoor tennis court', 
+ NULL, TRUE, NULL, NULL, NULL, 
+ 'Between Business and Engineering building', 4, 1),
+
+('Gym Area', 'GYM', 'SPORTS', 25, 'ACTIVE', 
+ '05:00:00', '22:00:00', 'Fully equipped gym', 
+ NULL, TRUE, NULL, NULL, NULL, 
+ 'Main Hall', 4, 1);
+
+-- Cafeteria, Open Study Area
+INSERT INTO resources (
+    name, type, category, capacity, status, 
+    daily_open_time, daily_close_time, description, 
+    image_url, is_bookable, building, floor, room_number, 
+    area_name, max_booking_duration_hours, max_quantity
+) VALUES 
+('Cafeteria', 'FOOD_AREA', 'COMMON', 150, 'ACTIVE', 
+ '07:00:00', '20:00:00', 'Student cafeteria', 
+ NULL, TRUE, 'BUSINESS BUILDING', 2, 'CAF-01', 
+ 'CAFETERIA', 4, 1),
+
+('Open Study Area', 'OPEN_SPACE', 'COMMON', 100, 'ACTIVE', 
+ '06:00:00', '22:00:00', 'Outdoor study environment', 
+ NULL, TRUE, 'COMPUTING BUILDING', 3, 'OS-01', 
+ 'STUDY ROOM', 4, 1);
+ 
+ -- Board Meeting Room, Main Conference Hall, Main Auditorium
+INSERT INTO resources (
+    name, type, category, capacity, status, 
+    daily_open_time, daily_close_time, description, 
+    image_url, is_bookable, building, floor, room_number, 
+    area_name, max_booking_duration_hours, max_quantity
+) VALUES 
+('Board Meeting Room', 'MEETING_ROOM', 'ADMINISTRATIVE', 25, 'ACTIVE', 
+ '09:00:00', '17:00:00', 'High-level meetings room', 
+ NULL, TRUE, 'MAIN BUILDING', 1, 'BM-01', 
+ NULL, 4, 1),
+
+('Main Conference Hall', 'CONFERENCE_HALL', 'ADMINISTRATIVE', 10, 'ACTIVE', 
+ '09:00:00', '17:00:00', 'Student registration office', 
+ NULL, FALSE, 'MAIN BUILDING', 2, 'RO-01', 
+ NULL, 4, 1),
+
+('Main Auditorium', 'AUDITORIUM', 'ADMINISTRATIVE', 20, 'ACTIVE', 
+ '08:00:00', '18:00:00', 'Main reception desk', 
+ NULL, TRUE, 'MAIN BUILDING', 1, 'REC-01', 
+ NULL, 4, 1);
+ 
+ -- Projector, Speaker, VR Headset Set
+INSERT INTO resources (
+    name, type, category, capacity, status, 
+    daily_open_time, daily_close_time, description, 
+    image_url, is_bookable, building, floor, room_number, 
+    area_name, max_booking_duration_hours, max_quantity
+) VALUES 
+('Projector Set', 'PROJECTOR', 'EQUIPMENT', 10, 'ACTIVE', 
+ '08:00:00', '18:00:00', 'Portable projectors for presentations', 
+ NULL, TRUE, 'COMPUTING BUILDING', 4, 'C404', 
+ NULL, 4, 3),
+
+('Speaker System', 'SPEAKER', 'EQUIPMENT', 1, 'ACTIVE', 
+ '08:00:00', '18:00:00', 'Sound system for events', 
+ NULL, TRUE, 'COMPUTING BUILDING', 4, 'C404', 
+ NULL, 4, 3),
+
+('VR Headset Set', 'VR', 'EQUIPMENT', 5, 'OUT_OF_SERVICE', 
+ '08:00:00', '18:00:00', 'Virtual reality training set', 
+ NULL, FALSE, 'COMPUTING BUILDING', 4, 'C404', 
+ NULL, 4, 3);
+
+
+
 
 
 

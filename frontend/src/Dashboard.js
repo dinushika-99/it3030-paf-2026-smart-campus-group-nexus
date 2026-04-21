@@ -1,26 +1,40 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
+import useDashboardProfile from './hooks/useDashboardProfile';
 
 export default function Dashboard() {
   const navigate = useNavigate();
 
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(null);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileTab, setProfileTab] = useState('profile');
-  const [profileDraft, setProfileDraft] = useState({
-    name: '',
-    email: '',
-    studentId: '',
-  });
-  const [profileAvatarUrl, setProfileAvatarUrl] = useState('');
-  const [profileNotice, setProfileNotice] = useState('');
-  const [profileNoticeTone, setProfileNoticeTone] = useState('success');
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
-  const profileAvatarInputRef = useRef(null);
+  const {
+    notifications,
+    profileOpen,
+    setProfileOpen,
+    profileTab,
+    profileDraft,
+    profileAvatarUrl,
+    profileNotice,
+    profileNoticeTone,
+    profileSaving,
+    profileAvatarUploading,
+    passwordForm,
+    passwordSaving,
+    passwordNotice,
+    passwordNoticeTone,
+    profileAvatarInputRef,
+    passwordStrength,
+    openProfile,
+    selectProfileTab,
+    handleProfileDraft,
+    saveProfileDraft,
+    resetProfileDraft,
+    triggerProfileAvatarPick,
+    handleProfileAvatarChange,
+    handlePasswordField,
+    handleChangePassword,
+    handleLogout,
+  } = useDashboardProfile({ user, setUser, navigate });
 
   // Load user from storage on mount
   useEffect(() => {
@@ -28,11 +42,6 @@ export default function Dashboard() {
     if (storedUser) {
       const parsed = JSON.parse(storedUser);
       setUser(parsed);
-      setProfileDraft({
-        name: parsed.name || '',
-        email: parsed.email || '',
-        studentId: parsed.studentId || '',
-      });
     } else {
       navigate('/login');
     }
@@ -44,166 +53,6 @@ export default function Dashboard() {
       navigate('/admin');
     }
   }, [user, navigate]);
-
-  // Fetch user's notifications (kept simple for now)
-  useEffect(() => {
-    if (!user) return;
-
-    fetch('http://localhost:8081/api/profile/me', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (!data) return;
-        const normalized = {
-          ...user,
-          ...data,
-          role: (data.role || user.role || '').toLowerCase(),
-        };
-        setUser(normalized);
-        setProfileDraft({
-          name: normalized.name || '',
-          email: normalized.email || '',
-          studentId: normalized.studentId || '',
-        });
-        localStorage.setItem('smartCampusUser', JSON.stringify(normalized));
-      })
-      .catch(() => {});
-
-    fetch('http://localhost:8081/api/profile/avatar', { credentials: 'include' })
-      .then((res) => (res.ok ? res.blob() : null))
-      .then((blob) => {
-        if (blob && blob.size > 0) {
-          const url = URL.createObjectURL(blob);
-          setProfileAvatarUrl((prev) => {
-            if (prev) URL.revokeObjectURL(prev);
-            return url;
-          });
-        }
-      })
-      .catch(() => {});
-
-    fetch('http://localhost:8081/api/notifications/me', { credentials: 'include' })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const sorted = [...data].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-          setNotifications(sorted);
-          setUnreadCount(sorted.filter((n) => !n.isRead && !n.read).length);
-        }
-      })
-      .catch((err) => console.error('Failed to fetch notifications', err));
-  }, [user]);
-
-  const openProfile = () => {
-    setProfileOpen(true);
-    setProfileTab('profile');
-    setProfileNotice('');
-  };
-
-  const selectProfileTab = (tab) => {
-    setProfileTab(tab);
-    setProfileNotice('');
-  };
-
-  const handleProfileDraft = (field, value) => {
-    setProfileDraft((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const saveProfileDraft = async () => {
-    setProfileNotice('');
-    setProfileSaving(true);
-
-    try {
-      const res = await fetch('http://localhost:8081/api/profile/me', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: profileDraft.name,
-          email: profileDraft.email,
-          studentId: profileDraft.studentId,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setProfileNoticeTone('error');
-        setProfileNotice(data.error || 'Could not save profile.');
-        return;
-      }
-
-      const normalizedUser = {
-        ...user,
-        ...(data.user || {}),
-        role: (data.user?.role || user.role || '').toLowerCase(),
-      };
-
-      setUser(normalizedUser);
-      setProfileDraft({
-        name: normalizedUser.name || '',
-        email: normalizedUser.email || '',
-        studentId: normalizedUser.studentId || '',
-      });
-      localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-
-      setProfileNoticeTone('success');
-      setProfileNotice('Profile saved successfully.');
-      setProfileTab('profile');
-    } catch (err) {
-      setProfileNoticeTone('error');
-      setProfileNotice('Network error while saving profile.');
-    } finally {
-      setProfileSaving(false);
-    }
-  };
-
-  const triggerProfileAvatarPick = () => {
-    profileAvatarInputRef.current?.click();
-  };
-
-  const handleProfileAvatarChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const previewUrl = URL.createObjectURL(file);
-    setProfileAvatarUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return previewUrl;
-    });
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    setProfileAvatarUploading(true);
-    setProfileNotice('');
-    try {
-      const res = await fetch('http://localhost:8081/api/profile/avatar', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setProfileNoticeTone('error');
-        setProfileNotice(data.error || 'Could not update profile photo.');
-        return;
-      }
-
-      setProfileNoticeTone('success');
-      setProfileNotice('Profile photo updated successfully.');
-    } catch (err) {
-      setProfileNoticeTone('error');
-      setProfileNotice('Network error while uploading profile photo.');
-    } finally {
-      setProfileAvatarUploading(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('smartCampusUser');
-    navigate('/login');
-  };
 
   // ==========================================
   // 🎓 STUDENT VIEW
@@ -304,9 +153,6 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
             Create Ticket
-          </button>
-          <button onClick={() => navigate('/profile')} style={{ backgroundColor: 'transparent', border: '1px solid #d1d5db', color: '#374151', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
-            Profile
           </button>
 
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
@@ -457,11 +303,7 @@ export default function Dashboard() {
                     <button onClick={saveProfileDraft} disabled={profileSaving} style={{ border: 'none', background: '#BF932A', color: '#111827', borderRadius: '10px', padding: '10px 16px', fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', opacity: profileSaving ? 0.8 : 1 }}>
                       {profileSaving ? 'Saving...' : 'Save Profile'}
                     </button>
-                    <button onClick={() => setProfileDraft({
-                      name: user.name || '',
-                      email: user.email || '',
-                      studentId: user.studentId || '',
-                    })} style={{ border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '10px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
+                    <button onClick={resetProfileDraft} style={{ border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '10px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
                       Reset
                     </button>
                   </div>
@@ -493,12 +335,110 @@ export default function Dashboard() {
                     <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Email</p>
                     <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827' }}>{user.email}</p>
                   </div>
+
+                  <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#ffffff', padding: '14px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Change password</p>
+                    <p style={{ margin: '6px 0 12px 0', fontSize: '13px', color: '#475569' }}>
+                      Use at least 8 characters and keep your password unique.
+                    </p>
+
+                    <div style={{ display: 'grid', gap: '10px' }}>
+                      <input
+                        type="password"
+                        value={passwordForm.currentPassword}
+                        onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
+                        placeholder="Current password"
+                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
+                      />
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(e) => handlePasswordField('newPassword', e.target.value)}
+                        placeholder="New password"
+                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
+                      />
+                      {passwordForm.newPassword && (
+                        <div style={{ display: 'grid', gap: '6px', marginTop: '-2px' }}>
+                          <div style={{ height: '7px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                width: `${Math.max(8, (passwordStrength.score / 4) * 100)}%`,
+                                height: '100%',
+                                background: passwordStrength.tone,
+                                transition: 'width 0.2s ease',
+                              }}
+                            />
+                          </div>
+                          <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>
+                            Password strength:{' '}
+                            <span style={{ fontWeight: 700, color: passwordStrength.tone }}>
+                              {passwordStrength.label}
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                      <input
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
+                        placeholder="Confirm new password"
+                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
+                      />
+                    </div>
+
+                    {passwordNotice && (
+                      <p
+                        style={{
+                          margin: '12px 0 0 0',
+                          fontSize: '13px',
+                          color: passwordNoticeTone === 'success' ? '#166534' : '#b91c1c',
+                          background: passwordNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
+                          border: passwordNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
+                          borderRadius: '10px',
+                          padding: '10px 12px',
+                        }}
+                      >
+                        {passwordNotice}
+                      </p>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+                      <button
+                        onClick={handleChangePassword}
+                        disabled={passwordSaving}
+                        style={{
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #c79a2b 0%, #e8bf57 100%)',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          color: '#111827',
+                          fontWeight: 800,
+                          cursor: passwordSaving ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 8px 20px rgba(199,154,43,0.35)',
+                          opacity: passwordSaving ? 0.8 : 1,
+                        }}
+                      >
+                        {passwordSaving ? 'Updating...' : 'Update Password'}
+                      </button>
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button style={{ border: '1px solid #d1d5db', background: '#fff', borderRadius: '10px', padding: '10px 14px', color: '#374151', fontWeight: 600, cursor: 'not-allowed', opacity: 0.7 }} disabled>
-                      Change Password
-                    </button>
-                    <button onClick={handleLogout} style={{ border: 'none', background: '#111827', borderRadius: '10px', padding: '10px 14px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
-                      Logout Now
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        border: 'none',
+                        background: 'linear-gradient(135deg, #0f172a 0%, #1f2937 100%)',
+                        borderRadius: '10px',
+                        padding: '10px 18px',
+                        color: '#fff',
+                        fontWeight: 800,
+                        letterSpacing: '0.3px',
+                        cursor: 'pointer',
+                        boxShadow: '0 10px 26px rgba(15,23,42,0.28)',
+                      }}
+                    >
+                      Logout
                     </button>
                   </div>
                 </div>
