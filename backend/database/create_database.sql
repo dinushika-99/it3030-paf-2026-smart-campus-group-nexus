@@ -69,10 +69,6 @@ ALTER TABLE resources
 DROP COLUMN location;
 
 
-
-
-
-
 CREATE TABLE bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     user_id VARCHAR(255) NOT NULL,
@@ -219,6 +215,8 @@ ALTER TABLE tickets MODIFY resources_id BIGINT;
 
 SHOW CREATE TABLE resources;
 SHOW CREATE TABLE tickets;
+
+select * from users;
 
 
 
