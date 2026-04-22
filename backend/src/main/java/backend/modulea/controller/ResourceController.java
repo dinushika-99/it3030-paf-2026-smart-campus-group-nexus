@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@RestController
+@RestController("moduleaResourceController")
 @RequestMapping("/api/resources")
 @CrossOrigin(origins = "*")
 public class ResourceController {
