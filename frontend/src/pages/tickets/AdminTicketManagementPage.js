@@ -225,6 +225,23 @@ function statusColor(status) {
   return '#94a3b8';
 }
 
+const STATUS_SECTION_ORDER = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'CLOSED'];
+
+const STATUS_SECTION_LABEL = {
+  OPEN: 'Open',
+  IN_PROGRESS: 'In Progress',
+  RESOLVED: 'Solved',
+  REJECTED: 'Rejected',
+  CLOSED: 'Closed',
+};
+
+const PRIORITY_RANK = {
+  CRITICAL: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
 function formatDate(value) {
   if (!value) return '-';
 
@@ -322,6 +339,33 @@ export default function AdminTicketManagementPage() {
     () => tickets.find((ticket) => String(ticket.ticketId) === String(selectedTicketId)) || null,
     [tickets, selectedTicketId]
   );
+
+  const ticketsByStatusSections = useMemo(() => {
+    const normalizeStatus = (status) => {
+      const normalized = String(status || '').toUpperCase();
+      return STATUS_SECTION_ORDER.includes(normalized) ? normalized : 'OPEN';
+    };
+
+    const sortByPriority = (left, right) => {
+      const leftPriority = PRIORITY_RANK[String(left.priority || '').toUpperCase()] || 0;
+      const rightPriority = PRIORITY_RANK[String(right.priority || '').toUpperCase()] || 0;
+      if (rightPriority !== leftPriority) return rightPriority - leftPriority;
+      return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+    };
+
+    const grouped = new Map(STATUS_SECTION_ORDER.map((status) => [status, []]));
+
+    tickets.forEach((ticket) => {
+      const status = normalizeStatus(ticket.status);
+      grouped.get(status).push(ticket);
+    });
+
+    return STATUS_SECTION_ORDER.map((status) => ({
+      status,
+      label: STATUS_SECTION_LABEL[status] || status,
+      tickets: [...grouped.get(status)].sort(sortByPriority),
+    }));
+  }, [tickets]);
 
   const usersById = useMemo(() => {
     const map = new Map();
@@ -1403,64 +1447,76 @@ export default function AdminTicketManagementPage() {
               No tickets returned. If backend still filters by owner, admin list may be empty until admin ticket APIs are enabled.
             </p>
           ) : (
-            <div style={{ display: 'grid', gap: '8px', alignContent: 'start' }}>
-              {tickets.map((ticket) => {
-                const active = String(ticket.ticketId) === String(selectedTicketId);
-                return (
-                  <button
-                    key={ticket.ticketId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTicketId(ticket.ticketId);
-                      setMessage('');
-                      setError('');
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      background: active ? 'rgba(191,147,42,0.12)' : '#0f172a',
-                      border: active ? '1px solid #BF932A' : '1px solid #1f2937',
-                      color: '#e5e7eb',
-                      borderRadius: '10px',
-                      padding: '10px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <strong style={{ color: '#fff', fontSize: '13px' }}>{ticket.ticketCode || `#${ticket.ticketId}`}</strong>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          border: `1px solid ${statusColor(ticket.status)}`,
-                          color: statusColor(ticket.status),
-                          borderRadius: '999px',
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            width: '7px',
-                            height: '7px',
-                            borderRadius: '999px',
-                            backgroundColor: statusColor(ticket.status),
-                            boxShadow: `0 0 0 3px color-mix(in srgb, ${statusColor(ticket.status)} 18%, transparent)`,
-                            flexShrink: 0,
+            <div style={{ display: 'grid', gap: '12px', alignContent: 'start' }}>
+              {ticketsByStatusSections.map((section) => (
+                <div key={section.status} style={{ display: 'grid', gap: '8px' }}>
+                  <p style={{ margin: '2px 0 0 0', color: '#cbd5e1', fontSize: '12px', fontWeight: 700, letterSpacing: '0.3px' }}>
+                    {section.label} ({section.tickets.length})
+                  </p>
+
+                  {section.tickets.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>No tickets in this section.</p>
+                  ) : (
+                    section.tickets.map((ticket) => {
+                      const active = String(ticket.ticketId) === String(selectedTicketId);
+                      return (
+                        <button
+                          key={ticket.ticketId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTicketId(ticket.ticketId);
+                            setMessage('');
+                            setError('');
                           }}
-                        />
-                        {ticket.status || 'OPEN'}
-                      </span>
-                    </div>
-                    <p style={{ margin: '7px 0 0 0', fontSize: '13px', color: '#cbd5e1' }}>{ticket.title || 'Untitled ticket'}</p>
-                    <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                      Priority: {ticket.priority || '-'}
-                    </p>
-                  </button>
-                );
-              })}
+                          style={{
+                            textAlign: 'left',
+                            background: active ? 'rgba(191,147,42,0.12)' : '#0f172a',
+                            border: active ? '1px solid #BF932A' : '1px solid #1f2937',
+                            color: '#e5e7eb',
+                            borderRadius: '10px',
+                            padding: '10px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ color: '#fff', fontSize: '13px' }}>{ticket.ticketCode || `#${ticket.ticketId}`}</strong>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                border: `1px solid ${statusColor(ticket.status)}`,
+                                color: statusColor(ticket.status),
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <span
+                                aria-hidden="true"
+                                style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '999px',
+                                  backgroundColor: statusColor(ticket.status),
+                                  boxShadow: `0 0 0 3px color-mix(in srgb, ${statusColor(ticket.status)} 18%, transparent)`,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {ticket.status || 'OPEN'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '7px 0 0 0', fontSize: '13px', color: '#cbd5e1' }}>{ticket.title || 'Untitled ticket'}</p>
+                          <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                            Priority: {ticket.priority || '-'}
+                          </p>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </section>

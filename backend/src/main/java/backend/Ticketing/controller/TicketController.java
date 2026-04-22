@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import backend.Ticketing.dto.TicketCommentRequest;
 import backend.Ticketing.dto.TicketCommentResponse;
 import backend.Ticketing.dto.TicketCommentUpdateRequest;
@@ -38,6 +39,13 @@ public class TicketController {
     public ResponseEntity<Ticket> createTicket(@RequestBody Ticket ticket, Authentication authentication) {
         Ticket createdTicket = ticketService.createTicket(ticket, authentication);
         return new ResponseEntity<>(createdTicket, HttpStatus.CREATED);
+    }
+
+    @PostMapping("/priority-suggestion")
+    public ResponseEntity<Map<String, Object>> suggestPriority(@RequestBody Map<String, String> payload) {
+        String description = payload == null ? null : payload.get("description");
+        String category = payload == null ? null : payload.get("category");
+        return ResponseEntity.ok(ticketService.suggestPriority(description, category));
     }
 
     @GetMapping
