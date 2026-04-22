@@ -114,13 +114,34 @@ public class TicketService {
         if (currentUser.getRole() == Role.ADMIN) {
             return ticketRepository.findAll();
         }
+        if (currentUser.getRole() == Role.TECHNICIAN) {
+            List<Ticket> createdTickets = ticketRepository.findByCreatedByUserId(currentUser.getId());
+            List<Ticket> assignedTickets = ticketRepository.findByAssignedTechnicianId(currentUser.getId());
+
+            return java.util.stream.Stream.concat(createdTickets.stream(), assignedTickets.stream())
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(Ticket::getTicketId, ticket -> ticket, (left, right) -> left),
+                            ticketsById -> ticketsById.values().stream()
+                                    .sorted((left, right) -> right.getCreatedAt().compareTo(left.getCreatedAt()))
+                                    .collect(Collectors.toList())
+                    ));
+        }
         return ticketRepository.findByCreatedByUserId(currentUser.getId());
+    }
+
+    public List<Ticket> getAssignedTicketsForCurrentUser(Authentication authentication) {
+        User currentUser = resolveCurrentUser(authentication);
+        if (currentUser.getRole() == Role.ADMIN) {
+            return ticketRepository.findAll();
+        }
+        return ticketRepository.findByAssignedTechnicianId(currentUser.getId());
     }
 
     public Ticket getTicketById(Integer id, Authentication authentication) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
-        ensureTicketOwnership(ticket, authentication);
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketReadableByCurrentUser(ticket, currentUser);
         return ticket;
     }
 
@@ -191,6 +212,32 @@ public class TicketService {
         }
     }
 
+    private void ensureTicketReadableByCurrentUser(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (Objects.equals(ticket.getCreatedByUserId(), currentUser.getId())) {
+            return;
+        }
+
+        if (Objects.equals(ticket.getAssignedTechnicianId(), currentUser.getId())) {
+            return;
+        }
+
+        throw new ResponseStatusException(FORBIDDEN, "You can only access your own or assigned tickets");
+    }
+
+    private void ensureTicketCanBeManagedByCurrentUser(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (!Objects.equals(ticket.getAssignedTechnicianId(), currentUser.getId())) {
+            throw new ResponseStatusException(FORBIDDEN, "Only the assigned technician can update this ticket");
+        }
+    }
+
     private User resolveCurrentUser(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new ResponseStatusException(UNAUTHORIZED, "You must be logged in to create a ticket");
@@ -232,8 +279,33 @@ public class TicketService {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
 
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketCanBeManagedByCurrentUser(ticket, currentUser);
+
         TicketStatus oldStatus = ticket.getStatus();
         TicketStatus newStatus = TicketStatus.valueOf(request.getStatus().toUpperCase());
+
+        if (currentUser.getRole() == Role.TECHNICIAN) {
+            if (!(oldStatus == TicketStatus.IN_PROGRESS && newStatus == TicketStatus.RESOLVED)) {
+                throw new ResponseStatusException(FORBIDDEN, "Technicians can only mark IN_PROGRESS tickets as RESOLVED");
+            }
+        }
+
+        if (newStatus == TicketStatus.CLOSED && currentUser.getRole() != Role.ADMIN) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can close tickets");
+        }
+
+        String normalizedResolutionNotes = normalizeOptionalField(request.getResolutionNotes());
+        String normalizedChangeNote = normalizeOptionalField(request.getChangeNote());
+
+        if (oldStatus == newStatus) {
+            if (currentUser.getRole() == Role.TECHNICIAN) {
+                throw new ResponseStatusException(FORBIDDEN, "Technicians can only resolve assigned tickets");
+            }
+            ticket.setResolutionNotes(normalizedResolutionNotes);
+            Ticket updatedTicket = ticketRepository.save(ticket);
+            return updatedTicket;
+        }
 
         if (!isValidStatusTransition(oldStatus, newStatus)) {
             throw new RuntimeException("Invalid status transition from " + oldStatus + " to " + newStatus);
@@ -246,7 +318,7 @@ public class TicketService {
         }
 
         if (newStatus == TicketStatus.RESOLVED) {
-            ticket.setResolutionNotes(request.getResolutionNotes());
+            ticket.setResolutionNotes(normalizedResolutionNotes);
             ticket.setResolvedAt(LocalDateTime.now());
         }
 
@@ -260,13 +332,12 @@ public class TicketService {
 
         Ticket updatedTicket = ticketRepository.save(ticket);
 
-        User currentUser = resolveCurrentUser(authentication);
         TicketStatusHistory history = new TicketStatusHistory(
                 updatedTicket,
                 oldStatus.name(),
                 newStatus.name(),
-                currentUser.getId(),
-                request.getChangeNote()
+            currentUser.getId(),
+            normalizedChangeNote
         );
 
         ticketStatusHistoryRepository.save(history);

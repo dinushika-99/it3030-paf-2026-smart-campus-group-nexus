@@ -11,6 +11,7 @@ import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
+import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tickets" element={<TicketPage />} />
           <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
+          <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
         </Routes>

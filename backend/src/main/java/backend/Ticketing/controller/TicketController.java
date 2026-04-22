@@ -45,6 +45,11 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getTicketsForCurrentUser(authentication));
     }
 
+    @GetMapping("/my-assigned")
+    public ResponseEntity<List<Ticket>> getMyAssignedTickets(Authentication authentication) {
+        return ResponseEntity.ok(ticketService.getAssignedTicketsForCurrentUser(authentication));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Ticket> getTicketById(@PathVariable Integer id, Authentication authentication) {
         return ResponseEntity.ok(ticketService.getTicketById(id, authentication));

@@ -28,9 +28,6 @@ export default function TicketPage() {
           <button type="button" className="ticket-nav-btn" onClick={() => navigate('/dashboard')}>
             Home
           </button>
-          <button type="button" className="ticket-nav-btn danger" onClick={() => navigate('/profile')}>
-            Profile
-          </button>
         </div>
       </div>
 
