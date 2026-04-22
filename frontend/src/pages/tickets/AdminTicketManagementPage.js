@@ -929,6 +929,10 @@ export default function AdminTicketManagementPage() {
     setProfileTab('profile');
   };
 
+  const goToAdminTab = (activeTab) => {
+    navigate('/admin', { state: { activeTab } });
+  };
+
   const renderCommentNode = (comment, depth = 0) => {
     const isEditing = editingCommentId === comment.commentId;
     const isReplying = replyingTo === comment.commentId;
@@ -1127,23 +1131,23 @@ export default function AdminTicketManagementPage() {
 
         <div className="admin-nav-group">
           <MenuCategory title="Main" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Command Center" icon="dashboard" />
+          <NavButton active={false} onClick={() => goToAdminTab('command-center')} text="Command Center" icon="dashboard" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
           <NavButton active={true} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Asset Directory" icon="asset" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Resource Scheduling" icon="schedule" />
+          <NavButton active={false} onClick={() => goToAdminTab('asset-directory')} text="Asset Directory" icon="asset" />
+          <NavButton active={false} onClick={() => goToAdminTab('scheduling')} text="Resource Scheduling" icon="schedule" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Resolution" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Incident Desk" icon="incident" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Active Dispatch" icon="dispatch" />
+          <NavButton active={false} onClick={() => goToAdminTab('incident-desk')} text="Incident Desk" icon="incident" />
+          <NavButton active={false} onClick={() => goToAdminTab('dispatch')} text="Active Dispatch" icon="dispatch" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Administration" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Access & Identity" icon="identity" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Broadcast & Audit" icon="audit" />
+          <NavButton active={false} onClick={() => goToAdminTab('admin-users')} text="Access & Identity" icon="identity" />
+          <NavButton active={false} onClick={() => goToAdminTab('admin-communication')} text="Broadcast & Audit" icon="audit" />
         </div>
       </aside>
 
