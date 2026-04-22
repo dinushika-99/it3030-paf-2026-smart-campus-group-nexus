@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import TicketManager from './TicketManager';
 import './TicketPage.css';
 
 export default function TicketPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
+
+  const initialRoomId = new URLSearchParams(location.search).get('roomId') || '';
 
   useEffect(() => {
     const storedUser = localStorage.getItem('smartCampusUser');
@@ -31,7 +34,7 @@ export default function TicketPage() {
         </div>
       </div>
 
-      <TicketManager user={user} />
+      <TicketManager user={user} initialRoomId={initialRoomId} />
     </div>
   );
 }

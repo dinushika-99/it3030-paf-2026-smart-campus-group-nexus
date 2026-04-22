@@ -5,6 +5,7 @@ import backend.Ticketing.dto.TicketAttachmentResponse;
 import backend.Ticketing.model.Ticket;
 import backend.Ticketing.model.TicketAssignment;
 import backend.Ticketing.model.TicketAttachment;
+import backend.Ticketing.model.TicketPriority;
 import backend.Ticketing.model.TicketStatus;
 import backend.Ticketing.model.TicketStatusHistory;
 import backend.Ticketing.model.TicketStatusUpdateRequest;
@@ -32,7 +33,11 @@ import backend.Ticketing.model.TicketComment;
 import backend.Ticketing.repository.TicketCommentRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,6 +78,13 @@ public class TicketService {
             "image/webp"
     );
 
+        private static final Map<TicketPriority, List<String>> PRIORITY_KEYWORDS = Map.of(
+            TicketPriority.CRITICAL, List.of("fire", "alarm", "emergency", "explosion", "evacuation", "security breach", "hazard", "gas leak"),
+            TicketPriority.HIGH, List.of("server down", "network issue", "network down", "power outage", "urgent", "major", "critical lab"),
+            TicketPriority.MEDIUM, List.of("not working", "broken", "error", "failed", "malfunction", "projector", "printer", "internet slow", "light issue"),
+            TicketPriority.LOW, List.of("request", "improvement", "minor", "enhancement", "new chair", "feature request")
+        );
+
     public TicketService(
             TicketRepository ticketRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
@@ -107,6 +119,80 @@ public class TicketService {
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "Ticket data is invalid for current database constraints", ex);
         }
+    }
+
+    public Map<String, Object> suggestPriority(String description, String category) {
+        String text = String.join(" ",
+                        String.valueOf(description == null ? "" : description),
+                        String.valueOf(category == null ? "" : category))
+                .toLowerCase(Locale.ROOT)
+                .trim();
+
+        if (text.isEmpty()) {
+            return buildSuggestionResponse(TicketPriority.MEDIUM, 0, List.of(), "No description provided. Defaulting to MEDIUM.");
+        }
+
+        int score = 0;
+        List<String> matchedKeywords = new ArrayList<>();
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.CRITICAL)) {
+            if (text.contains(keyword)) {
+                score += 5;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.HIGH)) {
+            if (text.contains(keyword)) {
+                score += 3;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.MEDIUM)) {
+            if (text.contains(keyword)) {
+                score += 2;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.LOW)) {
+            if (text.contains(keyword)) {
+                score += 1;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        TicketPriority suggestedPriority;
+        if (score >= 6) {
+            suggestedPriority = TicketPriority.HIGH;
+        } else if (score >= 3) {
+            suggestedPriority = TicketPriority.MEDIUM;
+        } else {
+            suggestedPriority = TicketPriority.LOW;
+        }
+
+        if (!matchedKeywords.isEmpty() && matchedKeywords.stream().anyMatch(PRIORITY_KEYWORDS.get(TicketPriority.CRITICAL)::contains)) {
+            suggestedPriority = TicketPriority.HIGH;
+        }
+
+        String reason = matchedKeywords.isEmpty()
+                ? "No strong keywords found. Suggested LOW by default scoring."
+                : "Matched keywords: " + String.join(", ", matchedKeywords);
+
+        return buildSuggestionResponse(suggestedPriority, score, matchedKeywords, reason);
+    }
+
+    private Map<String, Object> buildSuggestionResponse(TicketPriority priority,
+                                                        int score,
+                                                        List<String> matchedKeywords,
+                                                        String reason) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("suggestedPriority", priority.name());
+        response.put("score", score);
+        response.put("matchedKeywords", matchedKeywords);
+        response.put("reason", reason);
+        return response;
     }
 
     public List<Ticket> getTicketsForCurrentUser(Authentication authentication) {
