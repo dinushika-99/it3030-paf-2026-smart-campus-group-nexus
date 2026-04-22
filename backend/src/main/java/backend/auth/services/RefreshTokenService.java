@@ -1,7 +1,7 @@
-package backend.security;
+package backend.auth.services;
 
-import backend.model.User;
-import backend.repository.UserRepository;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -51,3 +51,5 @@ public class RefreshTokenService {
         }
     }
 }
+
+

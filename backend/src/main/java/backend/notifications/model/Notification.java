@@ -1,5 +1,6 @@
-package backend.model;
+package backend.notifications.model;
 
+import backend.auth.model.User;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -90,3 +91,4 @@ public class Notification {
         this.createdAt = createdAt;
     }
 }
+

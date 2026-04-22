@@ -1,9 +1,9 @@
-package backend.security;
+package backend.auth.services;
 
-import backend.model.AuthProvider;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.UserRepository;
+import backend.auth.model.AuthProvider;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
@@ -69,3 +69,5 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return new DefaultOAuth2User(authorities, oAuth2User.getAttributes(), nameAttributeKey);
     }
 }
+
+

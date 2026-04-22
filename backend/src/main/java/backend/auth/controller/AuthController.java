@@ -1,12 +1,12 @@
-package backend.controller;
+package backend.auth.controller;
 
-import backend.model.AuthProvider;
-import backend.model.Role;
-import backend.model.User;
-import backend.repository.UserRepository;
-import backend.security.JwtAuthenticationFilter;
-import backend.security.JwtService;
-import backend.security.RefreshTokenService;
+import backend.auth.model.AuthProvider;
+import backend.auth.model.Role;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
+import backend.auth.services.JwtAuthenticationFilter;
+import backend.auth.services.JwtService;
+import backend.auth.services.RefreshTokenService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,9 +21,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +33,7 @@ import java.util.Set;
 record RegisterRequest(String name, String email, String password, String role, String studentId) {}
 record LoginRequest(String email, String password) {}
 record GoogleAuthRequest(String token, String role) {}
+record GithubAuthRequest(String code, String role) {}
 record ChangePasswordRequest(String currentPassword, String newPassword, String confirmPassword) {}
 
 @RestController
@@ -42,8 +45,12 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private JwtDecoder googleIdTokenDecoder;
+    private final RestClient restClient;
     private final boolean cookieSecure;
     private final String cookieSameSite;
+    private final String githubClientId;
+    private final String githubClientSecret;
+    private final String githubRedirectUri;
 
     private static final Set<Role> SELF_REGISTRATION_ROLES = Set.of(Role.STUDENT, Role.LECTURER);
 
@@ -52,13 +59,20 @@ public class AuthController {
                           JwtService jwtService,
                           RefreshTokenService refreshTokenService,
                           @Value("${app.auth.jwt.cookie-secure:false}") boolean cookieSecure,
-                          @Value("${app.auth.jwt.cookie-same-site:Lax}") String cookieSameSite) {
+                          @Value("${app.auth.jwt.cookie-same-site:Lax}") String cookieSameSite,
+                          @Value("${app.auth.github.client-id:}") String githubClientId,
+                          @Value("${app.auth.github.client-secret:}") String githubClientSecret,
+                          @Value("${app.auth.github.redirect-uri:http://localhost:3000/auth/github/callback}") String githubRedirectUri) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.cookieSecure = cookieSecure;
         this.cookieSameSite = cookieSameSite;
+        this.githubClientId = githubClientId;
+        this.githubClientSecret = githubClientSecret;
+        this.githubRedirectUri = githubRedirectUri;
+        this.restClient = RestClient.builder().build();
         this.googleIdTokenDecoder = null;
     }
 
@@ -214,6 +228,152 @@ public class AuthController {
 
         HttpStatus responseStatus = isNewUser ? HttpStatus.CREATED : HttpStatus.OK;
 
+        return ResponseEntity.status(responseStatus).body(Map.of(
+                "success", true,
+                "isNewUser", isNewUser,
+                "user", Map.of(
+                        "id", user.getId(),
+                        "name", user.getName(),
+                        "email", user.getEmail(),
+                        "role", user.getRole().name()
+                )
+        ));
+    }
+
+    @PostMapping("/github")
+    public ResponseEntity<?> githubAuth(@RequestBody GithubAuthRequest request,
+                                        HttpServletResponse response) {
+        if (request.code() == null || request.code().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Missing GitHub authorization code"));
+        }
+
+        if (githubClientId == null || githubClientId.isBlank()
+                || githubClientSecret == null || githubClientSecret.isBlank()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                    .body(Map.of("error", "GitHub login is not configured on the server"));
+        }
+
+        String accessToken;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> tokenResponse = restClient.post()
+                    .uri("https://github.com/login/oauth/access_token")
+                    .header(HttpHeaders.ACCEPT, "application/json")
+                    .body(Map.of(
+                            "client_id", githubClientId,
+                            "client_secret", githubClientSecret,
+                            "code", request.code(),
+                            "redirect_uri", githubRedirectUri
+                    ))
+                    .retrieve()
+                    .body(Map.class);
+
+            accessToken = tokenResponse == null ? null : (String) tokenResponse.get("access_token");
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "GitHub token exchange failed"));
+        }
+
+        if (accessToken == null || accessToken.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Invalid GitHub authorization code"));
+        }
+
+        Map<String, Object> githubUser;
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> profile = restClient.get()
+                    .uri("https://api.github.com/user")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                    .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
+                    .retrieve()
+                    .body(Map.class);
+            githubUser = profile;
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unable to read GitHub profile"));
+        }
+
+        if (githubUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Unable to read GitHub profile"));
+        }
+
+        String email = githubUser.get("email") instanceof String e ? e : null;
+        if (email == null || email.isBlank()) {
+            try {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> emails = restClient.get()
+                        .uri("https://api.github.com/user/emails")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+                        .header(HttpHeaders.ACCEPT, "application/vnd.github+json")
+                        .retrieve()
+                        .body(List.class);
+
+                if (emails != null) {
+                    email = emails.stream()
+                            .filter(item -> Boolean.TRUE.equals(item.get("verified")) && Boolean.TRUE.equals(item.get("primary")))
+                            .map(item -> (String) item.get("email"))
+                            .filter(itemEmail -> itemEmail != null && !itemEmail.isBlank())
+                            .findFirst()
+                            .orElseGet(() -> emails.stream()
+                                    .filter(item -> Boolean.TRUE.equals(item.get("verified")))
+                                    .map(item -> (String) item.get("email"))
+                                    .filter(itemEmail -> itemEmail != null && !itemEmail.isBlank())
+                                    .findFirst()
+                                    .orElse(null));
+                }
+            } catch (RuntimeException ex) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", "Unable to read GitHub account email"));
+            }
+        }
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "GitHub account email is missing or private"));
+        }
+
+        String name = githubUser.get("name") instanceof String n && !n.isBlank()
+                ? n
+                : (githubUser.get("login") instanceof String login && !login.isBlank() ? login : email);
+        String subject = githubUser.get("id") == null ? null : String.valueOf(githubUser.get("id"));
+
+        String requestedRoleRaw = request.role();
+        boolean roleProvided = requestedRoleRaw != null && !requestedRoleRaw.isBlank();
+
+        boolean isNewUser = false;
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            if (!roleProvided) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                        "error", "Account not found. Please go to the Register page."
+                ));
+            }
+
+            Role requestedRole = parseSelfRegistrationRole(requestedRoleRaw);
+            user = new User();
+            user.setEmail(email);
+            user.setName(name);
+            user.setRole(requestedRole);
+            user.setAuthProvider(AuthProvider.GITHUB);
+            user.setProviderId(subject);
+            user.setCreatedAt(LocalDateTime.now());
+            user = userRepository.save(user);
+            isNewUser = true;
+        } else {
+            if (user.getAuthProvider() == null) {
+                user.setAuthProvider(AuthProvider.GITHUB);
+            }
+            if (subject != null && !subject.isBlank() && (user.getProviderId() == null || user.getProviderId().isBlank())) {
+                user.setProviderId(subject);
+            }
+            userRepository.save(user);
+        }
+
+        issueAuthCookies(user, response);
+
+        HttpStatus responseStatus = isNewUser ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(responseStatus).body(Map.of(
                 "success", true,
                 "isNewUser", isNewUser,
@@ -416,3 +576,5 @@ public class AuthController {
         };
     }
 }
+
+

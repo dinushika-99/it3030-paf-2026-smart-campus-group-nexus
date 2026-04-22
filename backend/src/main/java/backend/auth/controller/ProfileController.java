@@ -1,7 +1,7 @@
-package backend.controller;
+package backend.auth.controller;
 
-import backend.model.User;
-import backend.repository.UserRepository;
+import backend.auth.model.User;
+import backend.auth.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -291,3 +291,4 @@ public class ProfileController {
         };
     }
 }
+

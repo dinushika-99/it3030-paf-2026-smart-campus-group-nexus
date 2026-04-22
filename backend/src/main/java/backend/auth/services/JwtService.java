@@ -1,6 +1,6 @@
-package backend.security;
+package backend.auth.services;
 
-import backend.model.User;
+import backend.auth.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -96,3 +96,5 @@ public class JwtService {
         return refreshTokenTtl;
     }
 }
+
+
