@@ -1459,6 +1459,11 @@ export default function AdminTicketManagementPage() {
                   ) : (
                     section.tickets.map((ticket) => {
                       const active = String(ticket.ticketId) === String(selectedTicketId);
+                      const isHighPriority = ['HIGH', 'CRITICAL'].includes(String(ticket.priority || '').toUpperCase());
+                      const hasAssignedTechnician = Boolean(String(ticket.assignedTechnicianId || '').trim());
+                      const isOpenHighPriorityUnassigned = String(ticket.status || '').toUpperCase() === 'OPEN'
+                        && isHighPriority
+                        && !hasAssignedTechnician;
                       return (
                         <button
                           key={ticket.ticketId}
@@ -1471,9 +1476,17 @@ export default function AdminTicketManagementPage() {
                           style={{
                             textAlign: 'left',
                             background: active ? 'rgba(191,147,42,0.12)' : '#0f172a',
-                            border: active ? '1px solid #BF932A' : '1px solid #1f2937',
+                            border: isOpenHighPriorityUnassigned
+                              ? '2px solid #ef4444'
+                              : (active ? '1px solid #BF932A' : '1px solid #1f2937'),
+                            borderLeft: isOpenHighPriorityUnassigned
+                              ? '4px solid #ef4444'
+                              : (active ? '4px solid #BF932A' : '4px solid transparent'),
                             color: '#e5e7eb',
-                            borderRadius: '10px',
+                            borderRadius: '12px',
+                            boxShadow: isOpenHighPriorityUnassigned
+                              ? '0 0 0 2px rgba(239,68,68,0.2)'
+                              : 'none',
                             padding: '10px',
                             cursor: 'pointer',
                           }}
