@@ -1,6 +1,7 @@
 package backend.booking.controller;
 
 import backend.auth.model.User;
+import backend.auth.model.Role;
 import backend.auth.repository.UserRepository;
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
@@ -12,10 +13,12 @@ import backend.booking.services.BookingServices;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,51 +29,63 @@ import java.util.Map;
 public class BookingController {
 
     private final BookingServices bookingService;
-    private final UserRepository userRepository;  // ✅ Inject UserRepository
+    private final UserRepository userRepository;
 
     public BookingController(BookingServices bookingService, UserRepository userRepository) {
         this.bookingService = bookingService;
         this.userRepository = userRepository;
     }
 
-    // ✅ Create a new booking request
+    // ✅ POST /api/bookings - Create booking (STUDENT, LECTURER, MANAGER only)
     @PostMapping
     public ResponseEntity<?> createBooking(
             @Valid @RequestBody BookingRequestDTO requestDTO,
             Principal principal) {
         
         try {
-            // ✅ Extract user ID properly (lookup by email to get UUID)
             String userId = getCurrentUserId(principal);
-            
             BookingResponseDTO response = bookingService.createBooking(requestDTO, userId);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(
                 createSuccessResponse("Booking request created successfully", response)
             );
-        } catch (BookingConflictException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 createErrorResponse(e.getMessage())
             );
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
                 createErrorResponse(e.getMessage())
             );
+        } catch (BookingConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
         }
     }
 
-    // ✅ Get all bookings for current user
+    // ✅ GET /api/bookings/my - Get current user's bookings
     @GetMapping("/my")
     public ResponseEntity<?> getMyBookings(Principal principal) {
-        String userId = getCurrentUserId(principal);
-        List<BookingResponseDTO> bookings = bookingService.getMyBookings(userId);
-        
-        return ResponseEntity.ok(
-            createSuccessResponse("Bookings retrieved successfully", bookings)
-        );
+        try {
+            String userId = getCurrentUserId(principal);
+            List<BookingResponseDTO> bookings = bookingService.getMyBookings(userId);
+            
+            return ResponseEntity.ok(
+                createSuccessResponse("Bookings retrieved successfully", bookings)
+            );
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
     }
 
-    // ✅ Get booking by ID
+    // ✅ GET /api/bookings/{bookingId} - Get booking by ID
     @GetMapping("/{bookingId}")
     public ResponseEntity<?> getBookingById(@PathVariable String bookingId) {
         try {
@@ -85,28 +100,50 @@ public class BookingController {
         }
     }
 
-    // ✅ Get all bookings (Admin only)
+    // ✅ GET /api/bookings/all - Get all bookings (ADMIN only)
     @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllBookings() {
-        List<BookingResponseDTO> bookings = bookingService.getAllBookings();
-        return ResponseEntity.ok(
-            createSuccessResponse("All bookings retrieved successfully", bookings)
-        );
+        try {
+            List<BookingResponseDTO> bookings = bookingService.getAllBookings();
+            return ResponseEntity.ok(
+                createSuccessResponse("All bookings retrieved successfully", bookings)
+            );
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                createErrorResponse("Only admins can view all bookings")
+            );
+        }
     }
 
-    // ✅ Update booking status (Approve/Reject/Cancel)
+    // ✅ GET /api/bookings/pending - View pending bookings (ADMIN only) - NEW
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getPendingBookings() {
+        try {
+            List<BookingResponseDTO> pendingBookings = bookingService.getPendingBookings();
+            return ResponseEntity.ok(
+                createSuccessResponse("Pending bookings retrieved", pendingBookings)
+            );
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                createErrorResponse("Only admins can view pending bookings")
+            );
+        }
+    }
+
+    // ✅ PATCH /api/bookings/{bookingId}/status - Approve/Reject (ADMIN only)
     @PatchMapping("/{bookingId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateBookingStatus(
             @PathVariable String bookingId,
             @Valid @RequestBody StatusUpdateDTO statusUpdateDTO,
             Principal principal) {
         
         try {
-            String currentUserId = getCurrentUserId(principal);
-            boolean isAdmin = checkIfAdmin(principal);
-            
+            String adminUserId = getCurrentUserId(principal);
             BookingResponseDTO response = bookingService.updateBookingStatus(
-                bookingId, statusUpdateDTO, currentUserId, isAdmin
+                bookingId, statusUpdateDTO, adminUserId, true
             );
             
             return ResponseEntity.ok(
@@ -118,7 +155,7 @@ public class BookingController {
             );
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                createErrorResponse(e.getMessage())
+                createErrorResponse("Only admins can approve/reject bookings")
             );
         } catch (IllegalStateException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
@@ -127,15 +164,15 @@ public class BookingController {
         }
     }
 
-    // ✅ Cancel booking
+    // ✅ DELETE /api/bookings/{bookingId} - Cancel booking (Owner or Admin)
     @DeleteMapping("/{bookingId}")
     public ResponseEntity<?> cancelBooking(
             @PathVariable String bookingId,
             Principal principal) {
         
         try {
-            String currentUserId = getCurrentUserId(principal);
-            bookingService.cancelBooking(bookingId, currentUserId);
+            String userId = getCurrentUserId(principal);
+            bookingService.cancelBooking(bookingId, userId);
             
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
         } catch (ResourceNotFoundException e) {
@@ -155,7 +192,7 @@ public class BookingController {
 
     // ==================== HELPER METHODS ====================
 
-    // ✅ FIXED: Properly extract user ID by looking up User entity
+    // ✅ Extract user UUID by looking up User entity via email
     private String getCurrentUserId(Principal principal) {
         if (principal == null) {
             throw new RuntimeException("User not authenticated");
@@ -163,7 +200,7 @@ public class BookingController {
         
         String email;
         
-        // Handle OAuth2 authentication
+        // Handle OAuth2 authentication (Google Sign-in)
         if (principal instanceof OAuth2User oAuth2User) {
             String oauthEmail = oAuth2User.getAttribute("email");
             email = oauthEmail != null ? oauthEmail : oAuth2User.getAttribute("sub");
@@ -177,36 +214,11 @@ public class BookingController {
             throw new RuntimeException("Email not found in authentication");
         }
         
-        // ✅ Lookup user by email to get the actual UUID user_id
+        // Lookup user by email to get the actual UUID user_id
         User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         
-        return user.getId();  // ✅ Return the UUID user_id
-    }
-
-    // ✅ Check if user is admin (implement based on your security config)
-    private boolean checkIfAdmin(Principal principal) {
-        if (principal == null) {
-            return false;
-        }
-        
-        // For OAuth2: Check roles from attributes
-        if (principal instanceof OAuth2User oAuth2User) {
-            // Google OAuth2 doesn't include roles by default - you'd need to store role in DB
-            // For now, lookup user and check role
-            String email = oAuth2User.getAttribute("email");
-            if (email != null) {
-                return userRepository.findByEmail(email)
-                    .map(user -> user.getRole() == backend.auth.model.Role.ADMIN)
-                    .orElse(false);
-            }
-        }
-        
-        // For local auth: Lookup user and check role
-        String email = principal.getName();
-        return userRepository.findByEmail(email)
-            .map(user -> user.getRole() == backend.auth.model.Role.ADMIN)
-            .orElse(false);
+        return user.getId();  // Return the UUID user_id
     }
 
     // ✅ Success response formatter
@@ -223,7 +235,7 @@ public class BookingController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
         response.put("message", message);
-        response.put("timestamp", java.time.LocalDateTime.now().toString());
+        response.put("timestamp", LocalDateTime.now().toString());
         return response;
     }
 }

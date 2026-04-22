@@ -20,6 +20,9 @@ public interface BookingRepository  extends JpaRepository<Booking, String> {
     // Find bookings by status
     List<Booking> findByStatus(Booking.BookingStatus status);
 
+    // Find bookings by status ordered by creation date
+    List<Booking> findByStatusOrderByCreatedAtDesc(Booking.BookingStatus status);
+
     // Find all bookings (for admin)
     List<Booking> findAllByOrderByCreatedAtDesc();
 

@@ -1,13 +1,5 @@
 package backend.booking.services.impl;
 
-import java.time.LocalDateTime;
-import java.util.stream.Collectors;
-import java.util.List;
-import java.util.UUID;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
 import backend.booking.dto.StatusUpdateDTO;
@@ -16,51 +8,81 @@ import backend.booking.model.BookingStatusHistory;
 import backend.booking.repository.BookingHistoryRepository;
 import backend.booking.repository.BookingRepository;
 import backend.booking.services.BookingServices;
+import backend.auth.model.User;
+import backend.auth.model.Role;
+import backend.auth.repository.UserRepository;
+import backend.modulea.model.Resource;
+import backend.modulea.repository.ResourceRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
-public class BookingServiceImpl implements BookingServices{
-
-   private final BookingRepository bookingRepository;
+public class BookingServiceImpl implements BookingServices {
+    
+    private final BookingRepository bookingRepository;
     private final BookingHistoryRepository bookingHistoryRepository;
-
+    private final UserRepository userRepository;
+    private final ResourceRepository resourceRepository;
+    
     // Manual Constructor Injection
     public BookingServiceImpl(BookingRepository bookingRepository, 
-                              BookingHistoryRepository bookingHistoryRepository) {
+                              BookingHistoryRepository bookingHistoryRepository,
+                              UserRepository userRepository,
+                              ResourceRepository resourceRepository) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
-    } 
+        this.userRepository = userRepository;
+        this.resourceRepository = resourceRepository;
+    }
 
     @Override
     public BookingResponseDTO createBooking(BookingRequestDTO requestDTO, String currentUserId) {
         
-        // 1. Validate time range
+        // 1. Validate User Exists & Role (Only STUDENT, LECTURER, MANAGER can create)
+        User user = userRepository.findById(currentUserId)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + currentUserId));
+        
+        if (!isValidCreatorRole(user.getRole())) {
+            throw new AccessDeniedException(
+                "Only Students, Lecturers, and Managers can create bookings"
+            );
+        }
+        
+        // 2. Validate Time Range
         if (requestDTO.getEndTime().isBefore(requestDTO.getStartTime()) ||
             requestDTO.getEndTime().isEqual(requestDTO.getStartTime())) {
             throw new IllegalArgumentException("End time must be after start time");
         }
-
-        // 2. Check for scheduling conflicts
+        
+        // 3. Validate Resource Exists & Type-Specific Fields
+        Resource resource = resourceRepository.findById(requestDTO.getResourcesId())
+            .orElseThrow(() -> new ResourceNotFoundException("Resource not found with ID: " + requestDTO.getResourcesId()));
+        
+        validateResourceTypeAndFields(requestDTO, resource);
+        
+        // 4. Check Scheduling Conflicts
         int overlappingCount = bookingRepository.countOverlappingBookings(
             requestDTO.getResourcesId(),
             requestDTO.getStartTime(),
             requestDTO.getEndTime()
         );
-
+        
         if (overlappingCount > 0) {
             throw new BookingConflictException(
                 "This resource is already booked for the selected time range"
             );
         }
-
-        // 3. Generate unique booking ID and code
-        String bookingId = UUID.randomUUID().toString();
-        String bookingCode = generateBookingCode();
-
-        // 4. Create booking entity (using manual setters instead of builder)
+        
+        // 5. Create Booking Entity
         Booking booking = new Booking();
-        booking.setBookingId(bookingId);
-        booking.setBookingCode(bookingCode);
+        booking.setBookingId(UUID.randomUUID().toString());
+        booking.setBookingCode(generateBookingCode());
         booking.setUserId(currentUserId);
         booking.setResourcesId(requestDTO.getResourcesId());
         booking.setStartTime(requestDTO.getStartTime());
@@ -70,12 +92,13 @@ public class BookingServiceImpl implements BookingServices{
         booking.setQuantityRequested(requestDTO.getQuantityRequested());
         booking.setStatus(Booking.BookingStatus.PENDING);
         booking.setCreatedByUserId(currentUserId);
-
+        booking.setCreatedAt(LocalDateTime.now());
+        
         Booking savedBooking = bookingRepository.save(booking);
-
-        // 5. Record status history
+        
+        // 6. Record Status History
         recordStatusHistory(savedBooking.getBookingId(), null, "PENDING", currentUserId, "Booking created");
-
+        
         return mapToResponseDTO(savedBooking);
     }
 
@@ -101,6 +124,15 @@ public class BookingServiceImpl implements BookingServices{
     @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAllBookings() {
         return bookingRepository.findAllByOrderByCreatedAtDesc()
+            .stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getPendingBookings() {
+        return bookingRepository.findByStatusOrderByCreatedAtDesc(Booking.BookingStatus.PENDING)
             .stream()
             .map(this::mapToResponseDTO)
             .collect(Collectors.toList());
@@ -198,7 +230,70 @@ public class BookingServiceImpl implements BookingServices{
         return bookingRepository.existsById(bookingId);
     }
 
-    //PRIVATE HELPER METHODS
+    // ==================== PRIVATE HELPER METHODS ====================
+
+    // Helper: Validate Creator Role
+    private boolean isValidCreatorRole(Role role) {
+        return role == Role.STUDENT || 
+               role == Role.LECTURER || 
+               role == Role.MANAGER;
+    }
+    
+    // Helper: Validate Resource Type & Fields
+    private void validateResourceTypeAndFields(BookingRequestDTO requestDTO, Resource resource) {
+        
+        String resourceType = resource.getType(); // e.g., "PROJECTOR", "LAB", "GYM"
+        
+        // EQUIPMENT types: PROJECTOR, PRINTER, SPEAKER, SPORT_MATERIAL, VR_HEADSET_SET
+        if (isEquipmentType(resourceType)) {
+            // Must have quantityRequested (minimum 1)
+            if (requestDTO.getQuantityRequested() == null || requestDTO.getQuantityRequested() < 1) {
+                throw new IllegalArgumentException(
+                    "Equipment resources require quantityRequested (minimum 1)"
+                );
+            }
+            // Should NOT have expectedAttendees
+            if (requestDTO.getExpectedAttendees() != null) {
+                throw new IllegalArgumentException(
+                    "Equipment resources do not use expectedAttendees. Use quantityRequested instead."
+                );
+            }
+        } else {
+            // ACADEMIC, SPORTS, COMMON, ADMINISTRATIVE resources
+            // Must have expectedAttendees (minimum 1)
+            if (requestDTO.getExpectedAttendees() == null || requestDTO.getExpectedAttendees() < 1) {
+                throw new IllegalArgumentException(
+                    "Non-equipment resources require expectedAttendees (minimum 1)"
+                );
+            }
+            // Should NOT have quantityRequested
+            if (requestDTO.getQuantityRequested() != null) {
+                throw new IllegalArgumentException(
+                    "Non-equipment resources do not use quantityRequested. Use expectedAttendees instead."
+                );
+            }
+            
+            // Validate against resource capacity
+            if (requestDTO.getExpectedAttendees() > resource.getCapacity()) {
+                throw new IllegalArgumentException(
+                    "Expected attendees (" + requestDTO.getExpectedAttendees() + 
+                    ") exceeds resource capacity (" + resource.getCapacity() + ")"
+                );
+            }
+        }
+    }
+    
+    // Helper: Check if resource is EQUIPMENT type
+    private boolean isEquipmentType(String type) {
+        return type != null && (
+            type.equals("PROJECTOR") || 
+            type.equals("PRINTER") || 
+            type.equals("SPEAKER") || 
+            type.equals("SPORT_MATERIAL") || 
+            type.equals("VR_HEADSET_SET") ||
+            type.equals("VR") // Handle your existing "VR" type
+        );
+    }
 
     private String generateBookingCode() {
         String timestamp = String.valueOf(System.currentTimeMillis()).substring(6);
@@ -233,7 +328,6 @@ public class BookingServiceImpl implements BookingServices{
 
     private void recordStatusHistory(String bookingId, String oldStatus, String newStatus, 
                                      String changedByUserId, String changeNote) {
-        // Manual object creation instead of builder
         BookingStatusHistory history = new BookingStatusHistory();
         history.setBookingId(bookingId);
         history.setOldStatus(oldStatus);
@@ -245,7 +339,6 @@ public class BookingServiceImpl implements BookingServices{
     }
 
     private BookingResponseDTO mapToResponseDTO(Booking booking) {
-        // Manual object creation instead of builder
         BookingResponseDTO response = new BookingResponseDTO();
         response.setBookingId(booking.getBookingId());
         response.setBookingCode(booking.getBookingCode());
@@ -266,7 +359,7 @@ public class BookingServiceImpl implements BookingServices{
         return response;
     }
 
-    //CUSTOM EXCEPTIONS
+    // ==================== CUSTOM EXCEPTIONS ====================
 
     public static class BookingConflictException extends RuntimeException {
         public BookingConflictException(String message) {

@@ -20,6 +20,9 @@ public interface BookingServices {
     // Get all bookings (Admin only)
     List<BookingResponseDTO> getAllBookings();
 
+    // Get pending bookings (Admin only)
+    List<BookingResponseDTO> getPendingBookings();
+
     // Update booking status (Approve/Reject/Cancel)
     BookingResponseDTO updateBookingStatus(String bookingId, StatusUpdateDTO statusUpdateDTO, String currentUserId, boolean isAdmin);
 

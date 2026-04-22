@@ -13,6 +13,7 @@ public class BookingRequestDTO {
     private LocalDateTime startTime;
 
     @NotNull(message = "End time is required")
+    @Future(message = "End time must be in the future")
     private LocalDateTime endTime;
 
     @NotBlank(message = "Purpose is required")
@@ -20,10 +21,10 @@ public class BookingRequestDTO {
     private String purpose;
 
     @Min(value = 1, message = "Expected attendees must be at least 1")
-    private Integer expectedAttendees = 1;
+    private Integer expectedAttendees;
 
     @Min(value = 1, message = "Quantity requested must be at least 1")
-    private Integer quantityRequested = 1;
+    private Integer quantityRequested;
 
     // Default constructor
 
