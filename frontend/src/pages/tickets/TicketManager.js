@@ -4,6 +4,7 @@ import './TicketPage.css';
 import api from '../../api/axiosClient';
 
 const API_BASE = '/api/tickets';
+const RESOURCE_OPTIONS_API = '/api/resources/ticket-options';
 
 const EMPTY_FORM = {
   title: '',
@@ -21,6 +22,10 @@ const PRIORITY_OPTIONS = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const MAX_ATTACHMENTS = 3;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+
+function uniqueNonEmpty(values) {
+  return [...new Set((values || []).map((value) => String(value || '').trim()).filter(Boolean))];
+}
 
 function toPayload(form, editingTicket) {
   const resourceId = form.resourceId.trim();
@@ -49,10 +54,23 @@ export default function TicketManager({ user }) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editingAttachments, setEditingAttachments] = useState([]);
+  const [isAttachmentSubmitting, setIsAttachmentSubmitting] = useState(false);
+  const [resourceOptions, setResourceOptions] = useState([]);
+  const [isLoadingResources, setIsLoadingResources] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const submitLabel = useMemo(() => (editingId ? 'Update Ticket' : 'Create Ticket'), [editingId]);
+  const currentUserId = user?.id || user?.userId || '';
+
+  const isLockedTicket = (ticket) => {
+    if (!ticket) {
+      return false;
+    }
+    const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
+    return !isAdmin && Boolean(String(ticket.assignedTechnicianId || '').trim());
+  };
 
   const fetchTickets = async () => {
     setIsLoading(true);
@@ -68,8 +86,38 @@ export default function TicketManager({ user }) {
     }
   };
 
+  const fetchAttachmentsForTicket = async (ticketId) => {
+    if (!ticketId) {
+      setEditingAttachments([]);
+      return;
+    }
+
+    try {
+      const response = await api.get(`${API_BASE}/${ticketId}/attachments`);
+      const data = Array.isArray(response?.data) ? response.data : [];
+      setEditingAttachments(data);
+    } catch {
+      setEditingAttachments([]);
+    }
+  };
+
+  const fetchResourceOptions = async () => {
+    setIsLoadingResources(true);
+    try {
+      const response = await api.get(RESOURCE_OPTIONS_API);
+      const data = Array.isArray(response?.data) ? response.data : [];
+      setResourceOptions(data);
+    } catch {
+      // Keep ticket flow usable even if dropdown source fails temporarily.
+      setResourceOptions([]);
+    } finally {
+      setIsLoadingResources(false);
+    }
+  };
+
   useEffect(() => {
     fetchTickets();
+    fetchResourceOptions();
   }, []);
 
   useEffect(() => {
@@ -78,12 +126,55 @@ export default function TicketManager({ user }) {
     };
   }, [selectedImages]);
 
+  const categoryOptions = useMemo(
+    () => uniqueNonEmpty(resourceOptions.map((item) => item.category)),
+    [resourceOptions]
+  );
+
+  const locationOptions = useMemo(
+    () => uniqueNonEmpty(resourceOptions.map((item) => item.location)),
+    [resourceOptions]
+  );
+
+  const titleSuggestions = useMemo(
+    () => uniqueNonEmpty(resourceOptions.map((item) => `Issue with ${item.name}`)),
+    [resourceOptions]
+  );
+
   const handleChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const handleResourceChange = (event) => {
+    const selectedResourceId = event.target.value;
+    const selectedResource = resourceOptions.find(
+      (item) => String(item.resourceId) === String(selectedResourceId)
+    );
+
+    setForm((prev) => {
+      if (!selectedResource) {
+        return {
+          ...prev,
+          resourceId: selectedResourceId,
+        };
+      }
+
+      const nextTitle = prev.title.trim() ? prev.title : `Issue with ${selectedResource.name}`;
+      const nextCategory = prev.category.trim() ? prev.category : (selectedResource.category || '');
+      const nextLocation = prev.locationId.trim() ? prev.locationId : (selectedResource.location || '');
+
+      return {
+        ...prev,
+        resourceId: selectedResourceId,
+        title: nextTitle,
+        category: nextCategory,
+        locationId: nextLocation,
+      };
+    });
   };
 
   const resetSelectedImages = () => {
@@ -154,6 +245,7 @@ export default function TicketManager({ user }) {
   const resetForm = () => {
     setForm(EMPTY_FORM);
     setEditingId(null);
+    setEditingAttachments([]);
     resetSelectedImages();
   };
 
@@ -175,24 +267,26 @@ export default function TicketManager({ user }) {
       }
 
       const savedTicket = ticketResponse?.data;
+      const targetTicketId = editingId || savedTicket?.ticketId;
 
-      if (!editingId && selectedImages.length > 0) {
-        const createdTicketId = savedTicket?.ticketId;
-        const uploadedByUserId = user?.id || user?.userId;
+      if (selectedImages.length > 0) {
+        const uploadedByUserId = currentUserId;
 
-        if (!createdTicketId) {
+        if (!targetTicketId) {
           throw new Error('Ticket created but attachment upload could not start (missing ticket ID).');
         }
         if (!uploadedByUserId) {
           throw new Error('Ticket created but attachment upload failed (missing user ID).');
         }
 
+        setIsAttachmentSubmitting(true);
+
         for (const image of selectedImages) {
           const formData = new FormData();
           formData.append('file', image.file);
           formData.append('uploadedByUserId', uploadedByUserId);
 
-          await api.post(`${API_BASE}/${createdTicketId}/attachments`, formData);
+          await api.post(`${API_BASE}/${targetTicketId}/attachments`, formData);
         }
       }
 
@@ -203,13 +297,20 @@ export default function TicketManager({ user }) {
       const uploadError = submitError?.response?.data?.error || submitError?.response?.data?.message;
       setError(uploadError || submitError.message || 'Ticket request failed.');
     } finally {
+      setIsAttachmentSubmitting(false);
       setIsSubmitting(false);
     }
   };
 
-  const handleEdit = (ticket) => {
+  const handleEdit = async (ticket) => {
+    if (isLockedTicket(ticket)) {
+      setError('Assigned tickets are view-only. You cannot edit or delete this ticket.');
+      return;
+    }
+
     setEditingId(ticket.ticketId);
     resetSelectedImages();
+    await fetchAttachmentsForTicket(ticket.ticketId);
     setForm({
       title: ticket.title || '',
       category: ticket.category || '',
@@ -226,6 +327,12 @@ export default function TicketManager({ user }) {
   };
 
   const handleDelete = async (ticketId) => {
+    const targetTicket = tickets.find((ticket) => String(ticket.ticketId) === String(ticketId));
+    if (isLockedTicket(targetTicket)) {
+      setError('Assigned tickets are view-only. You cannot edit or delete this ticket.');
+      return;
+    }
+
     const confirmed = window.confirm('Delete this ticket?');
     if (!confirmed) {
       return;
@@ -246,6 +353,26 @@ export default function TicketManager({ user }) {
     }
   };
 
+  const handleDeleteAttachment = async (attachmentId) => {
+    if (!editingId) {
+      return;
+    }
+
+    const confirmed = window.confirm('Delete this attachment?');
+    if (!confirmed) {
+      return;
+    }
+
+    setError('');
+    try {
+      await api.delete(`${API_BASE}/attachments/${attachmentId}`);
+      await fetchAttachmentsForTicket(editingId);
+      setMessage('Attachment deleted successfully.');
+    } catch (deleteError) {
+      setError(deleteError.response?.data?.error || deleteError.message || 'Could not delete attachment.');
+    }
+  };
+
   const openTicketDetails = (ticketId) => {
     navigate(`/tickets/${ticketId}`);
   };
@@ -261,15 +388,27 @@ export default function TicketManager({ user }) {
           value={form.title}
           onChange={handleChange}
           placeholder="Title"
+          list="ticket-title-suggestions"
           required
         />
+        <datalist id="ticket-title-suggestions">
+          {titleSuggestions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
         <input
           name="category"
           value={form.category}
           onChange={handleChange}
           placeholder="Category"
+          list="ticket-category-options"
           required
         />
+        <datalist id="ticket-category-options">
+          {categoryOptions.map((item) => (
+            <option key={item} value={item} />
+          ))}
+        </datalist>
         <textarea
           name="description"
           value={form.description}
@@ -290,20 +429,32 @@ export default function TicketManager({ user }) {
         </div>
 
         <div className="ticket-form-row">
-          <input
+          <select
             name="resourceId"
             value={form.resourceId}
-            onChange={handleChange}
-            placeholder="Resource (optional)"
-            type="text"
-          />
+            onChange={handleResourceChange}
+            disabled={isLoadingResources}
+          >
+            <option value="">Select Resource (optional)</option>
+            {resourceOptions.map((resource) => (
+              <option key={resource.resourceId} value={resource.resourceId}>
+                {resource.name}
+              </option>
+            ))}
+          </select>
           <input
             name="locationId"
             value={form.locationId}
             onChange={handleChange}
             placeholder="Location (optional)"
             type="text"
+            list="ticket-location-options"
           />
+          <datalist id="ticket-location-options">
+            {locationOptions.map((item) => (
+              <option key={item} value={item} />
+            ))}
+          </datalist>
         </div>
 
         <div className="ticket-form-row">
@@ -330,45 +481,71 @@ export default function TicketManager({ user }) {
           required
         />
 
-        {!editingId && (
-          <div className="attachment-section">
-            <label className="attachment-label" htmlFor="ticket-attachments">Attach images (optional)</label>
-            <input
-              id="ticket-attachments"
-              type="file"
-              accept="image/jpeg,image/png,image/jpg,image/webp"
-              multiple
-              onChange={handleImageSelect}
-            />
-            <p className="attachment-rules">
-              Max 3 images. Only JPG/PNG/JPEG/WEBP. Max 5MB per image.
-            </p>
+        <div className="attachment-section">
+          <label className="attachment-label" htmlFor="ticket-attachments">
+            {editingId ? 'Add images while editing (optional)' : 'Attach images (optional)'}
+          </label>
+          <input
+            id="ticket-attachments"
+            type="file"
+            accept="image/jpeg,image/png,image/jpg,image/webp"
+            multiple
+            onChange={handleImageSelect}
+          />
+          <p className="attachment-rules">
+            Max 3 images per ticket. Only JPG/PNG/JPEG/WEBP. Max 5MB per image.
+          </p>
 
-            {selectedImages.length > 0 && (
-              <div className="attachment-preview-grid">
-                {selectedImages.map((image) => (
-                  <div className="attachment-preview-card" key={image.id}>
-                    <img src={image.previewUrl} alt={image.file.name} className="attachment-preview-image" />
-                    <div className="attachment-preview-meta">
-                      <span className="attachment-file-name">{image.file.name}</span>
-                      <button
-                        type="button"
-                        className="btn-danger attachment-remove-btn"
-                        onClick={() => removeSelectedImage(image.id)}
-                      >
-                        Remove
-                      </button>
+          {editingId && (
+            <div className="existing-attachments-wrap">
+              <p className="attachment-label">Existing attachments</p>
+              {editingAttachments.length === 0 ? (
+                <p className="attachment-rules">No attachments uploaded for this ticket yet.</p>
+              ) : (
+                <div className="attachment-preview-grid">
+                  {editingAttachments.map((attachment) => (
+                    <div className="attachment-preview-card" key={attachment.attachmentId}>
+                      <div className="attachment-preview-meta">
+                        <span className="attachment-file-name">{attachment.fileName}</span>
+                        <button
+                          type="button"
+                          className="btn-danger attachment-remove-btn"
+                          onClick={() => handleDeleteAttachment(attachment.attachmentId)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {selectedImages.length > 0 && (
+            <div className="attachment-preview-grid">
+              {selectedImages.map((image) => (
+                <div className="attachment-preview-card" key={image.id}>
+                  <img src={image.previewUrl} alt={image.file.name} className="attachment-preview-image" />
+                  <div className="attachment-preview-meta">
+                    <span className="attachment-file-name">{image.file.name}</span>
+                    <button
+                      type="button"
+                      className="btn-danger attachment-remove-btn"
+                      onClick={() => removeSelectedImage(image.id)}
+                    >
+                      Remove
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="ticket-action-row">
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : submitLabel}
+          <button type="submit" disabled={isSubmitting || isAttachmentSubmitting}>
+            {isSubmitting || isAttachmentSubmitting ? 'Saving...' : submitLabel}
           </button>
           {editingId && (
             <button type="button" className="btn-secondary" onClick={resetForm}>
@@ -414,10 +591,22 @@ export default function TicketManager({ user }) {
                     <button type="button" className="btn-view" onClick={() => openTicketDetails(ticket.ticketId)}>
                       View
                     </button>
-                    <button type="button" className="btn-secondary" onClick={() => handleEdit(ticket)}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleEdit(ticket)}
+                      disabled={isLockedTicket(ticket)}
+                      title={isLockedTicket(ticket) ? 'Assigned tickets are view-only' : 'Edit ticket'}
+                    >
                       Edit
                     </button>
-                    <button type="button" className="btn-danger" onClick={() => handleDelete(ticket.ticketId)}>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => handleDelete(ticket.ticketId)}
+                      disabled={isLockedTicket(ticket)}
+                      title={isLockedTicket(ticket) ? 'Assigned tickets are view-only' : 'Delete ticket'}
+                    >
                       Delete
                     </button>
                   </td>
