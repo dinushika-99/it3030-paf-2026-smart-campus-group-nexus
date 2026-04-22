@@ -3,7 +3,7 @@ package backend.modulea.service;
 import backend.modulea.model.ResourceCategory;
 import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
-import backend.repository.UserRepository;
+import backend.auth.repository.UserRepository;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;

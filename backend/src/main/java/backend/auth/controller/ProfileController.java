@@ -176,6 +176,9 @@ public class ProfileController {
             String extension = resolveFileExtension(file.getOriginalFilename(), contentType);
             String storedFileName = "avatar-" + user.getId() + "-" + UUID.randomUUID() + extension;
             Path targetPath = avatarDirectory.resolve(storedFileName).normalize();
+            if (!targetPath.startsWith(avatarDirectory)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid avatar path"));
+            }
 
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
@@ -199,6 +202,29 @@ public class ProfileController {
         Path avatarPath = resolveAvatarPath(user.getAvatarUrl());
         if (avatarPath == null || !Files.exists(avatarPath)) {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        }
+
+        try {
+            byte[] avatar = Files.readAllBytes(avatarPath);
+            String contentType = Files.probeContentType(avatarPath);
+            if (contentType == null || !contentType.startsWith("image/")) {
+                contentType = MediaType.IMAGE_PNG_VALUE;
+            }
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setCacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic());
+            headers.setContentType(MediaType.parseMediaType(contentType));
+            return new ResponseEntity<>(avatar, headers, HttpStatus.OK);
+        } catch (IOException ex) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping(value = "/avatar/file/{fileName:.+}")
+    public ResponseEntity<byte[]> getAvatarFile(@PathVariable String fileName) {
+        Path avatarPath = resolveAvatarPath(AVATAR_URL_PREFIX + fileName);
+        if (avatarPath == null || !Files.exists(avatarPath)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
 
         try {
@@ -268,4 +294,3 @@ public class ProfileController {
         };
     }
 }
-

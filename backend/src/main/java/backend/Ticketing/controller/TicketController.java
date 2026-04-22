@@ -45,6 +45,11 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getTicketsForCurrentUser(authentication));
     }
 
+    @GetMapping("/my-assigned")
+    public ResponseEntity<List<Ticket>> getMyAssignedTickets(Authentication authentication) {
+        return ResponseEntity.ok(ticketService.getAssignedTicketsForCurrentUser(authentication));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Ticket> getTicketById(@PathVariable Integer id, Authentication authentication) {
         return ResponseEntity.ok(ticketService.getTicketById(id, authentication));
@@ -100,9 +105,10 @@ public ResponseEntity<TicketAttachmentResponse> uploadAttachment(
         @PathVariable Integer id,
         @RequestParam("file") MultipartFile file,
         @RequestParam(value = "caption", required = false) String caption,
-        @RequestParam("uploadedByUserId") String uploadedByUserId) {
+        @RequestParam("uploadedByUserId") String uploadedByUserId,
+        Authentication authentication) {
 
-    TicketAttachmentResponse response = ticketService.uploadAttachment(id, file, caption, uploadedByUserId);
+    TicketAttachmentResponse response = ticketService.uploadAttachment(id, file, caption, uploadedByUserId, authentication);
     return ResponseEntity.ok(response);
 }
 
@@ -112,8 +118,8 @@ public ResponseEntity<List<TicketAttachmentResponse>> getAttachmentsByTicketId(@
 }
 
 @DeleteMapping("/attachments/{attachmentId}")
-public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId) {
-    ticketService.deleteAttachment(attachmentId);
+public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId, Authentication authentication) {
+    ticketService.deleteAttachment(attachmentId, authentication);
     return ResponseEntity.ok("Attachment deleted successfully");
 }
 
