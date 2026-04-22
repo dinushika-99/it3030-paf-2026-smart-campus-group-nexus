@@ -176,6 +176,9 @@ public class ProfileController {
             String extension = resolveFileExtension(file.getOriginalFilename(), contentType);
             String storedFileName = "avatar-" + user.getId() + "-" + UUID.randomUUID() + extension;
             Path targetPath = avatarDirectory.resolve(storedFileName).normalize();
+            if (!targetPath.startsWith(avatarDirectory)) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid avatar path"));
+            }
 
             Files.copy(file.getInputStream(), targetPath, StandardCopyOption.REPLACE_EXISTING);
 
@@ -291,4 +294,3 @@ public class ProfileController {
         };
     }
 }
-
