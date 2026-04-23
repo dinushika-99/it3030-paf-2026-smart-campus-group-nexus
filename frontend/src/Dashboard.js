@@ -59,6 +59,25 @@ export default function Dashboard() {
   // ==========================================
   const StudentView = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/tickets')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Create Ticket
+        </button>
+      </div>
+
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
         <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>My Academics</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -130,9 +149,34 @@ export default function Dashboard() {
   // 🛠 TECHNICIAN VIEW
   // ==========================================
   const TechnicianView = () => (
-    <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#111827' }}>Technician Dashboard</h3>
-      <p style={{ margin: 0, color: '#4b5563' }}>View and manage IT support tickets and campus systems health.</p>
+    <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 55%, #334155 100%)', color: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #0f172a', boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)' }}>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Technician Workspace</h3>
+        <p style={{ margin: 0, color: '#cbd5e1', maxWidth: '720px' }}>
+          Track your assigned tickets, update progress, and record resolution notes from one place.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Assigned Queue</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '30px', fontWeight: 800, color: '#111827' }}>Live</p>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Action</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '18px', fontWeight: 700, color: '#111827' }}>Update status and resolution notes</p>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Shortcut</p>
+          <button
+            type="button"
+            onClick={() => navigate('/technician/workspace')}
+            style={{ marginTop: '8px', backgroundColor: '#BF932A', color: '#111827', border: 'none', borderRadius: '10px', padding: '10px 14px', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Open Technician Workspace
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -151,10 +195,6 @@ export default function Dashboard() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
-            Create Ticket
-          </button>
-
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
             <button
               onClick={openProfile}

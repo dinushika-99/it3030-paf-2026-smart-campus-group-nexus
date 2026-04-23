@@ -9,19 +9,14 @@ import java.util.Optional;
 
 @Repository
 public interface ResourceRepository extends JpaRepository<Resource, Long> {
-
-    // Find resources by type
-    List<Resource> findByType(String type);
-
-    // Find available resources
-    List<Resource> findByIsAvailableTrue();
-
-    // Find resources by type and availability
-    List<Resource> findByTypeAndIsAvailableTrue(String type);
-
-    // Find resource by name
+    
+    // Check if a resource name exists (excluding the current resource)
+    boolean existsByNameAndResourcesIdNot(String name, Long resourcesId);
+    
+    // Optional: Other useful query methods
     Optional<Resource> findByName(String name);
-
-    // Check if resource exists by name
-    boolean existsByName(String name);
+    List<Resource> findByStatus(String status);
+    List<Resource> findByType(String type);
+    List<Resource> findByCategory(backend.modulea.model.ResourceCategory category);
+    List<Resource> findByIsBookableTrue();
 }

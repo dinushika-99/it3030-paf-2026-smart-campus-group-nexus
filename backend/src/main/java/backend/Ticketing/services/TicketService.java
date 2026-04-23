@@ -5,6 +5,7 @@ import backend.Ticketing.dto.TicketAttachmentResponse;
 import backend.Ticketing.model.Ticket;
 import backend.Ticketing.model.TicketAssignment;
 import backend.Ticketing.model.TicketAttachment;
+import backend.Ticketing.model.TicketPriority;
 import backend.Ticketing.model.TicketStatus;
 import backend.Ticketing.model.TicketStatusHistory;
 import backend.Ticketing.model.TicketStatusUpdateRequest;
@@ -32,7 +33,11 @@ import backend.Ticketing.model.TicketComment;
 import backend.Ticketing.repository.TicketCommentRepository;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -73,6 +78,13 @@ public class TicketService {
             "image/webp"
     );
 
+        private static final Map<TicketPriority, List<String>> PRIORITY_KEYWORDS = Map.of(
+            TicketPriority.CRITICAL, List.of("fire", "alarm", "emergency", "explosion", "evacuation", "security breach", "hazard", "gas leak"),
+            TicketPriority.HIGH, List.of("server down", "network issue", "network down", "power outage", "urgent", "major", "critical lab"),
+            TicketPriority.MEDIUM, List.of("not working", "broken", "error", "failed", "malfunction", "projector", "printer", "internet slow", "light issue"),
+            TicketPriority.LOW, List.of("request", "improvement", "minor", "enhancement", "new chair", "feature request")
+        );
+
     public TicketService(
             TicketRepository ticketRepository,
             TicketStatusHistoryRepository ticketStatusHistoryRepository,
@@ -92,8 +104,8 @@ public class TicketService {
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
         ticket.setCreatedByUserId(currentUser.getId());
-
-        ticket.setResourceId(null);
+        ticket.setResourceId(normalizeOptionalField(ticket.getResourceId()));
+        ticket.setLocationId(normalizeOptionalField(ticket.getLocationId()));
 
         if (ticket.getPreferredContactName() == null || ticket.getPreferredContactName().isBlank()) {
             ticket.setPreferredContactName(currentUser.getName());
@@ -109,18 +121,113 @@ public class TicketService {
         }
     }
 
+    public Map<String, Object> suggestPriority(String description, String category) {
+        String text = String.join(" ",
+                        String.valueOf(description == null ? "" : description),
+                        String.valueOf(category == null ? "" : category))
+                .toLowerCase(Locale.ROOT)
+                .trim();
+
+        if (text.isEmpty()) {
+            return buildSuggestionResponse(TicketPriority.MEDIUM, 0, List.of(), "No description provided. Defaulting to MEDIUM.");
+        }
+
+        int score = 0;
+        List<String> matchedKeywords = new ArrayList<>();
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.CRITICAL)) {
+            if (text.contains(keyword)) {
+                score += 5;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.HIGH)) {
+            if (text.contains(keyword)) {
+                score += 3;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.MEDIUM)) {
+            if (text.contains(keyword)) {
+                score += 2;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        for (String keyword : PRIORITY_KEYWORDS.get(TicketPriority.LOW)) {
+            if (text.contains(keyword)) {
+                score += 1;
+                matchedKeywords.add(keyword);
+            }
+        }
+
+        TicketPriority suggestedPriority;
+        if (score >= 6) {
+            suggestedPriority = TicketPriority.HIGH;
+        } else if (score >= 3) {
+            suggestedPriority = TicketPriority.MEDIUM;
+        } else {
+            suggestedPriority = TicketPriority.LOW;
+        }
+
+        if (!matchedKeywords.isEmpty() && matchedKeywords.stream().anyMatch(PRIORITY_KEYWORDS.get(TicketPriority.CRITICAL)::contains)) {
+            suggestedPriority = TicketPriority.HIGH;
+        }
+
+        String reason = matchedKeywords.isEmpty()
+                ? "No strong keywords found. Suggested LOW by default scoring."
+                : "Matched keywords: " + String.join(", ", matchedKeywords);
+
+        return buildSuggestionResponse(suggestedPriority, score, matchedKeywords, reason);
+    }
+
+    private Map<String, Object> buildSuggestionResponse(TicketPriority priority,
+                                                        int score,
+                                                        List<String> matchedKeywords,
+                                                        String reason) {
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("suggestedPriority", priority.name());
+        response.put("score", score);
+        response.put("matchedKeywords", matchedKeywords);
+        response.put("reason", reason);
+        return response;
+    }
+
     public List<Ticket> getTicketsForCurrentUser(Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
         if (currentUser.getRole() == Role.ADMIN) {
             return ticketRepository.findAll();
         }
+        if (currentUser.getRole() == Role.TECHNICIAN) {
+            List<Ticket> createdTickets = ticketRepository.findByCreatedByUserId(currentUser.getId());
+            List<Ticket> assignedTickets = ticketRepository.findByAssignedTechnicianId(currentUser.getId());
+
+            return java.util.stream.Stream.concat(createdTickets.stream(), assignedTickets.stream())
+                    .collect(Collectors.collectingAndThen(
+                            Collectors.toMap(Ticket::getTicketId, ticket -> ticket, (left, right) -> left),
+                            ticketsById -> ticketsById.values().stream()
+                                    .sorted((left, right) -> right.getCreatedAt().compareTo(left.getCreatedAt()))
+                                    .collect(Collectors.toList())
+                    ));
+        }
         return ticketRepository.findByCreatedByUserId(currentUser.getId());
+    }
+
+    public List<Ticket> getAssignedTicketsForCurrentUser(Authentication authentication) {
+        User currentUser = resolveCurrentUser(authentication);
+        if (currentUser.getRole() == Role.ADMIN) {
+            return ticketRepository.findAll();
+        }
+        return ticketRepository.findByAssignedTechnicianId(currentUser.getId());
     }
 
     public Ticket getTicketById(Integer id, Authentication authentication) {
         Ticket ticket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
-        ensureTicketOwnership(ticket, authentication);
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketReadableByCurrentUser(ticket, currentUser);
         return ticket;
     }
 
@@ -128,7 +235,9 @@ public class TicketService {
         Ticket existingTicket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
 
-        ensureTicketOwnership(existingTicket, authentication);
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketOwnership(existingTicket, currentUser);
+        ensureTicketCanBeModifiedByUser(existingTicket, currentUser);
 
         existingTicket.setTitle(updatedTicket.getTitle());
         existingTicket.setCategory(updatedTicket.getCategory());
@@ -138,8 +247,8 @@ public class TicketService {
         existingTicket.setPreferredContactName(updatedTicket.getPreferredContactName());
         existingTicket.setPreferredContactEmail(updatedTicket.getPreferredContactEmail());
         existingTicket.setPreferredContactPhone(updatedTicket.getPreferredContactPhone());
-        existingTicket.setLocationId(updatedTicket.getLocationId());
-        existingTicket.setResourceId(null);
+        existingTicket.setLocationId(normalizeOptionalField(updatedTicket.getLocationId()));
+        existingTicket.setResourceId(normalizeOptionalField(updatedTicket.getResourceId()));
 
         if (!Objects.equals(existingTicket.getAssignedTechnicianId(), updatedTicket.getAssignedTechnicianId())) {
             existingTicket.setAssignedTechnicianId(updatedTicket.getAssignedTechnicianId());
@@ -159,17 +268,59 @@ public class TicketService {
         Ticket existingTicket = ticketRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ticket not found with id: " + id));
 
-        ensureTicketOwnership(existingTicket, authentication);
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketOwnership(existingTicket, currentUser);
+        ensureTicketCanBeModifiedByUser(existingTicket, currentUser);
         ticketRepository.delete(existingTicket);
     }
 
     private void ensureTicketOwnership(Ticket ticket, Authentication authentication) {
         User currentUser = resolveCurrentUser(authentication);
+        ensureTicketOwnership(ticket, currentUser);
+    }
+
+    private void ensureTicketOwnership(Ticket ticket, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN) {
             return;
         }
         if (!Objects.equals(ticket.getCreatedByUserId(), currentUser.getId())) {
             throw new ResponseStatusException(FORBIDDEN, "You can only access your own tickets");
+        }
+    }
+
+    private void ensureTicketCanBeModifiedByUser(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+        String assignedTechnicianId = ticket.getAssignedTechnicianId();
+        if (assignedTechnicianId != null && !assignedTechnicianId.trim().isEmpty()) {
+            throw new ResponseStatusException(FORBIDDEN, "Assigned tickets are view-only for users");
+        }
+    }
+
+    private void ensureTicketReadableByCurrentUser(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (Objects.equals(ticket.getCreatedByUserId(), currentUser.getId())) {
+            return;
+        }
+
+        if (Objects.equals(ticket.getAssignedTechnicianId(), currentUser.getId())) {
+            return;
+        }
+
+        throw new ResponseStatusException(FORBIDDEN, "You can only access your own or assigned tickets");
+    }
+
+    private void ensureTicketCanBeManagedByCurrentUser(Ticket ticket, User currentUser) {
+        if (currentUser.getRole() == Role.ADMIN) {
+            return;
+        }
+
+        if (!Objects.equals(ticket.getAssignedTechnicianId(), currentUser.getId())) {
+            throw new ResponseStatusException(FORBIDDEN, "Only the assigned technician can update this ticket");
         }
     }
 
@@ -202,12 +353,45 @@ public class TicketService {
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "Logged-in user account not found"));
     }
 
+    private String normalizeOptionalField(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
     public Ticket updateTicketStatus(Integer ticketId, TicketStatusUpdateRequest request, Authentication authentication) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
 
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketCanBeManagedByCurrentUser(ticket, currentUser);
+
         TicketStatus oldStatus = ticket.getStatus();
         TicketStatus newStatus = TicketStatus.valueOf(request.getStatus().toUpperCase());
+
+        if (currentUser.getRole() == Role.TECHNICIAN) {
+            if (!(oldStatus == TicketStatus.IN_PROGRESS && newStatus == TicketStatus.RESOLVED)) {
+                throw new ResponseStatusException(FORBIDDEN, "Technicians can only mark IN_PROGRESS tickets as RESOLVED");
+            }
+        }
+
+        if (newStatus == TicketStatus.CLOSED && currentUser.getRole() != Role.ADMIN) {
+            throw new ResponseStatusException(FORBIDDEN, "Only admins can close tickets");
+        }
+
+        String normalizedResolutionNotes = normalizeOptionalField(request.getResolutionNotes());
+        String normalizedChangeNote = normalizeOptionalField(request.getChangeNote());
+
+        if (oldStatus == newStatus) {
+            if (currentUser.getRole() == Role.TECHNICIAN) {
+                throw new ResponseStatusException(FORBIDDEN, "Technicians can only resolve assigned tickets");
+            }
+            ticket.setResolutionNotes(normalizedResolutionNotes);
+            Ticket updatedTicket = ticketRepository.save(ticket);
+            return updatedTicket;
+        }
 
         if (!isValidStatusTransition(oldStatus, newStatus)) {
             throw new RuntimeException("Invalid status transition from " + oldStatus + " to " + newStatus);
@@ -220,7 +404,7 @@ public class TicketService {
         }
 
         if (newStatus == TicketStatus.RESOLVED) {
-            ticket.setResolutionNotes(request.getResolutionNotes());
+            ticket.setResolutionNotes(normalizedResolutionNotes);
             ticket.setResolvedAt(LocalDateTime.now());
         }
 
@@ -234,13 +418,12 @@ public class TicketService {
 
         Ticket updatedTicket = ticketRepository.save(ticket);
 
-        User currentUser = resolveCurrentUser(authentication);
         TicketStatusHistory history = new TicketStatusHistory(
                 updatedTicket,
                 oldStatus.name(),
                 newStatus.name(),
-                currentUser.getId(),
-                request.getChangeNote()
+            currentUser.getId(),
+            normalizedChangeNote
         );
 
         ticketStatusHistoryRepository.save(history);
@@ -339,12 +522,21 @@ public class TicketService {
     public TicketAttachmentResponse uploadAttachment(Integer ticketId,
                                                      MultipartFile file,
                                                      String caption,
-                                                     String uploadedByUserId) {
+                                                     String uploadedByUserId,
+                                                     Authentication authentication) {
         Ticket ticket = ticketRepository.findById(ticketId)
                 .orElseThrow(() -> new RuntimeException("Ticket not found with id: " + ticketId));
 
+        User currentUser = resolveCurrentUser(authentication);
+        ensureTicketOwnership(ticket, currentUser);
+        ensureTicketCanBeModifiedByUser(ticket, currentUser);
+
         if (uploadedByUserId == null || uploadedByUserId.trim().isEmpty()) {
-            throw new RuntimeException("Uploaded by user ID is required");
+            uploadedByUserId = currentUser.getId();
+        }
+
+        if (!Objects.equals(uploadedByUserId, currentUser.getId()) && currentUser.getRole() != Role.ADMIN) {
+            throw new ResponseStatusException(FORBIDDEN, "You can only upload attachments as yourself");
         }
 
         if (!userRepository.existsById(uploadedByUserId)) {
@@ -417,9 +609,14 @@ public class TicketService {
     }
 
     @Transactional
-    public void deleteAttachment(Integer attachmentId) {
+    public void deleteAttachment(Integer attachmentId, Authentication authentication) {
         TicketAttachment attachment = ticketAttachmentRepository.findById(attachmentId)
                 .orElseThrow(() -> new RuntimeException("Attachment not found with id: " + attachmentId));
+
+        User currentUser = resolveCurrentUser(authentication);
+        Ticket ticket = attachment.getTicket();
+        ensureTicketOwnership(ticket, currentUser);
+        ensureTicketCanBeModifiedByUser(ticket, currentUser);
 
         try {
             Path filePath = Paths.get(attachment.getFileUrl()).toAbsolutePath().normalize();
