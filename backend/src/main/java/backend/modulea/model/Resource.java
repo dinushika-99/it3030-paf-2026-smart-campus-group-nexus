@@ -9,7 +9,7 @@ public class Resource {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "resource_id")
+    @Column(name = "resources_id")
     private Long resourceId;
 
     @Column(nullable = false)
