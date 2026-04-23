@@ -1,6 +1,5 @@
 package backend.modulea.model;
 
-import backend.modulea.model.ResourceCategory;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalTime;

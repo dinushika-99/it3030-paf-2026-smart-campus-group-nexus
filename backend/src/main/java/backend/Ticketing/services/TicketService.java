@@ -274,11 +274,6 @@ public class TicketService {
         ticketRepository.delete(existingTicket);
     }
 
-    private void ensureTicketOwnership(Ticket ticket, Authentication authentication) {
-        User currentUser = resolveCurrentUser(authentication);
-        ensureTicketOwnership(ticket, currentUser);
-    }
-
     private void ensureTicketOwnership(Ticket ticket, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN) {
             return;

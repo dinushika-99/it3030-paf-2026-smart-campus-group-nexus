@@ -1,4 +1,4 @@
-package backend.controller;
+package backend.Ticketing.controller;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.server.ResponseStatusException;

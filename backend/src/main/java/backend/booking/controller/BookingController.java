@@ -1,7 +1,6 @@
 package backend.booking.controller;
 
 import backend.auth.model.User;
-import backend.auth.model.Role;
 import backend.auth.repository.UserRepository;
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
