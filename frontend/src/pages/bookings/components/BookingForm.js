@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import ResourceSelector from './components/ResourceSelector';
-import TimePicker from './components/TimePicker';
-import ValidationMessages from './components/ValidationMessages';
-import { bookingService } from '../../../services/bookingService';
+import ResourceSelector from './ResourceSelector';
+import TimePicker from './TimePicker';
+import ValidationMessages from './ValidationMessage';
+import { bookingService } from '../../../services/BookingService';
 
 const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
   const [formData, setFormData] = useState({

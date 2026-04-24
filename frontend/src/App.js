@@ -13,6 +13,8 @@ import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
 import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
+import CreateBooking from './pages/bookings/CreateBooking';
+import ProtectedRoute from './components/ProtectedRoute';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -35,6 +37,14 @@ export default function App() {
           <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
+          <Route 
+              path="/bookings/new/:resourceId?"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <CreateBooking />
+                </ProtectedRoute>
+              } 
+          />
         </Routes>
       </Router>
     </GoogleOAuthProvider>
