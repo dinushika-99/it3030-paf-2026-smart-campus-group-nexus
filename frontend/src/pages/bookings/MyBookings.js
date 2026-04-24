@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../AuthContext';
 import BookingList from './components/BookingList';
 import { bookingService } from '../../services/BookingService';
 

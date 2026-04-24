@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import DashboardLayout from '../../components/layout/DashboardLayout';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../AuthContext';
 import StatusBadge from './components/StatusBadge';
 import BookingTimeline from './components/BookingTimeline';
 import ActionButtons from './components/ActionButtons';

@@ -58,10 +58,16 @@ export default function Login() {
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
-          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+          role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+        if (normalizedUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
+          navigate('/home');  // ✅ Redirect to new HomePage
+        } else {
+          navigate('/dashboard');  // Fallback
+        }
       } else {
         setShowRegisterPrompt(false);
         setError('Google sign-in failed.');
@@ -92,10 +98,16 @@ export default function Login() {
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
-          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+          role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+       if (normalizedUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
+          navigate('/home');  // ✅ Redirect to new HomePage
+        } else {
+          navigate('/dashboard');  // Fallback
+        }
       } else {
         setShowRegisterPrompt(false);
         setError('We could not sign you in. Please check your email and password, then try again.');
