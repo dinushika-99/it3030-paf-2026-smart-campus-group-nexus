@@ -15,6 +15,8 @@ import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage
 import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
 import CreateBooking from './pages/bookings/CreateBooking';
 import ProtectedRoute from './components/ProtectedRoute';
+import MyBookings from './pages/bookings/MyBookings';
+import BookingDetail from './pages/bookings/BookingDetail';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -44,6 +46,24 @@ export default function App() {
                   <CreateBooking />
                 </ProtectedRoute>
               } 
+          />
+
+          <Route 
+            path="/bookings/my" 
+            element={
+              <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <MyBookings />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/bookings/:id" 
+            element={
+              <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <BookingDetail />
+              </ProtectedRoute>
+            } 
           />
         </Routes>
       </Router>
