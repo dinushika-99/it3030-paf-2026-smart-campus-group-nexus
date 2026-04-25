@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthProvider } from './AuthContext';
 import './App.css';
 
 import Login from './Login';
@@ -12,6 +13,9 @@ import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
+import AdminResourceForm from './pages/features/AdminResourceForm';
+import ResourceDetail from './pages/features/ResourceDetail';
+import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
 import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
 import CreateBooking from './pages/bookings/CreateBooking';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -28,12 +32,14 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <Router>
-        <Routes>
+      <AuthProvider>
+        <Router>
+          <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/auth/github/callback" element={<GithubAuthCallback />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/facilities" element={<FacilitiesCatalogue />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route 
             path="/home" 
@@ -48,6 +54,14 @@ export default function App() {
           <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
+          <Route path="/resources/:id" element={<ResourceDetail/>} />
+          {/* <Route path="/admin" element={<AdminDashboard/>} /> */}
+          <Route path="/admin/resources/new" element={<AdminResourceForm/>} />
+          <Route path="/admin/resources/edit/:id" element={<AdminResourceForm/>} />
+
+          </Routes>
+        </Router>
+      </AuthProvider>
           <Route 
               path="/bookings/new/:resourceId?"
               element={

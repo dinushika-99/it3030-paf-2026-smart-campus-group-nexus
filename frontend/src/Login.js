@@ -61,6 +61,7 @@ export default function Login() {
           role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
         if (normalizedUser.role === 'ADMIN') {
           navigate('/admin');
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
@@ -101,6 +102,7 @@ export default function Login() {
           role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
        if (normalizedUser.role === 'ADMIN') {
           navigate('/admin');
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
