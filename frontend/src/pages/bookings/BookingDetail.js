@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import DashboardLayout from '../../components/layout/DashboardLayout';
+import Layout from '../../components/Layout';
 import { useAuth } from '../../AuthContext';
 import StatusBadge from './components/StatusBadge';
 import BookingTimeline from './components/BookingTimeline';
@@ -47,20 +47,20 @@ const BookingDetail = () => {
 
   if (loading) {
     return (
-      <DashboardLayout userRole={user?.role}>
+      <Layout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
             <p className="text-gray-600">Loading booking details...</p>
           </div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
   if (!booking) {
     return (
-      <DashboardLayout userRole={user?.role}>
+      <Layout>
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
             <div className="text-6xl mb-4">❌</div>
@@ -68,12 +68,12 @@ const BookingDetail = () => {
             <p className="text-gray-600 mb-6">The booking you're looking for doesn't exist</p>
           </div>
         </div>
-      </DashboardLayout>
+      </Layout>
     );
   }
 
   return (
-    <DashboardLayout userRole={user?.role}>
+    <Layout>
       <div className="p-6 max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -111,8 +111,8 @@ const BookingDetail = () => {
                     })}
                   </p>
                   <p className="text-gray-600">
-                    {new Date(booking.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - 
-                    {new Date(booking.endTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                    {new Date(booking.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
 
@@ -171,15 +171,15 @@ const BookingDetail = () => {
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 sticky top-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Actions</h3>
-              <ActionButtons 
-                booking={booking} 
+              <ActionButtons
+                booking={booking}
                 onUpdateSuccess={handleUpdateSuccess}
               />
             </div>
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </Layout>
   );
 };
 
