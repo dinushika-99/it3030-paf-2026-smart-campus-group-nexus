@@ -85,12 +85,22 @@ export default function AdminResourceForm() {
       })
       .catch(() => {
         toast.error("Failed to load resource");
-        navigate("/admin");
+        navigate("/admin", { state: { activeTab: "scheduling" } });
       })
       .finally(() => setFetching(false));
   }, [id, isEdit, navigate]);
 
   const availableTypes = form.category ? CATEGORY_TYPES[form.category] || [] : [];
+  const cardClass = "border border-[#D5E0F4] shadow-sm bg-gradient-to-b from-[#F3F8FF] to-[#F8FBFF]";
+  const cardHeaderClass = "pb-4 border-b border-[#DFE9F8]";
+  const labelClass = "text-slate-700 font-medium";
+  const sectionHintClass = "text-sm text-slate-500";
+  const sectionInputClass =
+    "bg-[#EDF3FE] border-[#D3DEF2] text-slate-700 placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-[#C5961A]/30 focus-visible:border-[#C5961A]";
+
+  function getFieldClass(error) {
+    return `${sectionInputClass} ${error ? "border-red-400 focus-visible:border-red-400 focus-visible:ring-red-200" : ""}`.trim();
+  }
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -168,7 +178,7 @@ export default function AdminResourceForm() {
         await createResource(payload);
         toast.success("Resource created successfully");
       }
-      navigate("/admin");
+      navigate("/admin", { state: { activeTab: "scheduling" } });
     } catch (err) {
       const errorMsg =
         err instanceof Error
@@ -182,7 +192,7 @@ export default function AdminResourceForm() {
 
   if (fetching) {
     return (
-      <Layout>
+      <Layout hideHeader>
         <div className="max-w-3xl mx-auto px-4 py-12">
           <div className="animate-pulse space-y-6">
             <div className="h-8 bg-gray-200 rounded w-1/3" />
@@ -198,10 +208,10 @@ export default function AdminResourceForm() {
   }
 
   return (
-    <Layout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Link to="/admin">
-          <Button variant="ghost" className="mb-4 text-gray-600 hover:text-[#1B2A4A]">
+    <Layout hideHeader>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-[#ECF3FF] rounded-2xl">
+        <Link to="/admin" state={{ activeTab: "scheduling" }}>
+          <Button variant="ghost" className="mb-4 text-slate-600 hover:text-[#1B2A4A] hover:bg-[#D9E7FC]">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Dashboard
           </Button>
@@ -212,13 +222,15 @@ export default function AdminResourceForm() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Card className="border border-gray-100">
-            <CardHeader className="pb-4">
+          <div className="grid grid-cols-1 gap-6 items-start">
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-lg text-[#1B2A4A]">Basic Information</CardTitle>
+              <p className={sectionHintClass}>Set core details and identity of the resource.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-5">
               <div>
-                <Label htmlFor="name">
+                <Label htmlFor="name" className={labelClass}>
                   Resource Name <span className="text-red-500">*</span>
                 </Label>
                 <Input
@@ -226,14 +238,14 @@ export default function AdminResourceForm() {
                   value={form.name}
                   onChange={(e) => updateField("name", e.target.value)}
                   placeholder="e.g. Main Lecture Hall A"
-                  className={errors.name ? "border-red-400" : ""}
+                  className={getFieldClass(errors.name)}
                 />
                 {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label>
+                  <Label className={labelClass}>
                     Category <span className="text-red-500">*</span>
                   </Label>
                   <Select
@@ -243,7 +255,7 @@ export default function AdminResourceForm() {
                       updateField("type", "");
                     }}
                   >
-                    <SelectTrigger className={errors.category ? "border-red-400" : ""}>
+                    <SelectTrigger className={getFieldClass(errors.category)}>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
@@ -258,7 +270,7 @@ export default function AdminResourceForm() {
                 </div>
 
                 <div>
-                  <Label>
+                  <Label className={labelClass}>
                     Type <span className="text-red-500">*</span>
                   </Label>
                   <Select
@@ -266,7 +278,7 @@ export default function AdminResourceForm() {
                     onValueChange={(val) => updateField("type", val)}
                     disabled={!form.category}
                   >
-                    <SelectTrigger className={errors.type ? "border-red-400" : ""}>
+                    <SelectTrigger className={getFieldClass(errors.type)}>
                       <SelectValue placeholder={form.category ? "Select type" : "Select category first"} />
                     </SelectTrigger>
                     <SelectContent>
@@ -283,7 +295,7 @@ export default function AdminResourceForm() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="capacity">
+                  <Label htmlFor="capacity" className={labelClass}>
                     Capacity <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -293,15 +305,15 @@ export default function AdminResourceForm() {
                     value={form.capacity}
                     onChange={(e) => updateField("capacity", e.target.value)}
                     placeholder="e.g. 100"
-                    className={errors.capacity ? "border-red-400" : ""}
+                    className={getFieldClass(errors.capacity)}
                   />
                   {errors.capacity && <p className="text-red-500 text-xs mt-1">{errors.capacity}</p>}
                 </div>
 
                 <div>
-                  <Label>Status</Label>
+                  <Label className={labelClass}>Status</Label>
                   <Select value={form.status} onValueChange={(val) => updateField("status", val)}>
-                    <SelectTrigger>
+                    <SelectTrigger className={sectionInputClass}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -313,36 +325,40 @@ export default function AdminResourceForm() {
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className={labelClass}>Description</Label>
                 <Textarea
                   id="description"
                   value={form.description}
                   onChange={(e) => updateField("description", e.target.value)}
                   placeholder="Describe the resource..."
                   rows={3}
+                  className={sectionInputClass}
                 />
               </div>
 
               <div>
-                <Label htmlFor="imageUrl">Image URL</Label>
+                <Label htmlFor="imageUrl" className={labelClass}>Image URL</Label>
                 <Input
                   id="imageUrl"
                   value={form.imageUrl}
                   onChange={(e) => updateField("imageUrl", e.target.value)}
                   placeholder="https://example.com/image.jpg"
+                  className={sectionInputClass}
                 />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-100">
-            <CardHeader className="pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-lg text-[#1B2A4A]">Availability &amp; Booking</CardTitle>
+              <p className={sectionHintClass}>Define opening hours and booking limits.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="dailyOpenTime">
+                  <Label htmlFor="dailyOpenTime" className={labelClass}>
                     Daily Open Time <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -350,7 +366,7 @@ export default function AdminResourceForm() {
                     type="time"
                     value={form.dailyOpenTime}
                     onChange={(e) => updateField("dailyOpenTime", e.target.value)}
-                    className={errors.dailyOpenTime ? "border-red-400" : ""}
+                    className={getFieldClass(errors.dailyOpenTime)}
                   />
                   {errors.dailyOpenTime && (
                     <p className="text-red-500 text-xs mt-1">{errors.dailyOpenTime}</p>
@@ -358,7 +374,7 @@ export default function AdminResourceForm() {
                 </div>
 
                 <div>
-                  <Label htmlFor="dailyCloseTime">
+                  <Label htmlFor="dailyCloseTime" className={labelClass}>
                     Daily Close Time <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -366,7 +382,7 @@ export default function AdminResourceForm() {
                     type="time"
                     value={form.dailyCloseTime}
                     onChange={(e) => updateField("dailyCloseTime", e.target.value)}
-                    className={errors.dailyCloseTime ? "border-red-400" : ""}
+                    className={getFieldClass(errors.dailyCloseTime)}
                   />
                   {errors.dailyCloseTime && (
                     <p className="text-red-500 text-xs mt-1">{errors.dailyCloseTime}</p>
@@ -374,9 +390,9 @@ export default function AdminResourceForm() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-2">
+              <div className="flex items-center justify-between rounded-lg border border-[#D3DEF2] bg-[#EDF4FF] px-4 py-3">
                 <div>
-                  <Label htmlFor="isBookable" className="cursor-pointer">
+                  <Label htmlFor="isBookable" className={`${labelClass} cursor-pointer`}>
                     Is Bookable
                   </Label>
                   <p className="text-xs text-gray-500">Allow users to book this resource</p>
@@ -390,7 +406,7 @@ export default function AdminResourceForm() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="maxBookingDurationHours">Max Booking Duration (hours)</Label>
+                  <Label htmlFor="maxBookingDurationHours" className={labelClass}>Max Booking Duration (hours)</Label>
                   <Input
                     id="maxBookingDurationHours"
                     type="number"
@@ -398,7 +414,7 @@ export default function AdminResourceForm() {
                     value={form.maxBookingDurationHours}
                     onChange={(e) => updateField("maxBookingDurationHours", e.target.value)}
                     placeholder="e.g. 4"
-                    className={errors.maxBookingDurationHours ? "border-red-400" : ""}
+                    className={getFieldClass(errors.maxBookingDurationHours)}
                   />
                   {errors.maxBookingDurationHours && (
                     <p className="text-red-500 text-xs mt-1">{errors.maxBookingDurationHours}</p>
@@ -406,7 +422,7 @@ export default function AdminResourceForm() {
                 </div>
 
                 <div>
-                  <Label htmlFor="maxQuantity">Max Quantity</Label>
+                  <Label htmlFor="maxQuantity" className={labelClass}>Max Quantity</Label>
                   <Input
                     id="maxQuantity"
                     type="number"
@@ -414,7 +430,7 @@ export default function AdminResourceForm() {
                     value={form.maxQuantity}
                     onChange={(e) => updateField("maxQuantity", e.target.value)}
                     placeholder="e.g. 10"
-                    className={errors.maxQuantity ? "border-red-400" : ""}
+                    className={getFieldClass(errors.maxQuantity)}
                   />
                   {errors.maxQuantity && (
                     <p className="text-red-500 text-xs mt-1">{errors.maxQuantity}</p>
@@ -424,14 +440,15 @@ export default function AdminResourceForm() {
             </CardContent>
           </Card>
 
-          <Card className="border border-gray-100">
-            <CardHeader className="pb-4">
+          <Card className={cardClass}>
+            <CardHeader className={cardHeaderClass}>
               <CardTitle className="text-lg text-[#1B2A4A]">Location</CardTitle>
+              <p className={sectionHintClass}>Set where the resource can be found.</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between py-2">
+            <CardContent className="space-y-4 pt-5">
+              <div className="flex items-center justify-between rounded-lg border border-[#D3DEF2] bg-[#EDF4FF] px-4 py-3">
                 <div>
-                  <Label htmlFor="isIndoor" className="cursor-pointer">
+                  <Label htmlFor="isIndoor" className={`${labelClass} cursor-pointer`}>
                     Indoor Resource
                   </Label>
                   <p className="text-xs text-gray-500">
@@ -450,7 +467,7 @@ export default function AdminResourceForm() {
               {form.isIndoor ? (
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="building">
+                    <Label htmlFor="building" className={labelClass}>
                       Building <span className="text-red-500">*</span>
                     </Label>
                     <Input
@@ -458,14 +475,14 @@ export default function AdminResourceForm() {
                       value={form.building}
                       onChange={(e) => updateField("building", e.target.value)}
                       placeholder="e.g. Engineering Block"
-                      className={errors.building ? "border-red-400" : ""}
+                      className={getFieldClass(errors.building)}
                     />
                     {errors.building && <p className="text-red-500 text-xs mt-1">{errors.building}</p>}
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="floor">
+                      <Label htmlFor="floor" className={labelClass}>
                         Floor <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -474,13 +491,13 @@ export default function AdminResourceForm() {
                         value={form.floor}
                         onChange={(e) => updateField("floor", e.target.value)}
                         placeholder="e.g. 2"
-                        className={errors.floor ? "border-red-400" : ""}
+                        className={getFieldClass(errors.floor)}
                       />
                       {errors.floor && <p className="text-red-500 text-xs mt-1">{errors.floor}</p>}
                     </div>
 
                     <div>
-                      <Label htmlFor="roomNumber">
+                      <Label htmlFor="roomNumber" className={labelClass}>
                         Room Number <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -488,7 +505,7 @@ export default function AdminResourceForm() {
                         value={form.roomNumber}
                         onChange={(e) => updateField("roomNumber", e.target.value)}
                         placeholder="e.g. 201A"
-                        className={errors.roomNumber ? "border-red-400" : ""}
+                        className={getFieldClass(errors.roomNumber)}
                       />
                       {errors.roomNumber && (
                         <p className="text-red-500 text-xs mt-1">{errors.roomNumber}</p>
@@ -498,7 +515,7 @@ export default function AdminResourceForm() {
                 </div>
               ) : (
                 <div>
-                  <Label htmlFor="areaName">
+                  <Label htmlFor="areaName" className={labelClass}>
                     Area Name <span className="text-red-500">*</span>
                   </Label>
                   <Input
@@ -506,17 +523,23 @@ export default function AdminResourceForm() {
                     value={form.areaName}
                     onChange={(e) => updateField("areaName", e.target.value)}
                     placeholder="e.g. Main Sports Ground"
-                    className={errors.areaName ? "border-red-400" : ""}
+                    className={getFieldClass(errors.areaName)}
                   />
                   {errors.areaName && <p className="text-red-500 text-xs mt-1">{errors.areaName}</p>}
                 </div>
               )}
             </CardContent>
           </Card>
+          </div>
+          </div>
 
           <div className="flex items-center gap-3 justify-end">
-            <Link to="/admin">
-              <Button variant="outline" type="button">
+            <Link to="/admin" state={{ activeTab: "scheduling" }}>
+              <Button
+                variant="outline"
+                type="button"
+                className="border-[#B9C8E2] text-slate-700 hover:bg-[#DFEAFC]"
+              >
                 Cancel
               </Button>
             </Link>
