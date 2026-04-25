@@ -237,7 +237,7 @@ export default function AdminDashboard({ user: userProp }) {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     api.get('/api/notifications/me')
       .then((res) => res.data || [])
@@ -247,7 +247,7 @@ export default function AdminDashboard({ user: userProp }) {
           setNotifications(sorted);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [user, refreshKey]);
 
   if (!user) {
@@ -321,9 +321,6 @@ export default function AdminDashboard({ user: userProp }) {
             </>
           )}
 
-          <div style={{ marginTop: '14px' }}></div>
-          <MenuCategory title="Quick Links" />
-          <NavButton active={false} onClick={() => navigate('/facilities')} text="Facilities Catalogue" icon="catalogue" />
         </div>
       </aside>
 
@@ -337,22 +334,7 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button onClick={() => navigate('/facilities')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 14px', backgroundColor: '#1f2937', color: '#fff', border: '1px solid #374151', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-                <path d="M9 22v-4h6v4"></path>
-                <path d="M8 6h.01"></path>
-                <path d="M16 6h.01"></path>
-                <path d="M12 6h.01"></path>
-                <path d="M12 10h.01"></path>
-                <path d="M12 14h.01"></path>
-                <path d="M16 10h.01"></path>
-                <path d="M16 14h.01"></path>
-                <path d="M8 10h.01"></path>
-                <path d="M8 14h.01"></path>
-              </svg>
-              Facilities
-            </button>
+
             <TopNavIconButton label="Profile" onClick={handleOpenProfile}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21a8 8 0 0 0-16 0"></path>
@@ -886,6 +868,40 @@ function AdminResourcesTab({ navigate }) {
 
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', border: '1px solid #1f2937', borderRadius: '12px', backgroundColor: '#111827', flexWrap: 'wrap', marginBottom: '4px' }}>
+        <button
+          type="button"
+          style={{
+            border: '1px solid #BF932A',
+            background: 'rgba(191,147,42,0.18)',
+            color: '#FDE68A',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'default',
+          }}
+        >
+          Resource Manager
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/facilities')}
+          style={{
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Facilities Catalogue
+        </button>
+      </div>
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -898,7 +914,7 @@ function AdminResourcesTab({ navigate }) {
           onClick={() => navigate('/admin/resources/new')}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', backgroundColor: '#BF932A', color: '#111827', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
           Add New Resource
         </button>
       </div>
@@ -914,7 +930,7 @@ function AdminResourcesTab({ navigate }) {
       {/* Loading skeleton */}
       {loading && !error && (
         <div style={{ display: 'grid', gap: '10px' }}>
-          {[1,2,3,4].map((i) => (
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} style={{ height: '60px', borderRadius: '10px', background: '#1f2937', animation: 'pulse 1.5s infinite' }} />
           ))}
         </div>
