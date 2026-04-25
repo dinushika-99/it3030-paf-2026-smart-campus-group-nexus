@@ -29,7 +29,7 @@ export default function Layout({ children }) {
                 </Button>
               </Link>
               {isAdminUser ? (
-                <Link to="/admin">
+                <Link to="/admin" state={location.pathname === "/facilities" ? { activeTab: 'scheduling' } : undefined}>
                   <Button variant="ghost" className={`text-white hover:bg-white/10 hover:text-white ${isAdmin ? "bg-white/15 text-white" : ""}`}>
                     <LayoutDashboard className="w-4 h-4 mr-2" />
                     Admin Panel
@@ -58,7 +58,7 @@ export default function Layout({ children }) {
               </Button>
             </Link>
             {isAdminUser ? (
-              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
+              <Link to="/admin" state={location.pathname === "/facilities" ? { activeTab: 'scheduling' } : undefined} onClick={() => setMobileMenuOpen(false)} className="block">
                 <Button variant="ghost" className="w-full justify-start text-white hover:bg-white/10 hover:text-white">
                   <LayoutDashboard className="w-4 h-4 mr-2" />
                   Admin Panel
