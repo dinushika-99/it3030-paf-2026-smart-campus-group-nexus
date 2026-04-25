@@ -293,6 +293,7 @@ export default function AdminDashboard({ user: userProp }) {
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
+          <NavButton active={false} onClick={() => navigate('/admin/bookings')} text="Booking Management" icon="booking" />
           <NavButton active={false} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
           <NavButton active={activeTab === 'asset-directory'} onClick={() => setActiveTab('asset-directory')} text="Asset Directory" icon="asset" />
           <NavButton active={activeTab === 'scheduling'} onClick={() => setActiveTab('scheduling')} text="Resource Scheduling" icon="schedule" />
