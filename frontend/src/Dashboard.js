@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
 import useDashboardProfile from './hooks/useDashboardProfile';
 
@@ -189,12 +189,19 @@ export default function Dashboard() {
       
       {/* Shared Navbar */}
       <nav style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+        <Link to="/facilities" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+          <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
-        </div>
+        </Link>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button onClick={() => navigate('/facilities')} style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', color: '#111827', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            Facilities Catalogue
+          </button>
+          <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            Create Ticket
+          </button>
+
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
             <button
               onClick={openProfile}
