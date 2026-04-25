@@ -10,6 +10,14 @@ const CreateBooking = () => {
   const [formData, setFormData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate('/facilities');
+  };
+
   const handleSubmit = async () => {
     if (!formData) return;
     
@@ -60,7 +68,7 @@ const CreateBooking = () => {
         {/* Header */}
         <div className="mb-6">
           <button
-            onClick={() => navigate('/resources')}
+            onClick={handleBack}
             className="text-gray-600 hover:text-gray-900 mb-4 flex items-center gap-2"
           >
             ← Back to Resources

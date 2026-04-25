@@ -76,6 +76,38 @@ export default function Dashboard() {
         >
           Create Ticket
         </button>
+         <button
+          type="button"
+          onClick={() => navigate('/bookings/my')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Booking
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/facilities')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Facilities
+        </button>
       </div>
 
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>

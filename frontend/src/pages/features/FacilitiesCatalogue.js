@@ -57,7 +57,6 @@ export default function FacilitiesCatalogue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedType, setSelectedType] = useState("ALL");
@@ -136,7 +135,6 @@ export default function FacilitiesCatalogue() {
 
   return (
     <Layout>
-      {/* Hero Section */}
       <section className="relative h-[280px] overflow-hidden">
         <img
           src="https://mgx-backend-cdn.metadl.com/generate/images/422425/2026-04-21/nbrj2xaaaflq/hero-campus-facilities.png"
@@ -150,14 +148,13 @@ export default function FacilitiesCatalogue() {
               Facilities &amp; Assets Catalogue
             </h1>
             <p className="text-white/80 text-lg max-w-xl">
-              Browse and discover campus resources — lecture halls, labs, sports
+              Browse and discover campus resources - lecture halls, labs, sports
               facilities, meeting rooms, and equipment.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Search & Filters */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
         <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -223,10 +220,7 @@ export default function FacilitiesCatalogue() {
                 <label className="text-xs font-medium text-gray-500 uppercase mb-1.5 block">
                   Type
                 </label>
-                <Select
-                  value={selectedType}
-                  onValueChange={setSelectedType}
-                >
+                <Select value={selectedType} onValueChange={setSelectedType}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
@@ -244,10 +238,7 @@ export default function FacilitiesCatalogue() {
                 <label className="text-xs font-medium text-gray-500 uppercase mb-1.5 block">
                   Status
                 </label>
-                <Select
-                  value={selectedStatus}
-                  onValueChange={setSelectedStatus}
-                >
+                <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -263,7 +254,6 @@ export default function FacilitiesCatalogue() {
         </div>
       </section>
 
-      {/* Category Quick Filters */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         <div className="flex flex-wrap gap-2">
           <Button
@@ -303,9 +293,7 @@ export default function FacilitiesCatalogue() {
         </div>
       </section>
 
-      {/* Results */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 pb-12">
-        {/* Count */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-gray-500">
             {loading
@@ -314,7 +302,6 @@ export default function FacilitiesCatalogue() {
           </p>
         </div>
 
-        {/* Error State */}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
             <p className="text-red-600 font-medium mb-2">Connection Error</p>
@@ -328,7 +315,6 @@ export default function FacilitiesCatalogue() {
           </div>
         )}
 
-        {/* Loading State */}
         {loading && !error && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -347,7 +333,6 @@ export default function FacilitiesCatalogue() {
           </div>
         )}
 
-        {/* Empty State */}
         {!loading && !error && filteredResources.length === 0 && (
           <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -356,18 +341,13 @@ export default function FacilitiesCatalogue() {
               Try adjusting your search or filters
             </p>
             {hasActiveFilters && (
-              <Button
-                variant="outline"
-                onClick={clearFilters}
-                className="mt-4"
-              >
+              <Button variant="outline" onClick={clearFilters} className="mt-4">
                 Clear Filters
               </Button>
             )}
           </div>
         )}
 
-        {/* Resource Cards Grid */}
         {!loading && !error && filteredResources.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredResources.map((resource) => (
@@ -376,7 +356,6 @@ export default function FacilitiesCatalogue() {
                 to={`/resources/${resource.resourcesId}`}
               >
                 <Card className="overflow-hidden border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group">
-                  {/* Image */}
                   <div className="relative h-40 overflow-hidden">
                     <img
                       src={getResourceImage(resource)}
@@ -407,7 +386,6 @@ export default function FacilitiesCatalogue() {
                   </div>
 
                   <CardContent className="p-4">
-                    {/* Name & Type */}
                     <h3 className="font-semibold text-[#1B2A4A] text-base mb-1 line-clamp-1">
                       {resource.name}
                     </h3>
@@ -415,7 +393,6 @@ export default function FacilitiesCatalogue() {
                       {formatType(resource.type)}
                     </p>
 
-                    {/* Info Row */}
                     <div className="flex flex-col gap-1.5 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5 text-gray-400" />
@@ -424,8 +401,7 @@ export default function FacilitiesCatalogue() {
                       <div className="flex items-center gap-2">
                         <Clock className="w-3.5 h-3.5 text-gray-400" />
                         <span>
-                          {formatTime(resource.dailyOpenTime)} –{" "}
-                          {formatTime(resource.dailyCloseTime)}
+                          {formatTime(resource.dailyOpenTime)} - {formatTime(resource.dailyCloseTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -436,7 +412,6 @@ export default function FacilitiesCatalogue() {
                       </div>
                     </div>
 
-                    {/* Bookable badge */}
                     {resource.isBookable && (
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <Badge

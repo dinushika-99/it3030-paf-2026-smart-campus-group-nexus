@@ -41,6 +41,9 @@ export default function ResourceDetail() {
   const [resource, setResource] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const resourceIdForBooking = resource?.resourcesId ?? resource?.id ?? id;
+  const canCreateBooking =
+    Boolean(resource?.isBookable) && String(resource?.status || "").toUpperCase() === "ACTIVE";
 
   useEffect(() => {
     if (!id) return;
