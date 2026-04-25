@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import './App.css';
 import { SITE_BRAND } from './siteConfig';
@@ -10,6 +10,37 @@ export default function Login() {
   const [error, setError] = useState('');
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const githubClientId = process.env.REACT_APP_GITHUB_CLIENT_ID || '';
+  const githubRedirectUri = process.env.REACT_APP_GITHUB_REDIRECT_URI || `${window.location.origin}/auth/github/callback`;
+
+  React.useEffect(() => {
+    const oauthError = location.state?.oauthError;
+    if (oauthError) {
+      setShowRegisterPrompt(false);
+      setError(oauthError);
+      navigate('/login', { replace: true, state: null });
+    }
+  }, [location.state, navigate]);
+
+  const handleGithubSignIn = () => {
+    if (!githubClientId) {
+      setShowRegisterPrompt(false);
+      setError('GitHub login is not configured. Add REACT_APP_GITHUB_CLIENT_ID to frontend env.');
+      return;
+    }
+
+    sessionStorage.setItem('github_oauth_mode', 'login');
+    sessionStorage.removeItem('github_oauth_role');
+
+    const authorizeUrl = new URL('https://github.com/login/oauth/authorize');
+    authorizeUrl.searchParams.set('client_id', githubClientId);
+    authorizeUrl.searchParams.set('redirect_uri', githubRedirectUri);
+    authorizeUrl.searchParams.set('scope', 'read:user user:email');
+
+    window.location.href = authorizeUrl.toString();
+  };
 
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential;
@@ -27,10 +58,17 @@ export default function Login() {
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
-          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+          role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
+        if (normalizedUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
+          navigate('/home');  // ✅ Redirect to new HomePage
+        } else {
+          navigate('/dashboard');  // Fallback
+        }
       } else {
         setShowRegisterPrompt(false);
         setError('Google sign-in failed.');
@@ -61,10 +99,17 @@ export default function Login() {
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
-          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+          role: data.user.role ? data.user.role.toUpperCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
+       if (normalizedUser.role === 'ADMIN') {
+          navigate('/admin');
+        } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
+          navigate('/home');  // ✅ Redirect to new HomePage
+        } else {
+          navigate('/dashboard');  // Fallback
+        }
       } else {
         setShowRegisterPrompt(false);
         setError('We could not sign you in. Please check your email and password, then try again.');
@@ -99,14 +144,28 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
           <h1 className="clean-login-title">Sign in</h1>
           <p className="clean-login-subtitle">Sign in if you have an account in here</p>
 
-          <div className="clean-google-row">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError('Google sign-in was cancelled or failed.')}
-              width={380}
-              text="continue_with"
-              shape="rectangular"
-            />
+          <div className="oauth-buttons">
+            <div className="oauth-google-wrap">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => setError('Google sign-in was cancelled or failed.')}
+                width={380}
+                text="continue_with"
+                shape="rectangular"
+                logo_alignment="left"
+                theme="outline"
+              />
+            </div>
+
+            <button type="button" onClick={handleGithubSignIn} className="oauth-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#24292e"
+                  d="M12 .5C5.649.5.5 5.649.5 12A11.5 11.5 0 008.36 22.91c.575.106.786-.25.786-.556 0-.275-.01-1.003-.016-1.969-3.198.695-3.873-1.54-3.873-1.54-.523-1.328-1.278-1.682-1.278-1.682-1.045-.714.079-.699.079-.699 1.156.081 1.764 1.188 1.764 1.188 1.028 1.761 2.697 1.253 3.354.958.104-.745.402-1.253.731-1.541-2.553-.29-5.238-1.277-5.238-5.684 0-1.255.448-2.282 1.183-3.086-.119-.29-.513-1.457.112-3.037 0 0 .965-.309 3.162 1.179A10.98 10.98 0 0112 6.039c.973.005 1.954.132 2.87.387 2.195-1.488 3.158-1.179 3.158-1.179.628 1.58.234 2.747.115 3.037.737.804 1.181 1.831 1.181 3.086 0 4.418-2.689 5.39-5.25 5.675.413.355.781 1.057.781 2.131 0 1.539-.014 2.78-.014 3.158 0 .309.207.668.793.554A11.502 11.502 0 0023.5 12C23.5 5.649 18.351.5 12 .5z"
+                />
+              </svg>
+              <span>Continue with GitHub</span>
+            </button>
           </div>
 
           <div className="divider clean-divider">

@@ -85,6 +85,35 @@
   gap: 10px;
 }
 
+.qr-row button {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.qr-scanner-action-row {
+  display: flex;
+}
+
+.qr-scanner-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+.qr-reader-box {
+  width: 100%;
+  max-width: 360px;
+  margin: 0 auto;
+}
+
+.qr-reader-box video {
+  border-radius: 8px;
+}
+
 .ticket-action-row {
   display: flex;
   gap: 10px;
@@ -130,6 +159,16 @@
 
 .ticket-feedback.error {
   color: #b91c1c;
+}
+
+.priority-suggestion-hint {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
 }
 
 .attachment-section {

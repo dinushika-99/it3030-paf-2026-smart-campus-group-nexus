@@ -1,11 +1,11 @@
 package backend.auth.services;
 
 import backend.auth.model.User;
+import backend.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -21,11 +21,11 @@ public class JwtService {
     private final Duration accessTokenTtl;
     private final Duration refreshTokenTtl;
 
-    public JwtService(
-            @Value("${app.auth.jwt.secret}") String jwtSecret,
-            @Value("${app.auth.jwt.access-token-minutes:15}") long accessTokenMinutes,
-            @Value("${app.auth.jwt.refresh-token-days:14}") long refreshTokenDays
-    ) {
+    public JwtService(JwtProperties jwtProperties) {
+        String jwtSecret = jwtProperties.getSecret();
+        long accessTokenMinutes = jwtProperties.getAccessTokenMinutes();
+        long refreshTokenDays = jwtProperties.getRefreshTokenDays();
+
         byte[] keyBytes;
         try {
             keyBytes = Decoders.BASE64.decode(jwtSecret);

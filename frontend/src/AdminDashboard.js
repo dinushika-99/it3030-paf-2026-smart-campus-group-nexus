@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
 import { getAllResources, deleteResource, formatCategory, formatType } from './lib/api';
@@ -8,6 +8,7 @@ const API_BASE = 'http://localhost:8081';
 
 export default function AdminDashboard({ user: userProp }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('command-center');
   const [user, setUser] = useState(userProp || null);
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -46,6 +47,13 @@ export default function AdminDashboard({ user: userProp }) {
 
     setUser(parsed);
   }, [navigate, userProp]);
+
+  useEffect(() => {
+    const requestedTab = location.state?.activeTab;
+    if (requestedTab) {
+      setActiveTab(requestedTab);
+    }
+  }, [location.state]);
 
   const isAdmin = user?.role === 'admin';
   const isManager = user?.role === 'manager';

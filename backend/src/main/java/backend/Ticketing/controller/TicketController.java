@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import backend.Ticketing.dto.TicketCommentRequest;
 import backend.Ticketing.dto.TicketCommentResponse;
 import backend.Ticketing.dto.TicketCommentUpdateRequest;
@@ -40,9 +41,21 @@ public class TicketController {
         return new ResponseEntity<>(createdTicket, HttpStatus.CREATED);
     }
 
+    @PostMapping("/priority-suggestion")
+    public ResponseEntity<Map<String, Object>> suggestPriority(@RequestBody Map<String, String> payload) {
+        String description = payload == null ? null : payload.get("description");
+        String category = payload == null ? null : payload.get("category");
+        return ResponseEntity.ok(ticketService.suggestPriority(description, category));
+    }
+
     @GetMapping
     public ResponseEntity<List<Ticket>> getAllTickets(Authentication authentication) {
         return ResponseEntity.ok(ticketService.getTicketsForCurrentUser(authentication));
+    }
+
+    @GetMapping("/my-assigned")
+    public ResponseEntity<List<Ticket>> getMyAssignedTickets(Authentication authentication) {
+        return ResponseEntity.ok(ticketService.getAssignedTicketsForCurrentUser(authentication));
     }
 
     @GetMapping("/{id}")
@@ -100,9 +113,10 @@ public ResponseEntity<TicketAttachmentResponse> uploadAttachment(
         @PathVariable Integer id,
         @RequestParam("file") MultipartFile file,
         @RequestParam(value = "caption", required = false) String caption,
-        @RequestParam("uploadedByUserId") String uploadedByUserId) {
+        @RequestParam("uploadedByUserId") String uploadedByUserId,
+        Authentication authentication) {
 
-    TicketAttachmentResponse response = ticketService.uploadAttachment(id, file, caption, uploadedByUserId);
+    TicketAttachmentResponse response = ticketService.uploadAttachment(id, file, caption, uploadedByUserId, authentication);
     return ResponseEntity.ok(response);
 }
 
@@ -112,8 +126,8 @@ public ResponseEntity<List<TicketAttachmentResponse>> getAttachmentsByTicketId(@
 }
 
 @DeleteMapping("/attachments/{attachmentId}")
-public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId) {
-    ticketService.deleteAttachment(attachmentId);
+public ResponseEntity<String> deleteAttachment(@PathVariable Integer attachmentId, Authentication authentication) {
+    ticketService.deleteAttachment(attachmentId, authentication);
     return ResponseEntity.ok("Attachment deleted successfully");
 }
 
