@@ -30,7 +30,7 @@ export default function Login() {
           role: data.user.role ? data.user.role.toLowerCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
       } else {
         setShowRegisterPrompt(false);
         setError('Google sign-in failed.');
@@ -64,7 +64,7 @@ export default function Login() {
           role: data.user.role ? data.user.role.toLowerCase() : undefined,
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
-        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
       } else {
         setShowRegisterPrompt(false);
         setError('We could not sign you in. Please check your email and password, then try again.');

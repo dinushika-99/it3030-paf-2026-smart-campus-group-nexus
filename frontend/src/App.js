@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthProvider } from './AuthContext';
 import './App.css';
 
 import Login from './Login';
@@ -11,6 +12,9 @@ import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
+import AdminResourceForm from './pages/features/AdminResourceForm';
+import ResourceDetail from './pages/features/ResourceDetail';
+import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -21,18 +25,26 @@ export default function App() {
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
-      <Router>
-        <Routes>
+      <AuthProvider>
+        <Router>
+          <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/facilities" element={<FacilitiesCatalogue />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/tickets" element={<TicketPage />} />
           <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
-        </Routes>
-      </Router>
+          <Route path="/resources/:id" element={<ResourceDetail/>} />
+          {/* <Route path="/admin" element={<AdminDashboard/>} /> */}
+          <Route path="/admin/resources/new" element={<AdminResourceForm/>} />
+          <Route path="/admin/resources/edit/:id" element={<AdminResourceForm/>} />
+
+          </Routes>
+        </Router>
+      </AuthProvider>
     </GoogleOAuthProvider>
   );
 }

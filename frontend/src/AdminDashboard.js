@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
+import { getAllResources, deleteResource, formatCategory, formatType } from './lib/api';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -310,6 +311,10 @@ export default function AdminDashboard({ user: userProp }) {
               <NavButton active={activeTab === 'manager-communication'} onClick={() => setActiveTab('manager-communication')} text="Service Updates" icon="audit" />
             </>
           )}
+
+          <div style={{ marginTop: '14px' }}></div>
+          <MenuCategory title="Quick Links" />
+          <NavButton active={false} onClick={() => navigate('/facilities')} text="Facilities Catalogue" icon="catalogue" />
         </div>
       </aside>
 
@@ -323,6 +328,22 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button onClick={() => navigate('/facilities')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 14px', backgroundColor: '#1f2937', color: '#fff', border: '1px solid #374151', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
+                <path d="M9 22v-4h6v4"></path>
+                <path d="M8 6h.01"></path>
+                <path d="M16 6h.01"></path>
+                <path d="M12 6h.01"></path>
+                <path d="M12 10h.01"></path>
+                <path d="M12 14h.01"></path>
+                <path d="M16 10h.01"></path>
+                <path d="M16 14h.01"></path>
+                <path d="M8 10h.01"></path>
+                <path d="M8 14h.01"></path>
+              </svg>
+              Facilities
+            </button>
             <TopNavIconButton label="Profile" onClick={handleOpenProfile}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21a8 8 0 0 0-16 0"></path>
@@ -358,7 +379,7 @@ export default function AdminDashboard({ user: userProp }) {
             : <ManagerOverviewTab notifications={notifications} onJump={setActiveTab} />
         )}
         {activeTab === 'asset-directory' && <PlaceholderPanel title="Asset Directory" description="Track spaces, facilities, and assets across NEXUS." />}
-        {activeTab === 'scheduling' && <PlaceholderPanel title="Resource Scheduling" description="Manage bookings, time slots, and allocation calendars." />}
+        {activeTab === 'scheduling' && <AdminResourcesTab navigate={navigate} />}
         {activeTab === 'incident-desk' && <PlaceholderPanel title="Incident Desk" description="Review, triage, and resolve technical incidents." />}
         {activeTab === 'dispatch' && <PlaceholderPanel title="Active Dispatch" description="Coordinate live assignments for technician teams." />}
         {activeTab === 'admin-users' && <AdminUsersTab isAdmin={isAdmin} refreshKey={refreshKey} onChanged={() => setRefreshKey((v) => v + 1)} />}
@@ -818,6 +839,141 @@ function ManagerBadge({ title, value }) {
     <div style={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '8px', padding: '12px' }}>
       <p style={{ margin: 0, color: '#9ca3af', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{title}</p>
       <p style={{ margin: '6px 0 0 0', color: '#fff', fontSize: '24px', fontWeight: 700 }}>{value}</p>
+    </div>
+  );
+}
+
+function AdminResourcesTab({ navigate }) {
+  const [resources, setResources] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError('');
+    getAllResources()
+      .then((data) => setResources(Array.isArray(data) ? data : []))
+      .catch(() => setError('Failed to load resources. Make sure the backend is running.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleDelete = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    setDeletingId(id);
+    try {
+      await deleteResource(id);
+      setResources((prev) => prev.filter((r) => r.resourcesId !== id));
+    } catch {
+      alert('Failed to delete resource. Please try again.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const statusColor = (s) => s === 'ACTIVE' ? '#22c55e' : '#ef4444';
+
+  return (
+    <div style={{ display: 'grid', gap: '18px' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>All Resources</h3>
+          <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '13px' }}>
+            {loading ? 'Loading...' : `${resources.length} resource${resources.length !== 1 ? 's' : ''} found`}
+          </p>
+        </div>
+        <button
+          onClick={() => navigate('/admin/resources/new')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', backgroundColor: '#BF932A', color: '#111827', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add New Resource
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{ ...CARD_STYLE, border: '1px solid #7f1d1d', color: '#fca5a5' }}>
+          <p style={{ margin: 0 }}>{error}</p>
+          <button onClick={load} style={{ marginTop: '10px', padding: '8px 14px', background: '#BF932A', color: '#111', border: 'none', borderRadius: '8px', fontWeight: 700, cursor: 'pointer' }}>Retry</button>
+        </div>
+      )}
+
+      {/* Loading skeleton */}
+      {loading && !error && (
+        <div style={{ display: 'grid', gap: '10px' }}>
+          {[1,2,3,4].map((i) => (
+            <div key={i} style={{ height: '60px', borderRadius: '10px', background: '#1f2937', animation: 'pulse 1.5s infinite' }} />
+          ))}
+        </div>
+      )}
+
+      {/* Empty */}
+      {!loading && !error && resources.length === 0 && (
+        <div style={{ ...CARD_STYLE, textAlign: 'center', padding: '40px' }}>
+          <p style={{ color: '#9ca3af', margin: 0 }}>No resources yet. Add your first one above.</p>
+        </div>
+      )}
+
+      {/* Resource Table */}
+      {!loading && !error && resources.length > 0 && (
+        <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #374151', background: '#0f172a' }}>
+                  {['Name', 'Category', 'Type', 'Capacity', 'Status', 'Bookable', 'Actions'].map((h) => (
+                    <th key={h} style={{ padding: '12px 16px', color: '#9ca3af', textAlign: 'left', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {resources.map((r, idx) => (
+                  <tr
+                    key={r.resourcesId}
+                    style={{ borderBottom: '1px solid #1f2937', background: idx % 2 === 0 ? '#111827' : '#0f172a', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#1f2937'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = idx % 2 === 0 ? '#111827' : '#0f172a'}
+                  >
+                    <td style={{ padding: '12px 16px', color: '#fff', fontWeight: 600 }}>{r.name}</td>
+                    <td style={{ padding: '12px 16px', color: '#d1d5db' }}>{formatCategory(r.category)}</td>
+                    <td style={{ padding: '12px 16px', color: '#d1d5db' }}>{formatType(r.type)}</td>
+                    <td style={{ padding: '12px 16px', color: '#d1d5db' }}>{r.capacity}</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, background: r.status === 'ACTIVE' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)', color: statusColor(r.status), border: `1px solid ${statusColor(r.status)}40` }}>
+                        {r.status === 'ACTIVE' ? 'Active' : 'Out of Service'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: r.isBookable ? '#86efac' : '#6b7280' }}>
+                      {r.isBookable ? 'Yes' : 'No'}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          onClick={() => navigate(`/admin/resources/edit/${r.resourcesId}`)}
+                          style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #334155', color: '#BF932A', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(r.resourcesId, r.name)}
+                          disabled={deletingId === r.resourcesId}
+                          style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #7f1d1d', color: '#f87171', borderRadius: '8px', cursor: deletingId === r.resourcesId ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: '13px', opacity: deletingId === r.resourcesId ? 0.6 : 1 }}
+                        >
+                          {deletingId === r.resourcesId ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
