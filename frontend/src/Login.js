@@ -45,7 +45,7 @@ export default function Login() {
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential;
     if (!token) {
-    setShowRegisterPrompt(false);
+      setShowRegisterPrompt(false);
       setError('Google login did not return a token. Please try again.');
       return;
     }
@@ -103,7 +103,7 @@ export default function Login() {
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
-       if (normalizedUser.role === 'ADMIN') {
+        if (normalizedUser.role === 'ADMIN') {
           navigate('/admin');
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
           navigate('/home');  // ✅ Redirect to new HomePage
@@ -137,7 +137,7 @@ export default function Login() {
           </div>
           <h1>Welcome back.</h1>
           <p>Your central hub for {SITE_BRAND.name} operations.
-Log in to manage facility bookings, track maintenance tickets, and view notifications.</p>
+            Log in to manage facility bookings, track maintenance tickets, and view notifications.</p>
         </section>
 
         <section className="clean-login-right">
