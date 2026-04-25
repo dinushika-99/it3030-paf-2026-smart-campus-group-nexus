@@ -59,9 +59,7 @@ export default function App() {
           <Route path="/admin/resources/new" element={<AdminResourceForm/>} />
           <Route path="/admin/resources/edit/:id" element={<AdminResourceForm/>} />
 
-          </Routes>
-        </Router>
-      </AuthProvider>
+
           <Route 
               path="/bookings/new/:resourceId?"
               element={
@@ -90,6 +88,7 @@ export default function App() {
           />
         </Routes>
       </Router>
+      </AuthProvider>
     </GoogleOAuthProvider>
   );
 }
