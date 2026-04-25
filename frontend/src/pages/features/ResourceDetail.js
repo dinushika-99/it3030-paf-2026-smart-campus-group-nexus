@@ -48,6 +48,8 @@ export default function ResourceDetail() {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
+    setError(null);
+
     getResourceById(Number(id))
       .then(setResource)
       .catch(() => setError("Failed to load resource details."))
@@ -62,12 +64,7 @@ export default function ResourceDetail() {
     );
   }
 
-  function handleCreateBooking() {
-    if (!resourceIdForBooking || !canCreateBooking) return;
-    navigate(`/bookings/new/${resourceIdForBooking}`, {
-      state: { resourceDetails: resource },
-    });
-  }
+  const resourceId = resource?.resourcesId ?? resource?.id;
 
   if (loading) {
     return (
@@ -90,10 +87,8 @@ export default function ResourceDetail() {
     return (
       <Layout>
         <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-          <p className="text-red-500 font-medium mb-4">
-            {error || "Resource not found"}
-          </p>
-          <Button onClick={() => navigate("/")} variant="outline">
+          <p className="text-red-500 font-medium mb-4">{error || "Resource not found"}</p>
+          <Button onClick={() => navigate("/facilities")} variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Facilities
           </Button>
@@ -105,22 +100,16 @@ export default function ResourceDetail() {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Button variant="ghost" onClick={() => navigate("/")} className="mb-4 px-0">
+        <Button onClick={() => navigate("/facilities")} variant="ghost" className="mb-4 text-gray-600">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Facilities
         </Button>
 
         <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
-          <img
-            src={getImage()}
-            alt={resource.name}
-            className="w-full h-full object-cover"
-          />
+          <img src={getImage()} alt={resource.name} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           <div className="absolute bottom-4 left-4 flex gap-2">
-            <Badge
-              className={`border ${CATEGORY_COLORS[resource.category] || "bg-gray-100 text-gray-800"}`}
-            >
+            <Badge className={`border ${CATEGORY_COLORS[resource.category] || "bg-gray-100 text-gray-800"}`}>
               {formatCategory(resource.category)}
             </Badge>
             <Badge
@@ -133,32 +122,13 @@ export default function ResourceDetail() {
               {resource.status === "ACTIVE" ? "Active" : "Out of Service"}
             </Badge>
             {resource.isBookable && (
-              <Badge className="bg-[#C5961A] text-white border-[#C5961A]">
-                Bookable
-              </Badge>
+              <Badge className="bg-[#C5961A] text-white border-[#C5961A]">Bookable</Badge>
             )}
           </div>
         </div>
 
-        <h1 className="text-2xl md:text-3xl font-bold text-[#1B2A4A] mb-1">
-          {resource.name}
-        </h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-[#1B2A4A] mb-1">{resource.name}</h1>
         <p className="text-gray-500 text-lg mb-6">{formatType(resource.type)}</p>
-
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
-          <Button
-            onClick={handleCreateBooking}
-            disabled={!canCreateBooking}
-            className="bg-[#C5961A] hover:bg-[#B08518] text-white disabled:bg-gray-300 disabled:text-gray-600"
-          >
-            Create Booking for This Resource
-          </Button>
-          {!canCreateBooking && (
-            <p className="text-sm text-gray-500">
-              Booking is unavailable because this resource is not currently bookable.
-            </p>
-          )}
-        </div>
 
         {resource.description && (
           <Card className="mb-6 border border-gray-100">
@@ -166,12 +136,8 @@ export default function ResourceDetail() {
               <div className="flex items-start gap-3">
                 <Info className="w-5 h-5 text-[#C5961A] mt-0.5 shrink-0" />
                 <div>
-                  <h3 className="font-semibold text-[#1B2A4A] mb-1">
-                    Description
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {resource.description}
-                  </p>
+                  <h3 className="font-semibold text-[#1B2A4A] mb-1">Description</h3>
+                  <p className="text-gray-600 leading-relaxed">{resource.description}</p>
                 </div>
               </div>
             </CardContent>
@@ -185,9 +151,7 @@ export default function ResourceDetail() {
                 <Users className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-medium">
-                  Capacity
-                </p>
+                <p className="text-xs text-gray-500 uppercase font-medium">Capacity</p>
                 <p className="text-[#1B2A4A] font-semibold">
                   {resource.capacity} {resource.capacity === 1 ? "person" : "people"}
                 </p>
@@ -201,9 +165,7 @@ export default function ResourceDetail() {
                 <Clock className="w-5 h-5 text-green-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-medium">
-                  Availability
-                </p>
+                <p className="text-xs text-gray-500 uppercase font-medium">Availability</p>
                 <p className="text-[#1B2A4A] font-semibold">
                   {formatTime(resource.dailyOpenTime)} - {formatTime(resource.dailyCloseTime)}
                 </p>
@@ -217,12 +179,8 @@ export default function ResourceDetail() {
                 <MapPin className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-medium">
-                  Location
-                </p>
-                <p className="text-[#1B2A4A] font-semibold">
-                  {getLocationString(resource)}
-                </p>
+                <p className="text-xs text-gray-500 uppercase font-medium">Location</p>
+                <p className="text-[#1B2A4A] font-semibold">{getLocationString(resource)}</p>
               </div>
             </CardContent>
           </Card>
@@ -233,12 +191,8 @@ export default function ResourceDetail() {
                 <CalendarCheck className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500 uppercase font-medium">
-                  Bookable
-                </p>
-                <p className="text-[#1B2A4A] font-semibold">
-                  {resource.isBookable ? "Yes" : "No"}
-                </p>
+                <p className="text-xs text-gray-500 uppercase font-medium">Bookable</p>
+                <p className="text-[#1B2A4A] font-semibold">{resource.isBookable ? "Yes" : "No"}</p>
               </div>
             </CardContent>
           </Card>
@@ -255,36 +209,28 @@ export default function ResourceDetail() {
                 <div className="flex items-center gap-2 text-sm">
                   <Building2 className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-500">Building:</span>
-                  <span className="text-[#1B2A4A] font-medium">
-                    {resource.building}
-                  </span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.building}</span>
                 </div>
               )}
               {resource.floor !== null && resource.floor !== undefined && (
                 <div className="flex items-center gap-2 text-sm">
                   <Layers className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-500">Floor:</span>
-                  <span className="text-[#1B2A4A] font-medium">
-                    {resource.floor}
-                  </span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.floor}</span>
                 </div>
               )}
               {resource.roomNumber && (
                 <div className="flex items-center gap-2 text-sm">
                   <DoorOpen className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-500">Room Number:</span>
-                  <span className="text-[#1B2A4A] font-medium">
-                    {resource.roomNumber}
-                  </span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.roomNumber}</span>
                 </div>
               )}
               {resource.areaName && (
                 <div className="flex items-center gap-2 text-sm">
                   <TreePine className="w-4 h-4 text-gray-400" />
                   <span className="text-gray-500">Area Name:</span>
-                  <span className="text-[#1B2A4A] font-medium">
-                    {resource.areaName}
-                  </span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.areaName}</span>
                 </div>
               )}
             </div>
@@ -304,8 +250,7 @@ export default function ResourceDetail() {
                     <Timer className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-500">Max Duration:</span>
                     <span className="text-[#1B2A4A] font-medium">
-                      {resource.maxBookingDurationHours} hour
-                      {resource.maxBookingDurationHours > 1 ? "s" : ""}
+                      {resource.maxBookingDurationHours} hour{resource.maxBookingDurationHours > 1 ? "s" : ""}
                     </span>
                   </div>
                 )}
@@ -313,14 +258,21 @@ export default function ResourceDetail() {
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="w-4 h-4 text-gray-400" />
                     <span className="text-gray-500">Max Quantity:</span>
-                    <span className="text-[#1B2A4A] font-medium">
-                      {resource.maxQuantity}
-                    </span>
+                    <span className="text-[#1B2A4A] font-medium">{resource.maxQuantity}</span>
                   </div>
                 )}
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {resource.isBookable && resource.status === "ACTIVE" && resourceId && (
+          <Button
+            className="bg-[#C5961A] hover:bg-[#B08518] text-white"
+            onClick={() => navigate(`/bookings/new/${resourceId}`)}
+          >
+            Book This Resource
+          </Button>
         )}
       </div>
     </Layout>
