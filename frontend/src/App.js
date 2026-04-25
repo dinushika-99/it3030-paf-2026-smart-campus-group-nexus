@@ -22,6 +22,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import MyBookings from './pages/bookings/MyBookings';
 import BookingDetail from './pages/bookings/BookingDetail';
 import HomePage from './pages/HomePage';
+import AdminBookingsPage from './pages/bookings/AdminBookingsPage';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -59,35 +60,44 @@ export default function App() {
             <Route path="/admin/resources/new" element={<AdminResourceForm />} />
             <Route path="/admin/resources/edit/:id" element={<AdminResourceForm />} />
 
-      <Route
-        path="/bookings/new/:resourceId?"
-        element={
-          <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-            <CreateBooking />
-          </ProtectedRoute>
-        }
-      />
+            <Route
+              path="/bookings/new/:resourceId?"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <CreateBooking />
+                </ProtectedRoute>
+              }
+            />
 
-      <Route
-        path="/bookings/my"
-        element={
-          <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-            <MyBookings />
-          </ProtectedRoute>
-        }
-      />
+            <Route
+              path="/bookings/my"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <MyBookings />
+                </ProtectedRoute>
+              }
+            />
 
-      <Route
-        path="/bookings/:id"
-        element={
-          <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-            <BookingDetail />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
-        </Router>
-      </AuthProvider>
-    </GoogleOAuthProvider>
-  );
+            <Route
+              path="/bookings/:id"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <BookingDetail />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route 
+              path="/admin/bookings" 
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AdminBookingsPage />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+              </Router>
+            </AuthProvider>
+          </GoogleOAuthProvider>
+        );
 }

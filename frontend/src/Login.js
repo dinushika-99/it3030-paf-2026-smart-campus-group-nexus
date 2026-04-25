@@ -62,11 +62,11 @@ export default function Login() {
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         if (normalizedUser.role === 'ADMIN') {
-          navigate('/admin', { replace: true });
+          navigate('/admin');
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
-          navigate('/dashboard', { replace: true });
+          navigate('/facilities');  // ✅ Redirect to new HomePage
         } else {
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard');  // Fallback
         }
       } else {
         setShowRegisterPrompt(false);
@@ -102,11 +102,11 @@ export default function Login() {
         };
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
        if (normalizedUser.role === 'ADMIN') {
-          navigate('/admin', { replace: true });
+          navigate('/admin');
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
-          navigate('/dashboard', { replace: true });
+          navigate('/facilities');  // ✅ Redirect to new HomePage
         } else {
-          navigate('/dashboard', { replace: true });
+          navigate('/dashboard');  // Fallback
         }
       } else {
         setShowRegisterPrompt(false);

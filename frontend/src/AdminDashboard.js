@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
+import AdminBookingsPage from './pages/bookings/AdminBookingsPage';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -369,6 +370,7 @@ export default function AdminDashboard({ user: userProp }) {
         {activeTab === 'asset-directory' && <PlaceholderPanel title="Asset Directory" description="Track spaces, facilities, and assets across NEXUS." />}
         {activeTab === 'scheduling' && <PlaceholderPanel title="Resource Scheduling" description="Manage bookings, time slots, and allocation calendars." />}
         {activeTab === 'incident-desk' && <PlaceholderPanel title="Incident Desk" description="Review, triage, and resolve technical incidents." />}
+        {activeTab === 'booking-management' && <AdminBookingsPage />}
         {activeTab === 'dispatch' && <PlaceholderPanel title="Active Dispatch" description="Coordinate live assignments for technician teams." />}
         {activeTab === 'admin-users' && <AdminUsersTab isAdmin={isAdmin} refreshKey={refreshKey} onChanged={() => setRefreshKey((v) => v + 1)} />}
         {activeTab === 'admin-communication' && <AdminCommunicationTab isAdmin={isAdmin} refreshKey={refreshKey} />}
