@@ -1,53 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import DashboardLayout from '../../components/layout/DashboardLayout';
-import { useAuth } from '../../AuthContext';
-
-const ResourceDetail = () => {
-  const { id } = useParams();
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [resource, setResource] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // TODO: Fetch resource details from API
-    setLoading(false);
-    setResource(null);
-  }, [id]);
-
-  if (loading) {
-    return (
-      <DashboardLayout userRole={user?.role}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading resource details...</p>
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  if (!resource) {
-    return (
-      <DashboardLayout userRole={user?.role}>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div className="text-6xl mb-4">❌</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Resource Not Found</h2>
-            <p className="text-gray-600 mb-6">The resource you're looking for doesn't exist</p>
-            <button
-              onClick={() => navigate('/facilities')}
-              className="bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition-colors"
-            >
-              Back to Facilities
-            </button>
-          </div>
-        </div>
-      </DashboardLayout>
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
@@ -89,6 +41,9 @@ export default function ResourceDetail() {
   const [resource, setResource] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const resourceIdForBooking = resource?.resourcesId ?? resource?.id ?? id;
+  const canCreateBooking =
+    Boolean(resource?.isBookable) && String(resource?.status || "").toUpperCase() === "ACTIVE";
 
   useEffect(() => {
     if (!id) return;
@@ -105,6 +60,13 @@ export default function ResourceDetail() {
       CATEGORY_IMAGES[resource?.category || "COMMON"] ||
       "https://mgx-backend-cdn.metadl.com/generate/images/422425/2026-04-21/nbrj2xaaaflq/hero-campus-facilities.png"
     );
+  }
+
+  function handleCreateBooking() {
+    if (!resourceIdForBooking || !canCreateBooking) return;
+    navigate(`/bookings/new/${resourceIdForBooking}`, {
+      state: { resourceDetails: resource },
+    });
   }
 
   if (loading) {
@@ -141,53 +103,13 @@ export default function ResourceDetail() {
   }
 
   return (
-    <DashboardLayout userRole={user?.role}>
-      <div className="p-6 max-w-6xl mx-auto">
-        <button
-          onClick={() => navigate('/facilities')}
-          className="mb-6 text-yellow-600 hover:text-yellow-700 font-semibold"
-        >
-          ← Back to Facilities
-        </button>
-
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">{resource.name}</h1>
-          <p className="text-gray-600 mb-6">{resource.description}</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">Type</h3>
-              <p className="text-gray-700">{resource.type}</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <h3 className="font-semibold text-gray-900 mb-2">Location</h3>
-              <p className="text-gray-700">{resource.location}</p>
-            </div>
-            {resource.capacity && (
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Capacity</h3>
-                <p className="text-gray-700">{resource.capacity} people</p>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => navigate(`/bookings/new/${resource.id}`)}
-            className="mt-6 w-full bg-yellow-500 text-black py-3 rounded-lg font-semibold hover:bg-yellow-600 transition-colors"
-          >
-            Book This Resource
-          </button>
-        </div>
-      </div>
-    </DashboardLayout>
-  );
-};
-
-export default ResourceDetail;
     <Layout>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Button variant="ghost" onClick={() => navigate("/")} className="mb-4 px-0">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Facilities
+        </Button>
 
-        {/* Hero Image */}
         <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
           <img
             src={getImage()}
@@ -218,13 +140,26 @@ export default ResourceDetail;
           </div>
         </div>
 
-        {/* Title */}
         <h1 className="text-2xl md:text-3xl font-bold text-[#1B2A4A] mb-1">
           {resource.name}
         </h1>
         <p className="text-gray-500 text-lg mb-6">{formatType(resource.type)}</p>
 
-        {/* Description */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+          <Button
+            onClick={handleCreateBooking}
+            disabled={!canCreateBooking}
+            className="bg-[#C5961A] hover:bg-[#B08518] text-white disabled:bg-gray-300 disabled:text-gray-600"
+          >
+            Create Booking for This Resource
+          </Button>
+          {!canCreateBooking && (
+            <p className="text-sm text-gray-500">
+              Booking is unavailable because this resource is not currently bookable.
+            </p>
+          )}
+        </div>
+
         {resource.description && (
           <Card className="mb-6 border border-gray-100">
             <CardContent className="p-5">
@@ -243,9 +178,7 @@ export default ResourceDetail;
           </Card>
         )}
 
-        {/* Details Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          {/* Capacity */}
           <Card className="border border-gray-100">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -262,7 +195,6 @@ export default ResourceDetail;
             </CardContent>
           </Card>
 
-          {/* Availability */}
           <Card className="border border-gray-100">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
@@ -273,14 +205,12 @@ export default ResourceDetail;
                   Availability
                 </p>
                 <p className="text-[#1B2A4A] font-semibold">
-                  {formatTime(resource.dailyOpenTime)} –{" "}
-                  {formatTime(resource.dailyCloseTime)}
+                  {formatTime(resource.dailyOpenTime)} - {formatTime(resource.dailyCloseTime)}
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Location */}
           <Card className="border border-gray-100">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
@@ -297,7 +227,6 @@ export default ResourceDetail;
             </CardContent>
           </Card>
 
-          {/* Bookable Status */}
           <Card className="border border-gray-100">
             <CardContent className="p-4 flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
@@ -315,7 +244,6 @@ export default ResourceDetail;
           </Card>
         </div>
 
-        {/* Location Details */}
         <Card className="mb-6 border border-gray-100">
           <CardContent className="p-5">
             <h3 className="font-semibold text-[#1B2A4A] mb-4 flex items-center gap-2">
@@ -363,7 +291,6 @@ export default ResourceDetail;
           </CardContent>
         </Card>
 
-        {/* Additional Details */}
         {(resource.maxBookingDurationHours || resource.maxQuantity) && (
           <Card className="mb-6 border border-gray-100">
             <CardContent className="p-5">
