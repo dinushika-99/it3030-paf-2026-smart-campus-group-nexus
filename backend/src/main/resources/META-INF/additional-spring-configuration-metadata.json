@@ -5,6 +5,39 @@
       "type": "java.lang.String",
       "description": "Base directory for ticket attachment uploads.",
       "defaultValue": "uploads/tickets"
+    },
+    {
+      "name": "app.auth.github.client-id",
+      "type": "java.lang.String",
+      "description": "GitHub OAuth client ID for authentication."
+    },
+    {
+      "name": "app.auth.github.client-secret",
+      "type": "java.lang.String",
+      "description": "GitHub OAuth client secret for authentication."
+    },
+    {
+      "name": "app.auth.github.redirect-uri",
+      "type": "java.lang.String",
+      "description": "GitHub OAuth redirect URI after authentication.",
+      "defaultValue": "http://localhost:3000/auth/github/callback"
+    },
+    {
+      "name": "app.auth.jwt.secret",
+      "type": "java.lang.String",
+      "description": "Base64 encoded secret key for JWT token signing."
+    },
+    {
+      "name": "app.auth.jwt.access-token-minutes",
+      "type": "java.lang.Integer",
+      "description": "JWT access token expiration time in minutes.",
+      "defaultValue": 15
+    },
+    {
+      "name": "app.auth.jwt.refresh-token-days",
+      "type": "java.lang.Integer",
+      "description": "JWT refresh token expiration time in days.",
+      "defaultValue": 14
     }
   ]
 }
