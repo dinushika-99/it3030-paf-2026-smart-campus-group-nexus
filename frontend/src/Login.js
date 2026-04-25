@@ -63,11 +63,11 @@ export default function Login() {
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
         if (normalizedUser.role === 'ADMIN') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
-          navigate('/home');  // ✅ Redirect to new HomePage
+          navigate('/dashboard', { replace: true });
         } else {
-          navigate('/dashboard');  // Fallback
+          navigate('/dashboard', { replace: true });
         }
       } else {
         setShowRegisterPrompt(false);
@@ -104,11 +104,11 @@ export default function Login() {
         localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
         navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/facilities');
        if (normalizedUser.role === 'ADMIN') {
-          navigate('/admin');
+          navigate('/admin', { replace: true });
         } else if (['STUDENT', 'LECTURER', 'MANAGER'].includes(normalizedUser.role?.toUpperCase())) {
-          navigate('/home');  // ✅ Redirect to new HomePage
+          navigate('/dashboard', { replace: true });
         } else {
-          navigate('/dashboard');  // Fallback
+          navigate('/dashboard', { replace: true });
         }
       } else {
         setShowRegisterPrompt(false);
