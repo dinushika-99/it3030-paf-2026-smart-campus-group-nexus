@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
 import { getAllResources, deleteResource, formatCategory, formatType } from './lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -840,6 +841,9 @@ function AdminResourcesTab({ navigate }) {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
 
+  const [filterCapacity, setFilterCapacity] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+
   const load = useCallback(() => {
     setLoading(true);
     setError('');
@@ -850,6 +854,25 @@ function AdminResourcesTab({ navigate }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filteredResources = useMemo(() => {
+    return resources.filter((r) => {
+      let capacityMatch = true;
+      if (filterCapacity !== 'ALL') {
+        const cap = r.capacity || 0;
+        if (filterCapacity === 'SMALL') capacityMatch = cap < 50;
+        else if (filterCapacity === 'MEDIUM') capacityMatch = cap >= 50 && cap <= 150;
+        else if (filterCapacity === 'LARGE') capacityMatch = cap > 150;
+      }
+
+      let statusMatch = true;
+      if (filterStatus !== 'ALL') {
+        statusMatch = r.status === filterStatus;
+      }
+
+      return capacityMatch && statusMatch;
+    });
+  }, [resources, filterCapacity, filterStatus]);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
@@ -868,7 +891,7 @@ function AdminResourcesTab({ navigate }) {
 
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
-      <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', border: '1px solid #1f2937', borderRadius: '12px', backgroundColor: '#111827', flexWrap: 'wrap', marginBottom: '4px' }}>
+      <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', border: '1px solid #1f2937', borderRadius: '12px', backgroundColor: '#111827', flexWrap: 'wrap', marginBottom: '4px', alignItems: 'center' }}>
         <button
           type="button"
           style={{
@@ -900,6 +923,34 @@ function AdminResourcesTab({ navigate }) {
         >
           Facilities Catalogue
         </button>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+          <div style={{ width: '160px' }}>
+            <Select value={filterCapacity} onValueChange={setFilterCapacity}>
+              <SelectTrigger style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '999px', height: '34px', fontSize: '12px', fontWeight: 600 }}>
+                <SelectValue placeholder="All Capacities" />
+              </SelectTrigger>
+              <SelectContent style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '12px' }}>
+                <SelectItem value="ALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">All Capacities</SelectItem>
+                <SelectItem value="SMALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Small (&lt; 50)</SelectItem>
+                <SelectItem value="MEDIUM" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Medium (50-150)</SelectItem>
+                <SelectItem value="LARGE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Large (&gt; 150)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div style={{ width: '150px' }}>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '999px', height: '34px', fontSize: '12px', fontWeight: 600 }}>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '12px' }}>
+                <SelectItem value="ALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">All Statuses</SelectItem>
+                <SelectItem value="ACTIVE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Active</SelectItem>
+                <SelectItem value="OUT_OF_SERVICE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Out Of Service</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Header */}
@@ -907,7 +958,7 @@ function AdminResourcesTab({ navigate }) {
         <div>
           <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>All Resources</h3>
           <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '13px' }}>
-            {loading ? 'Loading...' : `${resources.length} resource${resources.length !== 1 ? 's' : ''} found`}
+            {loading ? 'Loading...' : `${filteredResources.length} resource${filteredResources.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
         <button
@@ -937,14 +988,14 @@ function AdminResourcesTab({ navigate }) {
       )}
 
       {/* Empty */}
-      {!loading && !error && resources.length === 0 && (
+      {!loading && !error && filteredResources.length === 0 && (
         <div style={{ ...CARD_STYLE, textAlign: 'center', padding: '40px' }}>
-          <p style={{ color: '#9ca3af', margin: 0 }}>No resources yet. Add your first one above.</p>
+          <p style={{ color: '#9ca3af', margin: 0 }}>No resources found matching the criteria.</p>
         </div>
       )}
 
       {/* Resource Table */}
-      {!loading && !error && resources.length > 0 && (
+      {!loading && !error && filteredResources.length > 0 && (
         <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
@@ -956,7 +1007,7 @@ function AdminResourcesTab({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                {resources.map((r, idx) => (
+                {filteredResources.map((r, idx) => (
                   <tr
                     key={r.resourcesId}
                     style={{ borderBottom: '1px solid #1f2937', background: idx % 2 === 0 ? '#111827' : '#0f172a', transition: 'background 0.15s' }}
