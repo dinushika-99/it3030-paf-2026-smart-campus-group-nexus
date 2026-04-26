@@ -49,6 +49,8 @@ const EditBooking = () => {
     navigate(`/bookings/${id}`);
   };
 
+  const backButtonClass = 'absolute top-4 left-4 sm:top-6 sm:left-6 z-10 px-6 py-3 bg-white text-gray-800 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition-all flex items-center gap-2 font-medium';
+
   const handleSubmit = async (submittedData = formData) => {
     const payload = submittedData && submittedData.target ? formData : submittedData;
     if (!payload || !booking) return;
@@ -107,15 +109,16 @@ const EditBooking = () => {
   // ✅ Show message if booking is not editable
   if (!isEditable && booking) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="relative min-h-screen bg-gray-50 py-8">
+        <button
+          onClick={handleBack}
+          className={backButtonClass}
+        >
+          ← Back
+        </button>
+
         <div className="max-w-7xl mx-auto px-4">
-          <div className="mb-6">
-            <button
-              onClick={handleBack}
-              className="text-gray-600 hover:text-gray-900 mb-4 flex items-center gap-2"
-            >
-              ← Back to Booking Details
-            </button>
+          <div className="mb-6 mt-8">
             <h1 className="text-3xl font-bold text-gray-900">Edit Booking</h1>
           </div>
           
@@ -145,15 +148,16 @@ const EditBooking = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="relative min-h-screen bg-gray-50 py-8">
+      <button
+        onClick={handleBack}
+        className={backButtonClass}
+      >
+        ← Back
+      </button>
+
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-6">
-          <button
-            onClick={handleBack}
-            className="text-gray-600 hover:text-gray-900 mb-4 flex items-center gap-2"
-          >
-            ← Back to Booking Details
-          </button>
+        <div className="mb-6 mt-8">
           <h1 className="text-3xl font-bold text-gray-900">Edit Booking</h1>
           <p className="text-gray-600 mt-2">
             Update your booking for <span className="font-semibold text-blue-600">{booking.resourceName}</span>
