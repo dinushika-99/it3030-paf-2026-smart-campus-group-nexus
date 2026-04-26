@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { bookingService } from '../../services/BookingService';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import RejectionModal from './components/RejectionModal'; 
+import BookingDetailsModal from './components/BookingDetailsModal'; 
 
 const AdminBookingsPage = () => {
   const navigate = useNavigate();
@@ -20,6 +21,10 @@ const AdminBookingsPage = () => {
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [selectedBookingCode, setSelectedBookingCode] = useState('');
+
+  // View Details Modal State
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
 
   // Fetch all bookings on component mount
   useEffect(() => {
@@ -99,6 +104,12 @@ const AdminBookingsPage = () => {
     }
   };
 
+  // Open View Details Modal
+  const openDetailsModal = (booking) => {
+    setSelectedBooking(booking);
+    setShowDetailsModal(true);
+  };
+
   // Filter bookings based on search and filters
   const filteredBookings = useCallback(() => {
     let filtered = bookings;
@@ -157,7 +168,6 @@ const AdminBookingsPage = () => {
       case 'PENDING': return '#f59e0b';
       case 'APPROVED': return '#10b981';
       case 'REJECTED': return '#ef4444';
-      case 'CANCELLED': return '#6b7280';
       default: return '#6b7280';
     }
   };
@@ -274,7 +284,6 @@ const AdminBookingsPage = () => {
               <option>STUDENT</option>
               <option>LECTURER</option>
               <option>MANAGER</option>
-              <option>ADMIN</option>
             </select>
 
             {/* Status Filter */}
@@ -295,7 +304,6 @@ const AdminBookingsPage = () => {
               <option>PENDING</option>
               <option>APPROVED</option>
               <option>REJECTED</option>
-              <option>CANCELLED</option>
             </select>
           </div>
 
@@ -450,7 +458,7 @@ const AdminBookingsPage = () => {
                       </>
                     ) : (
                       <button
-                        onClick={() => navigate(`/bookings/${booking.bookingId}`)}
+                        onClick={() => openDetailsModal(booking)} 
                         style={{
                           padding: '8px 20px',
                           borderRadius: '8px',
@@ -492,6 +500,13 @@ const AdminBookingsPage = () => {
               to { transform: rotate(360deg); }
             }
           `}</style>
+
+          {/*Booking Details Modal */}
+          <BookingDetailsModal
+            isOpen={showDetailsModal}
+            onClose={() => { setShowDetailsModal(false); setSelectedBooking(null); }}
+            booking={selectedBooking}
+          />
         </div>
       </DashboardLayout>
     </div>

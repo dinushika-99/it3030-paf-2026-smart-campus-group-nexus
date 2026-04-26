@@ -14,12 +14,15 @@ public class BookingResponseDTO {
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private String purpose;
+     private String resourceCategory;
     private Integer expectedAttendees;
     private Integer quantityRequested;
     private String status;
     private String rejectionReason;
     private String createdByUserId;
     private String approvedByUserId;
+    private String approvedByUserName;
+    private String cancelledByUserName;
     private LocalDateTime createdAt;
     private LocalDateTime approvedAt;
     private LocalDateTime cancelledAt;
@@ -79,6 +82,14 @@ public class BookingResponseDTO {
 
     public String getResourceName() {
         return resourceName;
+    }
+
+    public String getResourceCategory() {
+        return resourceCategory;
+    }
+
+    public void setResourceCategory(String resourceCategory) {
+        this.resourceCategory = resourceCategory;
     }
 
     public void setResourceName(String resourceName) {
@@ -181,5 +192,19 @@ public class BookingResponseDTO {
         this.cancelledAt = cancelledAt;
     }
 
-    
+    public String getApprovedByUserName() {
+        return approvedByUserName;
+    }
+
+    public void setApprovedByUserName(String approvedByUserName) {
+        this.approvedByUserName = approvedByUserName;
+    }
+
+    public String getCancelledByUserName() {
+        return cancelledByUserName;
+    }
+
+    public void setCancelledByUserName(String cancelledByUserName) {
+        this.cancelledByUserName = cancelledByUserName;
+    }
 }

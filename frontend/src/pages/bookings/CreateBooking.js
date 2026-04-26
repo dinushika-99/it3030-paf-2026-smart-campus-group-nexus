@@ -3,13 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import BookingForm from './components/BookingForm';
 import BookingSummary from './components/BookingSummary';
 import { bookingService } from '../../services/BookingService';
+import toast from 'react-hot-toast';
 
 const CreateBooking = () => {
   const { resourceId } = useParams();
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formValidated, setFormValidated] = useState(false);  // ✅ NEW
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -20,14 +20,11 @@ const CreateBooking = () => {
   };
 
   const handleSubmit = async () => {
-    setFormValidated(true);  // ✅ Mark as validated
-    
     if (!formData) return;
     
-    // Check if form is valid before submitting
-    if (!formData.resourcesId || !formData.bookingDate || !formData.startTime || 
-        !formData.endTime || !formData.purpose) {
-      alert('Please fill all required fields');
+    // Double-check validity before sending
+    if (!formData.isValid) {
+      toast.error('Please fix the errors in the form before submitting.');
       return;
     }
     
@@ -37,30 +34,24 @@ const CreateBooking = () => {
       const startDateTime = `${bookingDate}T${formData.startTime}`;
       const endDateTime = `${bookingDate}T${formData.endTime}`; 
       
+      const isEquipment = ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(formData.selectedResource?.type);
+
       const bookingData = {
         resourcesId: parseInt(formData.resourcesId),
         startTime: startDateTime,
         endTime: endDateTime,
         purpose: formData.purpose,
-        expectedAttendees: formData.selectedResource && 
-          ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR']
-            .includes(formData.selectedResource.type) 
-          ? null 
-          : parseInt(formData.expectedAttendees),
-        quantityRequested: formData.selectedResource && 
-          ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR']
-            .includes(formData.selectedResource.type)
-          ? parseInt(formData.quantityRequested)
-          : null
+        expectedAttendees: isEquipment ? null : parseInt(formData.expectedAttendees),
+        quantityRequested: isEquipment ? parseInt(formData.quantityRequested) : null
       };
 
       await bookingService.createBooking(bookingData);
-      alert('Booking created successfully!');
-      navigate('/bookings/my');
+      toast.success('Booking request submitted successfully!');
+      navigate('/facilities');
     } catch (error) {
       console.error('Full error:', error);
-      console.error('Error response:', error.response?.data);
-      alert('Error creating booking: ' + (error.response?.data?.message || error.message));
+      const errorMsg = error.response?.data?.message || error.message;
+      toast.error('Error creating booking: ' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -70,13 +61,8 @@ const CreateBooking = () => {
     setFormData(data);
   };
 
-  // Check if form is valid
-  const isValid = formData && 
-                  formData.resourcesId && 
-                  formData.bookingDate && 
-                  formData.startTime && 
-                  formData.endTime && 
-                  formData.purpose;
+  // The form is valid if the child component reports it as valid
+  const isValid = formData?.isValid || false;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

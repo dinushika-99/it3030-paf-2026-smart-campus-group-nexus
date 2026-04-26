@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './AuthContext';
 import './App.css';
+import { Toaster } from 'react-hot-toast';
 
 import Login from './Login';
 import GithubAuthCallback from './GithubAuthCallback';
@@ -37,6 +38,31 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <Router>
+          <Toaster 
+            position="top-right" 
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#10b981', // Green checkmark
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                duration: 4000,
+                iconTheme: {
+                  primary: '#ef4444', // Red X
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
