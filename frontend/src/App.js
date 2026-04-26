@@ -27,6 +27,7 @@ import MyBookings from './pages/bookings/MyBookings';
 import BookingDetail from './pages/bookings/BookingDetail';
 import HomePage from './pages/HomePage';
 import EditBooking from './pages/bookings/EditBooking'; 
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -76,7 +77,7 @@ export default function App() {
             <Route
               path="/home"
               element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <ProtectedRoute roles={['STUDENT', 'LECTURER']}>
                   <HomePage />
                 </ProtectedRoute>
               }
@@ -93,7 +94,7 @@ export default function App() {
             <Route
               path="/bookings/new/:resourceId?"
               element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <ProtectedRoute roles={['STUDENT', 'LECTURER']}>
                   <CreateBooking />
                 </ProtectedRoute>
               }
@@ -101,7 +102,7 @@ export default function App() {
             <Route
               path="/bookings/my"
               element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <ProtectedRoute roles={['STUDENT', 'LECTURER']}>
                   <MyBookings />
                 </ProtectedRoute>
               }
@@ -109,7 +110,7 @@ export default function App() {
             <Route
               path="/bookings/:id"
               element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <ProtectedRoute roles={['STUDENT', 'LECTURER']}>
                   <BookingDetail />
                 </ProtectedRoute>
               }
@@ -118,8 +119,17 @@ export default function App() {
             <Route 
               path="/bookings/:id/edit" 
               element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                <ProtectedRoute roles={['STUDENT', 'LECTURER']}>
                   <EditBooking />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/admin/analytics" 
+              element={
+                <ProtectedRoute roles={['ADMIN']}>
+                  <AnalyticsDashboard />
                 </ProtectedRoute>
               } 
             />
