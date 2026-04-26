@@ -410,7 +410,7 @@ export default function AdminDashboard({ user: userProp }) {
         }
       })
       .catch(() => { });
-      .catch(() => {});
+      
 
     setTwoFactorLoading(true);
     api.get('/api/auth/2fa/status')
