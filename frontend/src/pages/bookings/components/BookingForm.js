@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ResourceSelector from './ResourceSelector';
 import TimePicker from './TimePicker';
-import ValidationMessages from './ValidationMessage';
 import { bookingService } from '../../../services/BookingService';
 
 const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
+  // Initialize state
   const [formData, setFormData] = useState({
     resourcesId: preSelectedResourceId || '',
     bookingDate: '',
@@ -17,130 +17,260 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
   
   const [selectedResource, setSelectedResource] = useState(null);
   const [errors, setErrors] = useState({});
-  const [apiError, setApiError] = useState('');
-  const [isResourceLocked, setIsResourceLocked] = useState(!!preSelectedResourceId);
+  const [resourceInfo, setResourceInfo] = useState(null);
+  const [isValid, setIsValid] = useState(false);
+  
+  // Track which fields have been touched (blurred)
+  const [touched, setTouched] = useState({});
 
-  // Notify parent of form data changes
+  // Fetch resource info when ID changes
   useEffect(() => {
-    if (onFormDataChange) {
-      onFormDataChange({ ...formData, selectedResource });
+    if (formData.resourcesId) {
+      fetchResourceInfo();
+    } else {
+      setResourceInfo(null);
+      setSelectedResource(null);
     }
-  }, [formData, selectedResource, onFormDataChange]);
+  }, [formData.resourcesId]);
 
-  // Fetch pre-selected resource details
-  useEffect(() => {
-    if (preSelectedResourceId) {
-      const fetchResource = async () => {
-        try {
-          const resource = await bookingService.getResourceById(preSelectedResourceId);
-          setSelectedResource(resource);
-          setIsResourceLocked(true);
-          setFormData(prev => ({ ...prev, resourcesId: preSelectedResourceId }));
-        } catch (error) {
-          console.error('Error fetching resource:', error);
-          setApiError('Could not load resource details');
-        }
-      };
-      fetchResource();
+  const fetchResourceInfo = async () => {
+    try {
+      const resource = await bookingService.getResourceById(formData.resourcesId);
+      setResourceInfo(resource);
+      if (preSelectedResourceId) {
+        setSelectedResource(resource);
+      }
+    } catch (error) {
+      console.error('Error fetching resource:', error);
     }
-  }, [preSelectedResourceId]);
+  };
 
-  const validateForm = () => {
+  // --- VALIDATION LOGIC ---
+  // This function calculates errors but doesn't set them directly.
+  // It returns the errors object so we can decide whether to display them.
+  const calculateErrors = () => {
     const newErrors = {};
 
-    if (!formData.resourcesId) {
-      newErrors.resourcesId = 'Please select a resource';
-    }
-
+    // 1. Date Validation
     if (!formData.bookingDate) {
       newErrors.bookingDate = 'Date is required';
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selectedDate = new Date(formData.bookingDate);
+      const maxDate = new Date(today);
+      maxDate.setDate(today.getDate() + 14);
+
+      if (selectedDate < today) {
+        newErrors.bookingDate = 'Cannot book dates in the past';
+      } else if (selectedDate > maxDate) {
+        newErrors.bookingDate = 'Bookings allowed up to 2 weeks in advance';
+      }
     }
 
-    if (!formData.startTime) {
-      newErrors.startTime = 'Start time is required';
-    }
+    // 2. Time Validation
+    if (formData.bookingDate && !newErrors.bookingDate) {
+      if (!formData.startTime) {
+        newErrors.startTime = 'Start time is required';
+      }
+      if (!formData.endTime) {
+        newErrors.endTime = 'End time is required';
+      }
 
-    if (!formData.endTime) {
-      newErrors.endTime = 'End time is required';
-    } else if (formData.startTime && formData.endTime <= formData.startTime) {
-      newErrors.endTime = 'End time must be after start time';
-    }
+      // CHECK START TIME AGAINST RESOURCE OPEN TIME IMMEDIATELY
+      if (formData.startTime && resourceInfo) {
+        const [startH, startM] = formData.startTime.split(':').map(Number);
+        const [openH, openM] = resourceInfo.dailyOpenTime.split(':').map(Number);
+        
+        const startMin = startH * 60 + startM;
+        const openMin = openH * 60 + openM;
 
-    if (!formData.purpose || formData.purpose.trim() === '') {
+        if (startMin < openMin) {
+          newErrors.startTime = `Resource opens at ${resourceInfo.dailyOpenTime}`;
+        }
+      }
+
+      // CHECK END TIME AGAINST RESOURCE CLOSE TIME IMMEDIATELY
+      if (formData.endTime && resourceInfo) {
+        const [endH, endM] = formData.endTime.split(':').map(Number);
+        const [closeH, closeM] = resourceInfo.dailyCloseTime.split(':').map(Number);
+        
+        const endMin = endH * 60 + endM;
+        const closeMin = closeH * 60 + closeM;
+
+        if (endMin > closeMin) {
+          newErrors.endTime = `Resource closes at ${resourceInfo.dailyCloseTime}`;
+        }
+      }
+
+      // CHECK DURATION IMMEDIATELY IF BOTH TIMES ARE SET
+      if (formData.startTime && formData.endTime && resourceInfo) {
+        const [startH, startM] = formData.startTime.split(':').map(Number);
+        const [endH, endM] = formData.endTime.split(':').map(Number);
+        const duration = (endH * 60 + endM) - (startH * 60 + startM);
+        const maxDurationMin = resourceInfo.maxBookingDurationHours * 60;
+
+        if (duration > maxDurationMin) {
+          newErrors.endTime = `Max duration is ${resourceInfo.maxBookingDurationHours}h`;
+        }
+        
+        if (duration <= 0) {
+          newErrors.endTime = 'End time must be after start time';
+        }
+      }
+    }
+        // 3. Purpose Validation
+    const purposeTrimmed = formData.purpose ? formData.purpose.trim() : '';
+
+    if (!purposeTrimmed) {
       newErrors.purpose = 'Purpose is required';
-    } else if (formData.purpose.length > 255) {
-      newErrors.purpose = 'Purpose must not exceed 255 characters';
+    } else if (purposeTrimmed.length < 10) {
+      newErrors.purpose = 'Please provide more details';
+    } else if (purposeTrimmed.length > 255) {
+      newErrors.purpose = 'Max 255 characters allowed';
+    } else {
+      // Check if it contains ANY letters (a-z, A-Z)
+      // This prevents inputs like "@#$%^&*()" or "1234567890"
+      const hasLetters = /[a-zA-Z]/.test(purposeTrimmed);
+      
+      if (!hasLetters) {
+        newErrors.purpose = 'Please use meaningful words, not just symbols or numbers';
+      } else {
+        // Optional: Check for repetitive characters (e.g., "aaaaaaaaaaa")
+        // This regex checks if the string is made of only one repeated character
+        const isRepetitive = /^(.)\1+$/.test(purposeTrimmed);
+        
+        if (isRepetitive) {
+          newErrors.purpose = 'Please provide a valid description';
+        }
+      }
     }
 
+    // 4. Attendees / Quantity Validation
     if (selectedResource) {
       const isEquipment = ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(selectedResource.type);
       
       if (isEquipment) {
         if (!formData.quantityRequested || formData.quantityRequested < 1) {
           newErrors.quantityRequested = 'Quantity must be at least 1';
+        } else if (formData.quantityRequested > selectedResource.maxQuantity) {
+          newErrors.quantityRequested = `Max quantity is ${selectedResource.maxQuantity}`;
         }
       } else {
         if (!formData.expectedAttendees || formData.expectedAttendees < 1) {
-          newErrors.expectedAttendees = 'Expected attendees must be at least 1';
-        }
-        if (selectedResource.capacity && formData.expectedAttendees > selectedResource.capacity) {
-          newErrors.expectedAttendees = `Cannot exceed capacity of ${selectedResource.capacity}`;
+          newErrors.expectedAttendees = 'Attendees must be at least 1';
+        } else if (formData.expectedAttendees > selectedResource.capacity) {
+          newErrors.expectedAttendees = `Max capacity is ${selectedResource.capacity}`;
         }
       }
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return newErrors;
   };
+
+  // Run validation whenever form data changes
+  useEffect(() => {
+    const calculatedErrors = calculateErrors();
+    
+    // Determine overall validity
+    const currentIsValid = Object.keys(calculatedErrors).length === 0 && 
+                           formData.resourcesId && 
+                           formData.bookingDate && 
+                           formData.startTime && 
+                           formData.endTime && 
+                           formData.purpose;
+    
+    setIsValid(currentIsValid);
+    
+    // Notify parent
+    if (onFormDataChange) {
+      onFormDataChange({ ...formData, selectedResource, isValid: currentIsValid });
+    }
+    
+    // ✅ ONLY update displayed errors for fields that have been touched
+    // This prevents red errors from showing on initial load
+    setErrors(prevErrors => {
+      const newDisplayedErrors = {};
+      Object.keys(calculatedErrors).forEach(field => {
+        if (touched[field]) {
+          newDisplayedErrors[field] = calculatedErrors[field];
+        }
+      });
+      return newDisplayedErrors;
+    });
+    
+  }, [formData, selectedResource, resourceInfo, touched]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: '' }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  //Mark field as touched when user leaves it
+  const handleBlur = (fieldName) => {
+    setTouched(prev => ({ ...prev, [fieldName]: true }));
+    
+    // Immediately validate this specific field on blur
+    const allErrors = calculateErrors();
+    if (allErrors[fieldName]) {
+      setErrors(prev => ({ ...prev, [fieldName]: allErrors[fieldName] }));
+    } else {
+      // Clear error if valid
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[fieldName];
+        return newErrors;
+      });
     }
   };
+
+  // Calculate max date for input attribute
+  const getMaxDate = () => {
+    const date = new Date();
+    date.setDate(date.getDate() + 14);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Helper to check if an error should be shown
+  const showError = (field) => touched[field] && errors[field];
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
       <h2 className="text-xl font-bold mb-6 text-gray-800">Booking Details</h2>
       
-      <ValidationMessages apiError={apiError} fieldErrors={errors} />
-
       {/* Resource Selection */}
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Select Resource</h3>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Select Resource *</label>
         <ResourceSelector
           selectedResource={formData.resourcesId}
           onResourceChange={(resource) => {
             setSelectedResource(resource);
             setFormData(prev => ({ ...prev, resourcesId: resource.resourcesId }));
+            setTouched(prev => ({ ...prev, resourcesId: true }));
           }}
-          error={errors.resourcesId}
-          isLocked={isResourceLocked}
+          error={showError('resourcesId') ? errors.resourcesId : ''}
+          isLocked={!!preSelectedResourceId}
           preSelectedResource={selectedResource}
         />
       </div>
 
       {/* Date Selection */}
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Booking Details</h3>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Date *
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
         <input
           type="date"
           name="bookingDate"
           value={formData.bookingDate}
           onChange={handleChange}
+          onBlur={() => handleBlur('bookingDate')}
           min={new Date().toISOString().split('T')[0]}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
+          max={getMaxDate()}
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            showError('bookingDate') ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+          }`}
         />
-        {errors.bookingDate && <p className="text-red-500 text-sm mt-1">{errors.bookingDate}</p>}
+        {showError('bookingDate') && <p className="text-red-500 text-xs mt-1">{errors.bookingDate}</p>}
+        <p className="text-xs text-gray-500 mt-1">Bookings allowed up to 2 weeks in advance.</p>
       </div>
 
       {/* Time Selection */}
@@ -148,69 +278,93 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
         <TimePicker
           startTime={formData.startTime}
           endTime={formData.endTime}
-          onStartTimeChange={(value) => setFormData(prev => ({ ...prev, startTime: value }))}
-          onEndTimeChange={(value) => setFormData(prev => ({ ...prev, endTime: value }))}
-          startTimeError={errors.startTime}
-          endTimeError={errors.endTime}
+          onStartTimeChange={(val) => {
+            setFormData(p => ({...p, startTime: val}));
+            setTouched(prev => ({ ...prev, startTime: true }));
+          }}
+          onEndTimeChange={(val) => {
+            setFormData(p => ({...p, endTime: val}));
+            setTouched(prev => ({ ...prev, endTime: true }));
+          }}
+          onBlurStart={() => handleBlur('startTime')}
+          onBlurEnd={() => handleBlur('endTime')}
+          startTimeError={showError('startTime') ? errors.startTime : ''}
+          endTimeError={showError('endTime') ? errors.endTime : ''}
+          resourceOpenTime={resourceInfo?.dailyOpenTime}
+          resourceCloseTime={resourceInfo?.dailyCloseTime}
+          maxDurationHours={resourceInfo?.maxBookingDurationHours}
         />
       </div>
 
       {/* Purpose */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Purpose *
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Purpose *</label>
         <textarea
           name="purpose"
           value={formData.purpose}
           onChange={handleChange}
+          onBlur={() => handleBlur('purpose')}
           rows="3"
-          placeholder="Describe the purpose of your booking"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="E.g., Annual Department Meeting, Project Presentation..."
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            showError('purpose') ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+          }`}
           maxLength="255"
-          required
         />
-        <p className="text-xs text-gray-500 mt-1">{formData.purpose.length}/255 characters</p>
-        {errors.purpose && <p className="text-red-500 text-sm mt-1">{errors.purpose}</p>}
+        
+        {/* Dynamic Error Message */}
+        {showError('purpose') && (
+          <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
+            <span>⚠️</span> {errors.purpose}
+          </p>
+        )}
+        
+        {/* Helper Note (Always visible or only when no error) */}
+        {!showError('purpose') && (
+          <p className="text-xs text-gray-500 mt-1">
+            💡 Please provide a meaningful reason for your booking.
+          </p>
+        )}
       </div>
 
       {/* Attendees or Quantity */}
       {selectedResource && !['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(selectedResource.type) && (
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Expected Attendees *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Expected Attendees *</label>
           <input
             type="number"
             name="expectedAttendees"
             value={formData.expectedAttendees}
             onChange={handleChange}
+            onBlur={() => handleBlur('expectedAttendees')}
             min="1"
-            max={selectedResource.capacity || 999}
-            placeholder={`Max: ${selectedResource.capacity || 'N/A'}`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            max={selectedResource.capacity}
+            placeholder={`Max: ${selectedResource.capacity}`}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              showError('expectedAttendees') ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+            }`}
           />
-          {errors.expectedAttendees && <p className="text-red-500 text-sm mt-1">{errors.expectedAttendees}</p>}
+          {showError('expectedAttendees') && <p className="text-red-500 text-xs mt-1">{errors.expectedAttendees}</p>}
         </div>
       )}
 
       {selectedResource && ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(selectedResource.type) && (
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Quantity Requested *
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Quantity Requested *</label>
           <input
             type="number"
             name="quantityRequested"
             value={formData.quantityRequested}
             onChange={handleChange}
+            onBlur={() => handleBlur('quantityRequested')}
             min="1"
-            max={selectedResource.quantity || 999}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            max={selectedResource.maxQuantity}
+            placeholder={`Max: ${selectedResource.maxQuantity}`}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              showError('quantityRequested') ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+            }`}
           />
-          {errors.quantityRequested && <p className="text-red-500 text-sm mt-1">{errors.quantityRequested}</p>}
+          {showError('quantityRequested') && <p className="text-red-500 text-xs mt-1">{errors.quantityRequested}</p>}
         </div>
       )}
     </div>

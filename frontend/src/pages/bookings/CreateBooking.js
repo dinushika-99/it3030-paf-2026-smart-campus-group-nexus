@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import BookingForm from './components/BookingForm';
 import BookingSummary from './components/BookingSummary';
 import { bookingService } from '../../services/BookingService';
+import toast from 'react-hot-toast';
 
 const CreateBooking = () => {
   const { resourceId } = useParams();
@@ -21,30 +22,36 @@ const CreateBooking = () => {
   const handleSubmit = async () => {
     if (!formData) return;
     
+    // Double-check validity before sending
+    if (!formData.isValid) {
+      toast.error('Please fix the errors in the form before submitting.');
+      return;
+    }
+    
     setIsSubmitting(true);
     try {
+      const bookingDate = formData.bookingDate;
+      const startDateTime = `${bookingDate}T${formData.startTime}`;
+      const endDateTime = `${bookingDate}T${formData.endTime}`; 
+      
+      const isEquipment = ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(formData.selectedResource?.type);
+
       const bookingData = {
         resourcesId: parseInt(formData.resourcesId),
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        startTime: startDateTime,
+        endTime: endDateTime,
         purpose: formData.purpose,
-        expectedAttendees: formData.selectedResource && 
-          ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR']
-            .includes(formData.selectedResource.type) 
-          ? null 
-          : parseInt(formData.expectedAttendees),
-        quantityRequested: formData.selectedResource && 
-          ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR']
-            .includes(formData.selectedResource.type)
-          ? parseInt(formData.quantityRequested)
-          : null
+        expectedAttendees: isEquipment ? null : parseInt(formData.expectedAttendees),
+        quantityRequested: isEquipment ? parseInt(formData.quantityRequested) : null
       };
 
       await bookingService.createBooking(bookingData);
-      alert('Booking created successfully!');
-      navigate('/bookings/my');
+      toast.success('Booking request submitted successfully!');
+      navigate('/facilities');
     } catch (error) {
-      alert('Error creating booking: ' + error.message);
+      console.error('Full error:', error);
+      const errorMsg = error.response?.data?.message || error.message;
+      toast.error('Error creating booking: ' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -54,13 +61,8 @@ const CreateBooking = () => {
     setFormData(data);
   };
 
-  // Check if form is valid
-  const isValid = formData && 
-                  formData.resourcesId && 
-                  formData.bookingDate && 
-                  formData.startTime && 
-                  formData.endTime && 
-                  formData.purpose;
+  // The form is valid if the child component reports it as valid
+  const isValid = formData?.isValid || false;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">

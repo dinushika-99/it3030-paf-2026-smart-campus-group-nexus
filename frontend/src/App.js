@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './AuthContext';
 import './App.css';
+import { Toaster } from 'react-hot-toast';
 
 import Login from './Login';
 import GithubAuthCallback from './GithubAuthCallback';
@@ -15,6 +16,7 @@ import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
+import AdminBookingsPage from './pages/bookings/AdminBookingsPage';
 import AdminResourceForm from './pages/features/AdminResourceForm';
 import ResourceDetail from './pages/features/ResourceDetail';
 import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
@@ -36,6 +38,31 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <Router>
+          <Toaster 
+            position="top-right" 
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#10b981', // Green checkmark
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                duration: 4000,
+                iconTheme: {
+                  primary: '#ef4444', // Red X
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<Login />} />
@@ -57,6 +84,7 @@ export default function App() {
             <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
             <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
             <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
             <Route path="/resources/:id" element={<ResourceDetail />} />
             <Route path="/admin/resources/new" element={<AdminResourceForm />} />
