@@ -99,191 +99,181 @@ export default function ResourceDetail() {
 
   return (
     <Layout>
-      <div className="relative overflow-hidden">
-        <div className="pointer-events-none absolute -top-28 -left-20 h-72 w-72 rounded-full bg-[#E6ECFF] blur-3xl" />
-        <div className="pointer-events-none absolute top-40 -right-24 h-80 w-80 rounded-full bg-[#ECE8FF] blur-3xl" />
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Button onClick={() => navigate("/facilities")} variant="ghost" className="mb-4 text-gray-600">
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Facilities
+        </Button>
 
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Button
-            onClick={() => navigate("/facilities")}
-            variant="ghost"
-            className="mb-5 rounded-xl text-slate-600 hover:text-[#1B2A4A] hover:bg-[#E9EEFF]"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Facilities
-          </Button>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-            <Card className="lg:col-span-2 overflow-hidden border border-[#DEE6F8] rounded-3xl shadow-sm bg-white/90 backdrop-blur-sm">
-              <div className="relative h-[290px] sm:h-[330px]">
-                <img src={getImage()} alt={resource.name} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a]/55 via-[#0f172a]/12 to-transparent" />
-                <div className="absolute bottom-5 left-5 right-5">
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    <Badge className={`border ${CATEGORY_COLORS[resource.category] || "bg-gray-100 text-gray-800"}`}>
-                      {formatCategory(resource.category)}
-                    </Badge>
-                    <Badge
-                      className={
-                        resource.status === "ACTIVE"
-                          ? "bg-green-500 text-white border-green-500"
-                          : "bg-red-500 text-white border-red-500"
-                      }
-                    >
-                      {resource.status === "ACTIVE" ? "Active" : "Out of Service"}
-                    </Badge>
-                    {resource.isBookable && (
-                      <Badge className="bg-[#C5961A] text-white border-[#C5961A]">Bookable</Badge>
-                    )}
-                  </div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">{resource.name}</h1>
-                  <p className="text-white/85 text-base mt-1">{formatType(resource.type)}</p>
-                </div>
-              </div>
-
-              {resource.description && (
-                <CardContent className="p-5 border-t border-[#EEF3FF]">
-                  <div className="flex items-start gap-3 rounded-2xl bg-[#F6F8FF] p-4 border border-[#E9EEFA]">
-                    <Info className="w-5 h-5 text-[#6D73E0] mt-0.5 shrink-0" />
-                    <div>
-                      <h3 className="font-semibold text-[#1B2A4A] mb-1">Description</h3>
-                      <p className="text-slate-600 leading-relaxed">{resource.description}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-
-            <Card className="border border-[#DEE6F8] rounded-3xl shadow-sm bg-white/90 backdrop-blur-sm">
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-[#1B2A4A] mb-4">Quick Snapshot</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-[#E3EAF9] bg-[#F8FAFF] p-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#E8EEFF] flex items-center justify-center mb-2">
-                      <Users className="w-4 h-4 text-[#5267D6]" />
-                    </div>
-                    <p className="text-[11px] text-slate-500 uppercase font-semibold">Capacity</p>
-                    <p className="text-[#1B2A4A] font-semibold text-sm mt-0.5">{resource.capacity}</p>
-                  </div>
-
-                  <div className="rounded-2xl border border-[#E3EAF9] bg-[#F8FAFF] p-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#E9F7EF] flex items-center justify-center mb-2">
-                      <CalendarCheck className="w-4 h-4 text-green-600" />
-                    </div>
-                    <p className="text-[11px] text-slate-500 uppercase font-semibold">Bookable</p>
-                    <p className="text-[#1B2A4A] font-semibold text-sm mt-0.5">{resource.isBookable ? "Yes" : "No"}</p>
-                  </div>
-
-                  <div className="col-span-2 rounded-2xl border border-[#E3EAF9] bg-[#F8FAFF] p-3">
-                    <div className="w-9 h-9 rounded-xl bg-[#EEF0FF] flex items-center justify-center mb-2">
-                      <Clock className="w-4 h-4 text-[#626EE0]" />
-                    </div>
-                    <p className="text-[11px] text-slate-500 uppercase font-semibold">Availability</p>
-                    <p className="text-[#1B2A4A] font-semibold text-sm mt-0.5">
-                      {formatTime(resource.dailyOpenTime)} - {formatTime(resource.dailyCloseTime)}
-                    </p>
-                  </div>
-                </div>
-
-                {canCreateBooking && resourceIdForBooking && (
-                  <Button
-                    className="mt-5 w-full rounded-xl bg-[#C59A2F] hover:bg-[#AF8828] text-[#111827]"
-                    onClick={() => navigate(`/bookings/new/${resourceIdForBooking}`)}
-                  >
-                    Book This Resource
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="border border-[#DEE6F8] rounded-3xl shadow-sm bg-white/90 backdrop-blur-sm">
-              <CardContent className="p-5">
-                <h3 className="font-semibold text-[#1B2A4A] mb-4 flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-[#6D73E0]" />
-                  Location Details
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {resource.building && (
-                    <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-500">Building:</span>
-                      <span className="text-[#1B2A4A] font-medium">{resource.building}</span>
-                    </div>
-                  )}
-                  {resource.floor !== null && resource.floor !== undefined && (
-                    <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                      <Layers className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-500">Floor:</span>
-                      <span className="text-[#1B2A4A] font-medium">{resource.floor}</span>
-                    </div>
-                  )}
-                  {resource.roomNumber && (
-                    <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                      <DoorOpen className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-500">Room:</span>
-                      <span className="text-[#1B2A4A] font-medium">{resource.roomNumber}</span>
-                    </div>
-                  )}
-                  {resource.areaName && (
-                    <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                      <TreePine className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-500">Area:</span>
-                      <span className="text-[#1B2A4A] font-medium">{resource.areaName}</span>
-                    </div>
-                  )}
-                  <div className="sm:col-span-2 flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                    <MapPin className="w-4 h-4 text-slate-400" />
-                    <span className="text-slate-500">Address:</span>
-                    <span className="text-[#1B2A4A] font-medium">{getLocationString(resource)}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {(resource.maxBookingDurationHours || resource.maxQuantity) ? (
-              <Card className="border border-[#DEE6F8] rounded-3xl shadow-sm bg-white/90 backdrop-blur-sm">
-                <CardContent className="p-5">
-                  <h3 className="font-semibold text-[#1B2A4A] mb-4 flex items-center gap-2">
-                    <Info className="w-5 h-5 text-[#6D73E0]" />
-                    Booking Details
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3">
-                    {resource.maxBookingDurationHours && (
-                      <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                        <Timer className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-500">Max Duration:</span>
-                        <span className="text-[#1B2A4A] font-medium">
-                          {resource.maxBookingDurationHours} hour{resource.maxBookingDurationHours > 1 ? "s" : ""}
-                        </span>
-                      </div>
-                    )}
-                    {resource.maxQuantity && (
-                      <div className="flex items-center gap-2 text-sm rounded-xl border border-[#E8EEFA] bg-[#F8FAFF] p-3">
-                        <Package className="w-4 h-4 text-slate-400" />
-                        <span className="text-slate-500">Max Quantity:</span>
-                        <span className="text-[#1B2A4A] font-medium">{resource.maxQuantity}</span>
-                      </div>
-                    )}
-                    {!canCreateBooking && (
-                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                        This resource cannot be booked right now.
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card className="border border-[#DEE6F8] rounded-3xl shadow-sm bg-white/90 backdrop-blur-sm">
-                <CardContent className="p-5">
-                  <h3 className="font-semibold text-[#1B2A4A] mb-2">Booking Details</h3>
-                  <p className="text-slate-500 text-sm">No additional booking limits set for this resource.</p>
-                </CardContent>
-              </Card>
+        <div className="relative rounded-xl overflow-hidden h-[300px] mb-6">
+          <img src={getImage()} alt={resource.name} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          <div className="absolute bottom-4 left-4 flex gap-2">
+            <Badge className={`border ${CATEGORY_COLORS[resource.category] || "bg-gray-100 text-gray-800"}`}>
+              {formatCategory(resource.category)}
+            </Badge>
+            <Badge
+              className={
+                resource.status === "ACTIVE"
+                  ? "bg-green-500 text-white border-green-500"
+                  : "bg-red-500 text-white border-red-500"
+              }
+            >
+              {resource.status === "ACTIVE" ? "Active" : "Out of Service"}
+            </Badge>
+            {resource.isBookable && (
+              <Badge className="bg-[#C5961A] text-white border-[#C5961A]">Bookable</Badge>
             )}
           </div>
         </div>
+
+        <h1 className="text-2xl md:text-3xl font-bold text-[#1B2A4A] mb-1">{resource.name}</h1>
+        <p className="text-gray-500 text-lg mb-6">{formatType(resource.type)}</p>
+
+        {resource.description && (
+          <Card className="mb-6 border border-gray-100">
+            <CardContent className="p-5">
+              <div className="flex items-start gap-3">
+                <Info className="w-5 h-5 text-[#C5961A] mt-0.5 shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-[#1B2A4A] mb-1">Description</h3>
+                  <p className="text-gray-600 leading-relaxed">{resource.description}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <Card className="border border-gray-100">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-medium">Capacity</p>
+                <p className="text-[#1B2A4A] font-semibold">
+                  {resource.capacity} {resource.capacity === 1 ? "person" : "people"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-100">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-medium">Availability</p>
+                <p className="text-[#1B2A4A] font-semibold">
+                  {formatTime(resource.dailyOpenTime)} - {formatTime(resource.dailyCloseTime)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-100">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-medium">Location</p>
+                <p className="text-[#1B2A4A] font-semibold">{getLocationString(resource)}</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-gray-100">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <CalendarCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 uppercase font-medium">Bookable</p>
+                <p className="text-[#1B2A4A] font-semibold">{resource.isBookable ? "Yes" : "No"}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card className="mb-6 border border-gray-100">
+          <CardContent className="p-5">
+            <h3 className="font-semibold text-[#1B2A4A] mb-4 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-[#C5961A]" />
+              Location Details
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {resource.building && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Building2 className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500">Building:</span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.building}</span>
+                </div>
+              )}
+              {resource.floor !== null && resource.floor !== undefined && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Layers className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500">Floor:</span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.floor}</span>
+                </div>
+              )}
+              {resource.roomNumber && (
+                <div className="flex items-center gap-2 text-sm">
+                  <DoorOpen className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500">Room Number:</span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.roomNumber}</span>
+                </div>
+              )}
+              {resource.areaName && (
+                <div className="flex items-center gap-2 text-sm">
+                  <TreePine className="w-4 h-4 text-gray-400" />
+                  <span className="text-gray-500">Area Name:</span>
+                  <span className="text-[#1B2A4A] font-medium">{resource.areaName}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {(resource.maxBookingDurationHours || resource.maxQuantity) && (
+          <Card className="mb-6 border border-gray-100">
+            <CardContent className="p-5">
+              <h3 className="font-semibold text-[#1B2A4A] mb-4 flex items-center gap-2">
+                <Info className="w-5 h-5 text-[#C5961A]" />
+                Booking Details
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {resource.maxBookingDurationHours && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Timer className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-500">Max Duration:</span>
+                    <span className="text-[#1B2A4A] font-medium">
+                      {resource.maxBookingDurationHours} hour{resource.maxBookingDurationHours > 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+                {resource.maxQuantity && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Package className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-500">Max Quantity:</span>
+                    <span className="text-[#1B2A4A] font-medium">{resource.maxQuantity}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {resource.isBookable && resource.status === "ACTIVE" && resourceId && (
+          <Button
+            className="bg-[#C5961A] hover:bg-[#B08518] text-white"
+            onClick={() => navigate(`/bookings/new/${resourceId}`)}
+          >
+            Book This Resource
+          </Button>
+        )}
       </div>
     </Layout>
   );
