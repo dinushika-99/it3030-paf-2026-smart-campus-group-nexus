@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { useState } from "react";
 import { useAuth } from "../AuthContext";
 
-export default function Layout({ children }) {
+export default function Layout({ children, hideHeader = false }) {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -14,7 +14,7 @@ export default function Layout({ children }) {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
-      <header className="sticky top-0 z-50 bg-[#1B2A4A] text-white shadow-lg">
+      {!hideHeader && <header className="sticky top-0 z-50 bg-[#1B2A4A] text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
@@ -29,10 +29,10 @@ export default function Layout({ children }) {
                 </Button>
               </Link>
               {isAdminUser ? (
-                <Link to="/admin">
+                <Link to="/admin" state={location.pathname === "/facilities" ? { activeTab: 'scheduling' } : undefined}>
                   <Button variant="ghost" className={`text-white hover:bg-white/10 hover:text-white ${isAdmin ? "bg-white/15 text-white" : ""}`}>
                     <LayoutDashboard className="w-4 h-4 mr-2" />
-                    Admin Panel
+                    Dashboard
                   </Button>
                 </Link>
               ) : (
@@ -58,10 +58,10 @@ export default function Layout({ children }) {
               </Button>
             </Link>
             {isAdminUser ? (
-              <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
+              <Link to="/admin" state={location.pathname === "/facilities" ? { activeTab: 'scheduling' } : undefined} onClick={() => setMobileMenuOpen(false)} className="block">
                 <Button variant="ghost" className="w-full justify-start text-white hover:bg-white/10 hover:text-white">
                   <LayoutDashboard className="w-4 h-4 mr-2" />
-                  Admin Panel
+                  Dashboard
                 </Button>
               </Link>
             ) : (
@@ -74,7 +74,7 @@ export default function Layout({ children }) {
             )}
           </div>
         )}
-      </header>
+      </header>}
       <main>{children}</main>
     </div>
   );
