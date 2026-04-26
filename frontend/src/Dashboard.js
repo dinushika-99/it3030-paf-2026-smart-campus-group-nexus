@@ -7,6 +7,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
+  const [showPasswordCard, setShowPasswordCard] = useState(false);
   const {
     notifications,
     profileOpen,
@@ -22,6 +23,15 @@ export default function Dashboard() {
     passwordSaving,
     passwordNotice,
     passwordNoticeTone,
+    twoFactorEnabled,
+    twoFactorConfigured,
+    twoFactorLoading,
+    twoFactorBusy,
+    twoFactorCode,
+    twoFactorSecret,
+    twoFactorOtpAuthUri,
+    twoFactorNotice,
+    twoFactorNoticeTone,
     profileAvatarInputRef,
     passwordStrength,
     openProfile,
@@ -33,6 +43,10 @@ export default function Dashboard() {
     handleProfileAvatarChange,
     handlePasswordField,
     handleChangePassword,
+    setTwoFactorCode,
+    startTwoFactorSetup,
+    enableTwoFactor,
+    disableTwoFactor,
     handleLogout,
   } = useDashboardProfile({ user, setUser, navigate });
 
@@ -53,6 +67,12 @@ export default function Dashboard() {
       navigate('/admin');
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (!profileOpen || profileTab !== 'account') {
+      setShowPasswordCard(false);
+    }
+  }, [profileOpen, profileTab]);
 
   // ==========================================
   // 🎓 STUDENT VIEW
@@ -405,7 +425,7 @@ export default function Dashboard() {
               )}
 
               {profileTab === 'account' && (
-                <div key="profile-tab-account" className="profile-modal-tab-content" style={{ display: 'grid', gap: '14px' }}>
+                <div key="profile-tab-account" className="profile-modal-tab-content" style={{ display: 'grid', gap: '14px', maxHeight: 'calc(88vh - 240px)', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
                   <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
                     <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Role</p>
                     <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827', textTransform: 'capitalize' }}>{user.role}</p>
@@ -416,90 +436,201 @@ export default function Dashboard() {
                   </div>
 
                   <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#ffffff', padding: '14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Change password</p>
-                    <p style={{ margin: '6px 0 12px 0', fontSize: '13px', color: '#475569' }}>
-                      Use at least 8 characters and keep your password unique.
-                    </p>
-
-                    <div style={{ display: 'grid', gap: '10px' }}>
-                      <input
-                        type="password"
-                        value={passwordForm.currentPassword}
-                        onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
-                        placeholder="Current password"
-                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
-                      />
-                      <input
-                        type="password"
-                        value={passwordForm.newPassword}
-                        onChange={(e) => handlePasswordField('newPassword', e.target.value)}
-                        placeholder="New password"
-                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
-                      />
-                      {passwordForm.newPassword && (
-                        <div style={{ display: 'grid', gap: '6px', marginTop: '-2px' }}>
-                          <div style={{ height: '7px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
-                            <div
-                              style={{
-                                width: `${Math.max(8, (passwordStrength.score / 4) * 100)}%`,
-                                height: '100%',
-                                background: passwordStrength.tone,
-                                transition: 'width 0.2s ease',
-                              }}
-                            />
-                          </div>
-                          <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>
-                            Password strength:{' '}
-                            <span style={{ fontWeight: 700, color: passwordStrength.tone }}>
-                              {passwordStrength.label}
-                            </span>
-                          </p>
-                        </div>
-                      )}
-                      <input
-                        type="password"
-                        value={passwordForm.confirmPassword}
-                        onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
-                        placeholder="Confirm new password"
-                        style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
-                      />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Password security</p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#475569' }}>Use a strong password and update it regularly.</p>
+                      </div>
+                      <button
+                        onClick={() => setShowPasswordCard((prev) => !prev)}
+                        style={{
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
+                          borderRadius: '10px',
+                          padding: '10px 16px',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          boxShadow: '0 10px 24px rgba(17,24,39,0.22)',
+                        }}
+                      >
+                        {showPasswordCard ? 'Hide Change Password' : 'Change Password'}
+                      </button>
                     </div>
 
-                    {passwordNotice && (
+                    {showPasswordCard && (
+                      <div style={{ marginTop: '12px', border: '1px solid #dbe4ef', borderRadius: '14px', background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', padding: '14px', boxShadow: '0 12px 30px rgba(15,23,42,0.08)' }}>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          <input
+                            type="password"
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
+                            placeholder="Current password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                          <input
+                            type="password"
+                            value={passwordForm.newPassword}
+                            onChange={(e) => handlePasswordField('newPassword', e.target.value)}
+                            placeholder="New password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                          {passwordForm.newPassword && (
+                            <div style={{ display: 'grid', gap: '6px', marginTop: '-2px' }}>
+                              <div style={{ height: '7px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
+                                <div
+                                  style={{
+                                    width: `${Math.max(8, (passwordStrength.score / 4) * 100)}%`,
+                                    height: '100%',
+                                    background: passwordStrength.tone,
+                                    transition: 'width 0.2s ease',
+                                  }}
+                                />
+                              </div>
+                              <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>
+                                Password strength:{' '}
+                                <span style={{ fontWeight: 700, color: passwordStrength.tone }}>
+                                  {passwordStrength.label}
+                                </span>
+                              </p>
+                            </div>
+                          )}
+                          <input
+                            type="password"
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
+                            placeholder="Confirm new password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                        </div>
+
+                        {passwordNotice && (
+                          <p
+                            style={{
+                              margin: '12px 0 0 0',
+                              fontSize: '13px',
+                              color: passwordNoticeTone === 'success' ? '#166534' : '#b91c1c',
+                              background: passwordNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
+                              border: passwordNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
+                              borderRadius: '10px',
+                              padding: '10px 12px',
+                            }}
+                          >
+                            {passwordNotice}
+                          </p>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+                          <button
+                            onClick={handleChangePassword}
+                            disabled={passwordSaving}
+                            style={{
+                              border: 'none',
+                              background: 'linear-gradient(135deg, #c79a2b 0%, #e8bf57 100%)',
+                              borderRadius: '10px',
+                              padding: '10px 16px',
+                              color: '#111827',
+                              fontWeight: 800,
+                              cursor: passwordSaving ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 8px 20px rgba(199,154,43,0.35)',
+                              opacity: passwordSaving ? 0.8 : 1,
+                            }}
+                          >
+                            {passwordSaving ? 'Updating...' : 'Update Password'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#ffffff', padding: '14px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Two-factor authentication (Google Authenticator)</p>
+                    <p style={{ margin: '6px 0 12px 0', fontSize: '13px', color: '#475569' }}>
+                      Status: <strong>{twoFactorLoading ? 'Checking...' : (twoFactorEnabled ? 'Enabled' : 'Disabled')}</strong>
+                    </p>
+
+                    {!twoFactorEnabled && (
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <button
+                          onClick={startTwoFactorSetup}
+                          disabled={twoFactorBusy}
+                          style={{ border: 'none', background: '#111827', borderRadius: '10px', padding: '10px 16px', color: '#fff', fontWeight: 700, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                        >
+                          {twoFactorConfigured ? 'Generate New Setup Key' : 'Enable 2FA'}
+                        </button>
+
+                        {twoFactorOtpAuthUri && (
+                          <div style={{ display: 'grid', gap: '8px', justifyItems: 'start' }}>
+                            <img
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(twoFactorOtpAuthUri)}`}
+                              alt="Authenticator QR"
+                              style={{ width: '180px', height: '180px', border: '1px solid #e5e7eb', borderRadius: '10px' }}
+                            />
+                            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Manual key:</p>
+                            <code style={{ fontSize: '12px', padding: '7px 9px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: '8px' }}>{twoFactorSecret}</code>
+                          </div>
+                        )}
+
+                        {(twoFactorConfigured || twoFactorOtpAuthUri) && (
+                          <>
+                            <input
+                              type="text"
+                              value={twoFactorCode}
+                              onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="Enter 6-digit code"
+                              inputMode="numeric"
+                              maxLength={6}
+                              style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
+                            />
+                            <button
+                              onClick={enableTwoFactor}
+                              disabled={twoFactorBusy}
+                              style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 16px', color: '#111827', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                            >
+                              Confirm and Enable 2FA
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {twoFactorEnabled && (
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>To disable 2FA, enter the current code from your authenticator app.</p>
+                        <input
+                          type="text"
+                          value={twoFactorCode}
+                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="Enter 6-digit code"
+                          inputMode="numeric"
+                          maxLength={6}
+                          style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
+                        />
+                        <button
+                          onClick={disableTwoFactor}
+                          disabled={twoFactorBusy}
+                          style={{ border: '1px solid #b91c1c', background: '#fee2e2', borderRadius: '10px', padding: '10px 16px', color: '#991b1b', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                        >
+                          Disable 2FA
+                        </button>
+                      </div>
+                    )}
+
+                    {twoFactorNotice && (
                       <p
                         style={{
                           margin: '12px 0 0 0',
                           fontSize: '13px',
-                          color: passwordNoticeTone === 'success' ? '#166534' : '#b91c1c',
-                          background: passwordNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
-                          border: passwordNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
+                          color: twoFactorNoticeTone === 'success' ? '#166534' : '#b91c1c',
+                          background: twoFactorNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
+                          border: twoFactorNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
                           borderRadius: '10px',
                           padding: '10px 12px',
                         }}
                       >
-                        {passwordNotice}
+                        {twoFactorNotice}
                       </p>
                     )}
-
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-                      <button
-                        onClick={handleChangePassword}
-                        disabled={passwordSaving}
-                        style={{
-                          border: 'none',
-                          background: 'linear-gradient(135deg, #c79a2b 0%, #e8bf57 100%)',
-                          borderRadius: '10px',
-                          padding: '10px 16px',
-                          color: '#111827',
-                          fontWeight: 800,
-                          cursor: passwordSaving ? 'not-allowed' : 'pointer',
-                          boxShadow: '0 8px 20px rgba(199,154,43,0.35)',
-                          opacity: passwordSaving ? 0.8 : 1,
-                        }}
-                      >
-                        {passwordSaving ? 'Updating...' : 'Update Password'}
-                      </button>
-                    </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
