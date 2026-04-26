@@ -181,8 +181,7 @@ public class AuthController {
         user.setEmail(request.email());
         user.setRole(role);
         user.setStudentId(request.studentId());
-        // TEMP: store plain-text password (hashing disabled by request)
-        user.setPasswordHash(request.password());
+        user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setProviderId(null);
         user.setCreatedAt(LocalDateTime.now());

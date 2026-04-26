@@ -13,9 +13,14 @@ export default function ResetPassword() {
     newPassword: '',
     confirmPassword: '',
   });
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const hasConfirmValue = passwordForm.confirmPassword.length > 0;
+  const passwordsMatch = hasConfirmValue && passwordForm.newPassword === passwordForm.confirmPassword;
+  const passwordsMismatch = hasConfirmValue && passwordForm.newPassword !== passwordForm.confirmPassword;
 
   const passwordStrength = useMemo(() => {
     const value = String(passwordForm.newPassword || '');
@@ -94,15 +99,37 @@ export default function ResetPassword() {
             <form className="form" onSubmit={handleSubmit}>
               <div className="form-row">
                 <label htmlFor="newPassword" className="clean-label">New Password</label>
-                <input
-                  id="newPassword"
-                  type="password"
-                  value={passwordForm.newPassword}
-                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                  className="clean-input"
-                  placeholder="Enter new password"
-                  required
-                />
+                <div className="password-input-wrap">
+                  <input
+                    id="newPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                    className="clean-input password-input"
+                    placeholder="Enter new password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    aria-label={showNewPassword ? 'Hide new password' : 'Show new password'}
+                  >
+                    {showNewPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M9.88 5.09C10.56 4.87 11.27 4.75 12 4.75C17 4.75 20.27 9.41 21 12C20.69 13.1 19.92 14.45 18.73 15.56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M14.12 18.91C13.44 19.13 12.73 19.25 12 19.25C7 19.25 3.73 14.59 3 12C3.31 10.9 4.08 9.55 5.27 8.44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M2 12C3 8.5 6.5 5 12 5C17.5 5 21 8.5 22 12C21 15.5 17.5 19 12 19C6.5 19 3 15.5 2 12Z" stroke="currentColor" strokeWidth="2" />
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
                 {passwordForm.newPassword && (
                   <div style={{ display: 'grid', gap: '6px', marginTop: '6px' }}>
                     <div style={{ height: '7px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
@@ -127,15 +154,39 @@ export default function ResetPassword() {
 
               <div className="form-row">
                 <label htmlFor="confirmPassword" className="clean-label">Confirm New Password</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={passwordForm.confirmPassword}
-                  onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                  className="clean-input"
-                  placeholder="Confirm new password"
-                  required
-                />
+                <div className="password-input-wrap">
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                    className="clean-input password-input"
+                    placeholder="Confirm new password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  >
+                    {showConfirmPassword ? (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M9.88 5.09C10.56 4.87 11.27 4.75 12 4.75C17 4.75 20.27 9.41 21 12C20.69 13.1 19.92 14.45 18.73 15.56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <path d="M14.12 18.91C13.44 19.13 12.73 19.25 12 19.25C7 19.25 3.73 14.59 3 12C3.31 10.9 4.08 9.55 5.27 8.44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M2 12C3 8.5 6.5 5 12 5C17.5 5 21 8.5 22 12C21 15.5 17.5 19 12 19C6.5 19 3 15.5 2 12Z" stroke="currentColor" strokeWidth="2" />
+                        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {passwordsMatch && <p className="password-match-hint success">Passwords match.</p>}
+                {passwordsMismatch && <p className="password-match-hint error">Passwords do not match yet.</p>}
               </div>
 
               {error && (
