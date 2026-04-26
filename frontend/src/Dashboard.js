@@ -3,11 +3,22 @@ import { useNavigate, Link } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
 import useDashboardProfile from './hooks/useDashboardProfile';
 
+const COLORS = {
+  white: '#FFFFFF',
+  bg: '#E9EEF4',
+  purple: '#7260B4',
+  black: '#111111',
+  muted: '#5f6470',
+  border: '#d9deea',
+  softPurple: '#f1effa',
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [showPasswordCard, setShowPasswordCard] = useState(false);
+
   const {
     notifications,
     profileOpen,
@@ -50,18 +61,15 @@ export default function Dashboard() {
     handleLogout,
   } = useDashboardProfile({ user, setUser, navigate });
 
-  // Load user from storage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem('smartCampusUser');
     if (storedUser) {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
+      setUser(JSON.parse(storedUser));
     } else {
       navigate('/login');
     }
   }, [navigate]);
 
-  // Redirect admins and managers to the dedicated shared dashboard
   useEffect(() => {
     if (user && (user.role === 'admin' || user.role === 'manager')) {
       navigate('/admin');
@@ -74,132 +82,432 @@ export default function Dashboard() {
     }
   }, [profileOpen, profileTab]);
 
-  // ==========================================
-  // 🎓 STUDENT VIEW
-  // ==========================================
+  const ActionButton = ({ children, onClick, filled = false }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        border: filled ? 'none' : `1px solid ${COLORS.purple}`,
+        background: filled ? COLORS.purple : COLORS.white,
+        color: filled ? COLORS.white : COLORS.purple,
+        padding: '12px 18px',
+        borderRadius: '999px',
+        fontWeight: 800,
+        cursor: 'pointer',
+        boxShadow: filled ? '0 14px 28px rgba(114,96,180,0.25)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const StatBadge = ({ value, label, top, left, right }) => (
+    <div
+      style={{
+        position: 'absolute',
+        top,
+        left,
+        right,
+        background: COLORS.white,
+        padding: '14px 18px',
+        borderRadius: '4px',
+        boxShadow: '0 18px 45px rgba(0,0,0,0.12)',
+        minWidth: '120px',
+        zIndex: 2,
+      }}
+    >
+      <p style={{ margin: 0, fontSize: '24px', fontWeight: 900, color: COLORS.black }}>{value}</p>
+      <p style={{ margin: '4px 0 0', fontSize: '12px', color: COLORS.muted }}>{label}</p>
+    </div>
+  );
+
+  const ServiceCard = ({ icon, title, text, active, onClick }) => (
+    <div
+      onClick={onClick}
+      style={{
+        background: active ? COLORS.purple : COLORS.white,
+        color: active ? COLORS.white : COLORS.black,
+        padding: '28px',
+        borderRadius: '4px',
+        border: `1px solid ${active ? COLORS.purple : COLORS.border}`,
+        cursor: 'pointer',
+        minHeight: '190px',
+        boxShadow: active ? '0 22px 45px rgba(114,96,180,0.25)' : '0 16px 35px rgba(17,17,17,0.05)',
+      }}
+    >
+      <div
+        style={{
+          width: '46px',
+          height: '46px',
+          borderRadius: '999px',
+          display: 'grid',
+          placeItems: 'center',
+          background: active ? COLORS.white : COLORS.softPurple,
+          color: COLORS.purple,
+          fontSize: '22px',
+          marginBottom: '18px',
+        }}
+      >
+        {icon}
+      </div>
+      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 900 }}>{title}</h3>
+      <p style={{ margin: '12px 0 18px', fontSize: '13px', lineHeight: 1.7, color: active ? '#f4f2ff' : COLORS.muted }}>
+        {text}
+      </p>
+      <span style={{ fontSize: '13px', fontWeight: 900 }}>
+        Open Now →
+      </span>
+    </div>
+  );
+
   const StudentView = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-      <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
-        <button
-          type="button"
-          onClick={() => navigate('/tickets')}
-          style={{
-            backgroundColor: '#111827',
-            border: 'none',
-            color: '#ffffff',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '700',
-          }}
-        >
-          Create Ticket
-        </button>
-         <button
-          type="button"
-          onClick={() => navigate('/bookings/my')}
-          style={{
-            backgroundColor: '#111827',
-            border: 'none',
-            color: '#ffffff',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '700',
-          }}
-        >
-          Booking
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/facilities')}
-          style={{
-            backgroundColor: '#111827',
-            border: 'none',
-            color: '#ffffff',
-            padding: '10px 16px',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '700',
-          }}
-        >
-          Facilities
-        </button>
-      </div>
+    <div>
+      <section
+        style={{
+          background: COLORS.bg,
+          borderRadius: '0',
+          padding: '55px 48px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 0.9fr',
+          gap: '40px',
+          alignItems: 'center',
+          marginBottom: '55px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div>
+          <p style={{ color: COLORS.purple, fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
+            Welcome to Smart Campus
+          </p>
+          <h1 style={{ margin: 0, color: COLORS.black, fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
+            Manage Your Campus Tasks And Resources
+          </h1>
+          <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: COLORS.muted, lineHeight: 1.8, fontSize: '14px' }}>
+            Request facilities, check your bookings, create maintenance tickets, and follow campus updates from one simple student dashboard.
+          </p>
 
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>My Academics</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px' }}>Program (Year 3)</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>BSc Data Science</p>
-          </div>
-          <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px' }}>Current Priority</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>TPSM Group Project</p>
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+            <ActionButton filled onClick={() => navigate('/facilities')}>Browse Facilities</ActionButton>
+            <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
+            <ActionButton onClick={() => navigate('/tickets')}>Create Ticket</ActionButton>
           </div>
         </div>
-      </div>
 
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>Student Tools</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <button style={{ backgroundColor: '#f9fafb', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer' }}>Book Library Room</button>
-          <button style={{ backgroundColor: '#f9fafb', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer' }}>Cafe Pre-order</button>
-          <button style={{ backgroundColor: '#BF932A', border: 'none', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer', fontWeight: '700', gridColumn: 'span 2' }}>Submit TPSM Proposal</button>
+        <div style={{ position: 'relative', minHeight: '320px' }}>
+          <div
+            style={{
+              position: 'absolute',
+              width: '320px',
+              height: '320px',
+              borderRadius: '999px',
+              border: `2px solid rgba(114,96,180,0.25)`,
+              left: '-25px',
+              top: '-10px',
+            }}
+          />
+          <StatBadge value="24/7" label="Campus Access" top="8px" left="0" />
+          <StatBadge value="3+" label="Core Workflows" top="115px" left="-55px" />
+
+          <div
+            style={{
+              position: 'relative',
+              marginLeft: '70px',
+              marginTop: '35px',
+              background: COLORS.white,
+              borderRadius: '8px',
+              height: '285px',
+              padding: '28px',
+              boxShadow: '0 25px 55px rgba(0,0,0,0.12)',
+              border: `1px solid ${COLORS.border}`,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '22px', color: COLORS.black }}>Student Quick Panel</h3>
+            <p style={{ color: COLORS.muted, lineHeight: 1.7, fontSize: '14px' }}>
+              Search lecture halls, labs, rooms, projectors, and report campus incidents when something needs attention.
+            </p>
+
+            <div style={{ display: 'grid', gap: '12px', marginTop: '22px' }}>
+              <MiniRow label="Facilities Catalogue" value="Search & filter" />
+              <MiniRow label="Booking Requests" value="Pending → Approved" />
+              <MiniRow label="Incident Tickets" value="Open → Closed" />
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '0.95fr 1fr',
+          gap: '45px',
+          alignItems: 'center',
+          marginBottom: '65px',
+        }}
+      >
+        <div
+          style={{
+            background: COLORS.white,
+            border: `1px solid ${COLORS.border}`,
+            minHeight: '360px',
+            padding: '35px',
+            borderRadius: '4px',
+            boxShadow: '0 16px 40px rgba(17,17,17,0.06)',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '30px', color: COLORS.black }}>Today’s Student Overview</h2>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            Keep your campus work organized. This dashboard helps you access booking, resource, and support services faster.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
+            <InfoBox number="01" title="Find Resource" />
+            <InfoBox number="02" title="Request Booking" />
+            <InfoBox number="03" title="Track Status" />
+            <InfoBox number="04" title="Get Notification" />
+          </div>
+        </div>
+
+        <div>
+          <p style={{ color: COLORS.purple, fontWeight: 800, fontSize: '13px' }}>About Student Services</p>
+          <h2 style={{ margin: '0 0 16px', fontSize: '34px', color: COLORS.black, lineHeight: 1.2 }}>
+            Request Facilities And Report Issues Easily
+          </h2>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            Students can browse lecture halls, labs, meeting rooms, and equipment. They can request a booking with date, time, purpose, and expected attendees. They can also create incident tickets with priority and contact details.
+          </p>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            The system supports clear workflows, so every request has a visible status and users can follow progress without confusion.
+          </p>
+          <ActionButton filled onClick={() => navigate('/facilities')}>Discover Campus Services</ActionButton>
+        </div>
+      </section>
+
+      <section style={{ background: COLORS.bg, padding: '58px 48px', borderRadius: '0' }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <p style={{ margin: 0, color: COLORS.purple, fontWeight: 800, fontSize: '13px' }}>Our Services</p>
+          <h2 style={{ margin: '8px 0 0', fontSize: '34px', color: COLORS.black }}>
+            Student Services We Offered
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+          <ServiceCard
+            icon="🏢"
+            title="Facilities Catalogue"
+            text="View lecture halls, labs, meeting rooms, projectors, cameras, capacity, location, availability, and status."
+            onClick={() => navigate('/facilities')}
+          />
+          <ServiceCard
+            icon="📅"
+            title="Booking Management"
+            text="Create resource booking requests and track the workflow from pending to approved, rejected, or cancelled."
+            active
+            onClick={() => navigate('/bookings/my')}
+          />
+          <ServiceCard
+            icon="🛠️"
+            title="Maintenance Tickets"
+            text="Report incidents for resources or locations with category, description, priority, contact details, and images."
+            onClick={() => navigate('/tickets')}
+          />
+          <ServiceCard
+            icon="🔔"
+            title="Notifications"
+            text="View updates for booking approval, rejection, ticket status changes, and comments in your profile panel."
+            onClick={openProfile}
+          />
+          <ServiceCard
+            icon="🔍"
+            title="Search & Filtering"
+            text="Filter resources by type, capacity, location, and status to quickly find suitable facilities."
+            onClick={() => navigate('/facilities')}
+          />
+          <ServiceCard
+            icon="👤"
+            title="Profile & Security"
+            text="Manage your profile, account settings, password security, and two-factor authentication from one place."
+            onClick={openProfile}
+          />
+        </div>
+      </section>
     </div>
   );
 
-  // ==========================================
-  // 👨‍🏫 LECTURER VIEW
-  // ==========================================
   const LecturerView = () => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>Lecturer Control Panel</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <div>
-            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '1px' }}>Department</p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '600', color: '#111827' }}>Faculty of Computing</p>
-          </div>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-             <div style={{ flex: 1, backgroundColor: '#f9fafb', padding: '10px', borderRadius: '6px', textAlign: 'center', border: '1px solid #e5e7eb' }}>
-               <span style={{ display: 'block', fontSize: '20px', fontWeight: '700', color: '#BF932A' }}>12</span>
-               <span style={{ fontSize: '12px', color: '#6b7280' }}>Pending Proposals</span>
-             </div>
-             <div style={{ flex: 1, backgroundColor: '#f9fafb', padding: '10px', borderRadius: '6px', textAlign: 'center', border: '1px solid #e5e7eb' }}>
-               <span style={{ display: 'block', fontSize: '20px', fontWeight: '700', color: '#374151' }}>2</span>
-               <span style={{ fontSize: '12px', color: '#6b7280' }}>Lectures Today</span>
-             </div>
-          </div>
-        </div>
-      </div>
+    <div>
+      <section
+        style={{
+          background: COLORS.bg,
+          padding: '55px 48px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 0.9fr',
+          gap: '40px',
+          alignItems: 'center',
+          marginBottom: '55px',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div>
+          <p style={{ color: COLORS.purple, fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
+            Welcome Lecturer
+          </p>
+          <h1 style={{ margin: 0, color: COLORS.black, fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
+            Coordinate Campus Resources And Academic Requests
+          </h1>
+          <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: COLORS.muted, lineHeight: 1.8, fontSize: '14px' }}>
+            Manage lecture resources, review bookings, monitor classroom issues, and support smooth academic operations.
+          </p>
 
-      <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb' }}>
-        <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>Lecturer Actions</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '15px' }}>
-          <button style={{ backgroundColor: '#f9fafb', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer', textAlign: 'left' }}>
-            Review TPSM Proposals
-          </button>
-          <button style={{ backgroundColor: '#f9fafb', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer', textAlign: 'left' }}>
-            Post Module Announcement
-          </button>
-          <button style={{ backgroundColor: '#f9fafb', border: '1px solid #d1d5db', padding: '15px', borderRadius: '8px', color: '#111827', cursor: 'pointer', textAlign: 'left' }}>
-            Schedule Consultation Hours
-          </button>
+          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+            <ActionButton filled onClick={() => navigate('/facilities')}>View Resources</ActionButton>
+            <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
+            <ActionButton onClick={() => navigate('/tickets')}>Report Issue</ActionButton>
+          </div>
         </div>
-      </div>
+
+        <div style={{ position: 'relative', minHeight: '320px' }}>
+          <div
+            style={{
+              position: 'absolute',
+              width: '320px',
+              height: '320px',
+              borderRadius: '999px',
+              border: `2px solid rgba(114,96,180,0.25)`,
+              left: '-25px',
+              top: '-10px',
+            }}
+          />
+          <StatBadge value="16+" label="Available Rooms" top="8px" left="0" />
+          <StatBadge value="95%" label="Resource Readiness" top="115px" left="-55px" />
+
+          <div
+            style={{
+              position: 'relative',
+              marginLeft: '70px',
+              marginTop: '35px',
+              background: COLORS.white,
+              borderRadius: '8px',
+              height: '285px',
+              padding: '28px',
+              boxShadow: '0 25px 55px rgba(0,0,0,0.12)',
+              border: `1px solid ${COLORS.border}`,
+            }}
+          >
+            <h3 style={{ margin: 0, fontSize: '22px', color: COLORS.black }}>Lecturer Control Panel</h3>
+            <p style={{ color: COLORS.muted, lineHeight: 1.7, fontSize: '14px' }}>
+              Access resource booking, lecture hall availability, maintenance reporting, and academic facility support.
+            </p>
+
+            <div style={{ display: 'grid', gap: '12px', marginTop: '22px' }}>
+              <MiniRow label="Department" value="Faculty of Computing" />
+              <MiniRow label="Role" value="Lecturer" />
+              <MiniRow label="Today Focus" value="Resource Planning" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '0.95fr 1fr',
+          gap: '45px',
+          alignItems: 'center',
+          marginBottom: '65px',
+        }}
+      >
+        <div
+          style={{
+            background: COLORS.white,
+            border: `1px solid ${COLORS.border}`,
+            minHeight: '360px',
+            padding: '35px',
+            borderRadius: '4px',
+            boxShadow: '0 16px 40px rgba(17,17,17,0.06)',
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: '30px', color: COLORS.black }}>Lecturer Overview</h2>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            Use this dashboard to keep resource usage, class activities, and facility issues organized.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
+            <InfoBox number="12" title="Pending Reviews" />
+            <InfoBox number="02" title="Lectures Today" />
+            <InfoBox number="04" title="Resource Requests" />
+            <InfoBox number="03" title="Open Issues" />
+          </div>
+        </div>
+
+        <div>
+          <p style={{ color: COLORS.purple, fontWeight: 800, fontSize: '13px' }}>About Lecturer Services</p>
+          <h2 style={{ margin: '0 0 16px', fontSize: '34px', color: COLORS.black, lineHeight: 1.2 }}>
+            Support Teaching Through Better Campus Operations
+          </h2>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            Lecturers can check available rooms and equipment, request bookings for academic activities, and report problems in classrooms, labs, or equipment.
+          </p>
+          <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
+            This view is designed for quick access, so academic staff can complete common tasks without searching through multiple pages.
+          </p>
+          <ActionButton filled onClick={() => navigate('/facilities')}>Open Resource Catalogue</ActionButton>
+        </div>
+      </section>
+
+      <section style={{ background: COLORS.bg, padding: '58px 48px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
+          <p style={{ margin: 0, color: COLORS.purple, fontWeight: 800, fontSize: '13px' }}>Lecturer Tools</p>
+          <h2 style={{ margin: '8px 0 0', fontSize: '34px', color: COLORS.black }}>
+            Academic Services We Offered
+          </h2>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
+          <ServiceCard
+            icon="🏫"
+            title="Lecture Hall Booking"
+            text="Search lecture halls and labs by capacity, location, status, and available time windows."
+            onClick={() => navigate('/facilities')}
+          />
+          <ServiceCard
+            icon="📅"
+            title="Booking Requests"
+            text="Request campus resources for lectures, meetings, workshops, and consultation sessions."
+            active
+            onClick={() => navigate('/bookings/my')}
+          />
+          <ServiceCard
+            icon="🧰"
+            title="Equipment Issues"
+            text="Report damaged projectors, lab equipment issues, room problems, or technical failures."
+            onClick={() => navigate('/tickets')}
+          />
+          <ServiceCard
+            icon="🔔"
+            title="Academic Alerts"
+            text="Receive updates when bookings are approved, rejected, cancelled, or when tickets are updated."
+            onClick={openProfile}
+          />
+          <ServiceCard
+            icon="📍"
+            title="Location Support"
+            text="Find facilities by building, floor, room type, and available resources."
+            onClick={() => navigate('/facilities')}
+          />
+          <ServiceCard
+            icon="🔐"
+            title="Secure Account"
+            text="Manage profile information, password security, and two-factor authentication."
+            onClick={openProfile}
+          />
+        </div>
+      </section>
     </div>
   );
 
-  // ==========================================
-  // 🛠 TECHNICIAN VIEW
-  // ==========================================
+  // Technician view kept same as your original
   const TechnicianView = () => (
     <div style={{ display: 'grid', gap: '18px' }}>
       <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 55%, #334155 100%)', color: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #0f172a', boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)' }}>
@@ -233,32 +541,23 @@ export default function Dashboard() {
   );
 
   if (!user) {
-    return <div style={{ color: '#111827', padding: '50px', textAlign: 'center' }}>Loading...</div>;
+    return <div style={{ color: COLORS.black, padding: '50px', textAlign: 'center' }}>Loading...</div>;
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', color: '#111827', fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* Shared Navbar */}
+    <div style={{ minHeight: '100vh', backgroundColor: COLORS.white, color: COLORS.black, fontFamily: 'system-ui, sans-serif' }}>
       <nav style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Link to="/facilities" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
           <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
         </Link>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <button onClick={() => navigate('/facilities')} style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', color: '#111827', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
-            Facilities Catalogue
-          </button>
-          <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
-            Create Ticket
-          </button>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
             <button
               onClick={openProfile}
               title="Open profile"
-              style={{ width: '40px', height: '40px', borderRadius: '999px', border: 'none', background: '#111827', color: '#fff', fontWeight: 700, cursor: 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0 }}
+              style={{ width: '40px', height: '40px', borderRadius: '999px', border: 'none', background: COLORS.purple, color: '#fff', fontWeight: 700, cursor: 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0 }}
             >
               {profileAvatarUrl
                 ? <img src={profileAvatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -274,21 +573,22 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      {/* Shared Content Area */}
       <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{ marginBottom: '30px' }}>
-          <h2 style={{ fontSize: '28px', margin: '0 0 5px 0', color: '#111827' }}>Welcome back, {user.name}.</h2>
-          <p style={{ color: '#6b7280', margin: 0 }}>
-            {user.role === 'lecturer' ? "Here is your academic overview for today." : "Here is what's happening around campus today."}
+        <header style={{ marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '28px', margin: '0 0 5px 0', color: COLORS.black }}>Welcome back, {user.name}.</h2>
+          <p style={{ color: COLORS.muted, margin: 0 }}>
+            {user.role === 'lecturer'
+              ? 'Here is your academic operations dashboard for today.'
+              : user.role === 'technician'
+              ? 'Here is your technician workspace overview.'
+              : "Here is what's happening around campus today."}
           </p>
         </header>
 
-        {/* Dynamic Rendering based on role */}
         {user.role === 'technician' && <TechnicianView />}
         {user.role === 'lecturer' && <LecturerView />}
         {user.role === 'student' && <StudentView />}
         {!['technician', 'lecturer', 'student'].includes(user.role) && <StudentView />}
-        
       </div>
 
       {profileOpen && (
@@ -322,7 +622,7 @@ export default function Dashboard() {
           >
             <aside style={{ borderRight: '1px solid #e5e7eb', background: '#f8fafc', padding: '20px 14px' }}>
               <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', marginBottom: '18px' }}>
-                <div style={{ width: '78px', height: '78px', borderRadius: '999px', background: '#111827', color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '26px', overflow: 'hidden' }}>
+                <div style={{ width: '78px', height: '78px', borderRadius: '999px', background: COLORS.purple, color: '#fff', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '26px', overflow: 'hidden' }}>
                   {profileAvatarUrl
                     ? <img src={profileAvatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : (user.name || 'U').charAt(0).toUpperCase()}
@@ -355,51 +655,37 @@ export default function Dashboard() {
               )}
 
               {profileTab === 'profile' && (
-                <div key="profile-tab-profile" className="profile-modal-tab-content" style={{ display: 'grid', gap: '12px' }}>
-                  <div style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Full Name</p>
-                    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827' }}>{user.name || '—'}</p>
-                  </div>
-                  <div style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Role</p>
-                    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827', textTransform: 'capitalize' }}>{user.role || 'student'}</p>
-                  </div>
-                  <div style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Email</p>
-                    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827' }}>{user.email || '—'}</p>
-                  </div>
+                <div style={{ display: 'grid', gap: '12px' }}>
+                  <ProfileInfo label="Full Name" value={user.name || '—'} />
+                  <ProfileInfo label="Role" value={user.role || 'student'} />
+                  <ProfileInfo label="Email" value={user.email || '—'} />
                 </div>
               )}
 
               {profileTab === 'edit' && (
-                <div key="profile-tab-edit" className="profile-modal-tab-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div style={{ gridColumn: '1 / -1', display: 'grid', justifyItems: 'center', textAlign: 'center', marginBottom: '2px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div style={{ gridColumn: '1 / -1', display: 'grid', justifyItems: 'center', textAlign: 'center' }}>
                     <button
                       onClick={triggerProfileAvatarPick}
                       disabled={profileAvatarUploading}
-                      style={{ width: '92px', height: '92px', borderRadius: '999px', border: 'none', background: '#111827', color: '#fff', fontWeight: 700, fontSize: '30px', cursor: profileAvatarUploading ? 'not-allowed' : 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0, opacity: profileAvatarUploading ? 0.8 : 1 }}
-                      title="Change profile photo"
+                      style={{ width: '92px', height: '92px', borderRadius: '999px', border: 'none', background: COLORS.purple, color: '#fff', fontWeight: 700, fontSize: '30px', cursor: profileAvatarUploading ? 'not-allowed' : 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0 }}
                     >
                       {profileAvatarUrl
                         ? <img src={profileAvatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : (profileDraft.name || user.name || 'U').charAt(0).toUpperCase()}
                     </button>
-                    <input
-                      ref={profileAvatarInputRef}
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={handleProfileAvatarChange}
-                    />
+                    <input ref={profileAvatarInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleProfileAvatarChange} />
                     <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
                       {profileAvatarUploading ? 'Uploading photo...' : 'Edit profile photo'}
                     </p>
                   </div>
+
                   <Field label="Full Name" value={profileDraft.name} onChange={(v) => handleProfileDraft('name', v)} />
                   <Field label="Email" value={profileDraft.email} onChange={(v) => handleProfileDraft('email', v)} />
                   <Field label="Student/Lecturer ID" value={profileDraft.studentId} onChange={(v) => handleProfileDraft('studentId', v)} />
+
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '10px', marginTop: '6px' }}>
-                    <button onClick={saveProfileDraft} disabled={profileSaving} style={{ border: 'none', background: '#BF932A', color: '#111827', borderRadius: '10px', padding: '10px 16px', fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', opacity: profileSaving ? 0.8 : 1 }}>
+                    <button onClick={saveProfileDraft} disabled={profileSaving} style={{ border: 'none', background: COLORS.purple, color: '#fff', borderRadius: '10px', padding: '10px 16px', fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer' }}>
                       {profileSaving ? 'Saving...' : 'Save Profile'}
                     </button>
                     <button onClick={resetProfileDraft} style={{ border: '1px solid #d1d5db', background: '#fff', color: '#374151', borderRadius: '10px', padding: '10px 16px', fontWeight: 600, cursor: 'pointer' }}>
@@ -410,7 +696,7 @@ export default function Dashboard() {
               )}
 
               {profileTab === 'notifications' && (
-                <div key="profile-tab-notifications" className="profile-modal-tab-content" style={{ display: 'grid', gap: '10px' }}>
+                <div style={{ display: 'grid', gap: '10px' }}>
                   {notifications.length === 0 && <p style={{ margin: 0, color: '#6b7280' }}>No notifications available.</p>}
                   {notifications.map((item, index) => (
                     <div key={item.id || index} style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
@@ -425,15 +711,9 @@ export default function Dashboard() {
               )}
 
               {profileTab === 'account' && (
-                <div key="profile-tab-account" className="profile-modal-tab-content" style={{ display: 'grid', gap: '14px', maxHeight: 'calc(88vh - 240px)', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
-                  <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Role</p>
-                    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827', textTransform: 'capitalize' }}>{user.role}</p>
-                  </div>
-                  <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Email</p>
-                    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827' }}>{user.email}</p>
-                  </div>
+                <div style={{ display: 'grid', gap: '14px', maxHeight: 'calc(88vh - 240px)', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
+                  <ProfileInfo label="Role" value={user.role} />
+                  <ProfileInfo label="Email" value={user.email} />
 
                   <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#ffffff', padding: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
@@ -445,13 +725,12 @@ export default function Dashboard() {
                         onClick={() => setShowPasswordCard((prev) => !prev)}
                         style={{
                           border: 'none',
-                          background: 'linear-gradient(135deg, #111827 0%, #1f2937 100%)',
+                          background: COLORS.purple,
                           borderRadius: '10px',
                           padding: '10px 16px',
                           color: '#ffffff',
                           fontWeight: 800,
                           cursor: 'pointer',
-                          boxShadow: '0 10px 24px rgba(17,24,39,0.22)',
                         }}
                       >
                         {showPasswordCard ? 'Hide Change Password' : 'Change Password'}
@@ -459,134 +738,65 @@ export default function Dashboard() {
                     </div>
 
                     {showPasswordCard && (
-                      <div style={{ marginTop: '12px', border: '1px solid #dbe4ef', borderRadius: '14px', background: 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)', padding: '14px', boxShadow: '0 12px 30px rgba(15,23,42,0.08)' }}>
+                      <div style={{ marginTop: '12px', border: '1px solid #dbe4ef', borderRadius: '14px', background: '#f8fafc', padding: '14px' }}>
                         <div style={{ display: 'grid', gap: '10px' }}>
-                          <input
-                            type="password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
-                            placeholder="Current password"
-                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
-                          />
-                          <input
-                            type="password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) => handlePasswordField('newPassword', e.target.value)}
-                            placeholder="New password"
-                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
-                          />
+                          <input type="password" value={passwordForm.currentPassword} onChange={(e) => handlePasswordField('currentPassword', e.target.value)} placeholder="Current password" style={inputStyle} />
+                          <input type="password" value={passwordForm.newPassword} onChange={(e) => handlePasswordField('newPassword', e.target.value)} placeholder="New password" style={inputStyle} />
+
                           {passwordForm.newPassword && (
-                            <div style={{ display: 'grid', gap: '6px', marginTop: '-2px' }}>
+                            <div style={{ display: 'grid', gap: '6px' }}>
                               <div style={{ height: '7px', background: '#e5e7eb', borderRadius: '999px', overflow: 'hidden' }}>
-                                <div
-                                  style={{
-                                    width: `${Math.max(8, (passwordStrength.score / 4) * 100)}%`,
-                                    height: '100%',
-                                    background: passwordStrength.tone,
-                                    transition: 'width 0.2s ease',
-                                  }}
-                                />
+                                <div style={{ width: `${Math.max(8, (passwordStrength.score / 4) * 100)}%`, height: '100%', background: passwordStrength.tone }} />
                               </div>
                               <p style={{ margin: 0, fontSize: '12px', color: '#475569' }}>
-                                Password strength:{' '}
-                                <span style={{ fontWeight: 700, color: passwordStrength.tone }}>
-                                  {passwordStrength.label}
-                                </span>
+                                Password strength: <span style={{ fontWeight: 700, color: passwordStrength.tone }}>{passwordStrength.label}</span>
                               </p>
                             </div>
                           )}
-                          <input
-                            type="password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
-                            placeholder="Confirm new password"
-                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
-                          />
+
+                          <input type="password" value={passwordForm.confirmPassword} onChange={(e) => handlePasswordField('confirmPassword', e.target.value)} placeholder="Confirm new password" style={inputStyle} />
                         </div>
 
                         {passwordNotice && (
-                          <p
-                            style={{
-                              margin: '12px 0 0 0',
-                              fontSize: '13px',
-                              color: passwordNoticeTone === 'success' ? '#166534' : '#b91c1c',
-                              background: passwordNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
-                              border: passwordNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
-                              borderRadius: '10px',
-                              padding: '10px 12px',
-                            }}
-                          >
+                          <p style={{ margin: '12px 0 0 0', fontSize: '13px', color: passwordNoticeTone === 'success' ? '#166534' : '#b91c1c' }}>
                             {passwordNotice}
                           </p>
                         )}
 
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
-                          <button
-                            onClick={handleChangePassword}
-                            disabled={passwordSaving}
-                            style={{
-                              border: 'none',
-                              background: 'linear-gradient(135deg, #c79a2b 0%, #e8bf57 100%)',
-                              borderRadius: '10px',
-                              padding: '10px 16px',
-                              color: '#111827',
-                              fontWeight: 800,
-                              cursor: passwordSaving ? 'not-allowed' : 'pointer',
-                              boxShadow: '0 8px 20px rgba(199,154,43,0.35)',
-                              opacity: passwordSaving ? 0.8 : 1,
-                            }}
-                          >
-                            {passwordSaving ? 'Updating...' : 'Update Password'}
-                          </button>
-                        </div>
+                        <button
+                          onClick={handleChangePassword}
+                          disabled={passwordSaving}
+                          style={{ marginTop: '12px', border: 'none', background: COLORS.purple, borderRadius: '10px', padding: '10px 16px', color: '#fff', fontWeight: 800, cursor: passwordSaving ? 'not-allowed' : 'pointer' }}
+                        >
+                          {passwordSaving ? 'Updating...' : 'Update Password'}
+                        </button>
                       </div>
                     )}
                   </div>
 
                   <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', background: '#ffffff', padding: '14px' }}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Two-factor authentication (Google Authenticator)</p>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>Two-factor authentication</p>
                     <p style={{ margin: '6px 0 12px 0', fontSize: '13px', color: '#475569' }}>
                       Status: <strong>{twoFactorLoading ? 'Checking...' : (twoFactorEnabled ? 'Enabled' : 'Disabled')}</strong>
                     </p>
 
                     {!twoFactorEnabled && (
                       <div style={{ display: 'grid', gap: '10px' }}>
-                        <button
-                          onClick={startTwoFactorSetup}
-                          disabled={twoFactorBusy}
-                          style={{ border: 'none', background: '#111827', borderRadius: '10px', padding: '10px 16px', color: '#fff', fontWeight: 700, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
-                        >
+                        <button onClick={startTwoFactorSetup} disabled={twoFactorBusy} style={{ border: 'none', background: COLORS.purple, borderRadius: '10px', padding: '10px 16px', color: '#fff', fontWeight: 700, cursor: twoFactorBusy ? 'not-allowed' : 'pointer' }}>
                           {twoFactorConfigured ? 'Generate New Setup Key' : 'Enable 2FA'}
                         </button>
 
                         {twoFactorOtpAuthUri && (
                           <div style={{ display: 'grid', gap: '8px', justifyItems: 'start' }}>
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(twoFactorOtpAuthUri)}`}
-                              alt="Authenticator QR"
-                              style={{ width: '180px', height: '180px', border: '1px solid #e5e7eb', borderRadius: '10px' }}
-                            />
-                            <p style={{ margin: 0, fontSize: '12px', color: '#6b7280' }}>Manual key:</p>
+                            <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(twoFactorOtpAuthUri)}`} alt="Authenticator QR" style={{ width: '180px', height: '180px', border: '1px solid #e5e7eb', borderRadius: '10px' }} />
                             <code style={{ fontSize: '12px', padding: '7px 9px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: '8px' }}>{twoFactorSecret}</code>
                           </div>
                         )}
 
                         {(twoFactorConfigured || twoFactorOtpAuthUri) && (
                           <>
-                            <input
-                              type="text"
-                              value={twoFactorCode}
-                              onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              placeholder="Enter 6-digit code"
-                              inputMode="numeric"
-                              maxLength={6}
-                              style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
-                            />
-                            <button
-                              onClick={enableTwoFactor}
-                              disabled={twoFactorBusy}
-                              style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 16px', color: '#111827', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
-                            >
+                            <input type="text" value={twoFactorCode} onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter 6-digit code" inputMode="numeric" maxLength={6} style={inputStyle} />
+                            <button onClick={enableTwoFactor} disabled={twoFactorBusy} style={{ border: 'none', background: COLORS.purple, borderRadius: '10px', padding: '10px 16px', color: '#fff', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer' }}>
                               Confirm and Enable 2FA
                             </button>
                           </>
@@ -596,61 +806,23 @@ export default function Dashboard() {
 
                     {twoFactorEnabled && (
                       <div style={{ display: 'grid', gap: '10px' }}>
-                        <p style={{ margin: 0, fontSize: '13px', color: '#475569' }}>To disable 2FA, enter the current code from your authenticator app.</p>
-                        <input
-                          type="text"
-                          value={twoFactorCode}
-                          onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          placeholder="Enter 6-digit code"
-                          inputMode="numeric"
-                          maxLength={6}
-                          style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px' }}
-                        />
-                        <button
-                          onClick={disableTwoFactor}
-                          disabled={twoFactorBusy}
-                          style={{ border: '1px solid #b91c1c', background: '#fee2e2', borderRadius: '10px', padding: '10px 16px', color: '#991b1b', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
-                        >
+                        <input type="text" value={twoFactorCode} onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="Enter 6-digit code" inputMode="numeric" maxLength={6} style={inputStyle} />
+                        <button onClick={disableTwoFactor} disabled={twoFactorBusy} style={{ border: '1px solid #b91c1c', background: '#fee2e2', borderRadius: '10px', padding: '10px 16px', color: '#991b1b', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer' }}>
                           Disable 2FA
                         </button>
                       </div>
                     )}
 
                     {twoFactorNotice && (
-                      <p
-                        style={{
-                          margin: '12px 0 0 0',
-                          fontSize: '13px',
-                          color: twoFactorNoticeTone === 'success' ? '#166534' : '#b91c1c',
-                          background: twoFactorNoticeTone === 'success' ? '#dcfce7' : '#fee2e2',
-                          border: twoFactorNoticeTone === 'success' ? '1px solid #86efac' : '1px solid #fca5a5',
-                          borderRadius: '10px',
-                          padding: '10px 12px',
-                        }}
-                      >
+                      <p style={{ margin: '12px 0 0 0', fontSize: '13px', color: twoFactorNoticeTone === 'success' ? '#166534' : '#b91c1c' }}>
                         {twoFactorNotice}
                       </p>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                    <button
-                      onClick={handleLogout}
-                      style={{
-                        border: 'none',
-                        background: 'linear-gradient(135deg, #0f172a 0%, #1f2937 100%)',
-                        borderRadius: '10px',
-                        padding: '10px 18px',
-                        color: '#fff',
-                        fontWeight: 800,
-                        letterSpacing: '0.3px',
-                        cursor: 'pointer',
-                        boxShadow: '0 10px 26px rgba(15,23,42,0.28)',
-                      }}
-                    >
-                      Logout
-                    </button>
-                  </div>
+                  <button onClick={handleLogout} style={{ border: 'none', background: '#111827', borderRadius: '10px', padding: '10px 18px', color: '#fff', fontWeight: 800, cursor: 'pointer', width: 'fit-content' }}>
+                    Logout
+                  </button>
                 </div>
               )}
             </section>
@@ -661,14 +833,31 @@ export default function Dashboard() {
   );
 }
 
+const MiniRow = ({ label, value }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid #edf0f5', paddingBottom: '10px' }}>
+    <span style={{ color: '#5f6470', fontSize: '13px' }}>{label}</span>
+    <strong style={{ color: '#111111', fontSize: '13px' }}>{value}</strong>
+  </div>
+);
+
+const InfoBox = ({ number, title }) => (
+  <div style={{ background: '#f1effa', border: '1px solid #ded8f4', borderRadius: '8px', padding: '18px' }}>
+    <p style={{ margin: 0, color: '#7260B4', fontWeight: 900, fontSize: '22px' }}>{number}</p>
+    <p style={{ margin: '6px 0 0', color: '#111111', fontWeight: 800, fontSize: '14px' }}>{title}</p>
+  </div>
+);
+
+const ProfileInfo = ({ label, value }) => (
+  <div style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
+    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>{label}</p>
+    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827', textTransform: label === 'Role' ? 'capitalize' : 'none' }}>{value}</p>
+  </div>
+);
+
 const Field = ({ label, value, onChange }) => (
   <label style={{ display: 'grid', gap: '6px' }}>
     <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: 600 }}>{label}</span>
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#111827', outline: 'none' }}
-    />
+    <input value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
   </label>
 );
 
@@ -679,8 +868,8 @@ const ProfileTabButton = ({ active, onClick, icon, label }) => (
       width: '100%',
       border: active ? 'none' : '1px solid #e5e7eb',
       borderRadius: '10px',
-      background: active ? '#BF932A' : '#ffffff',
-      color: active ? '#111827' : '#374151',
+      background: active ? '#7260B4' : '#ffffff',
+      color: active ? '#ffffff' : '#374151',
       padding: '10px 12px',
       marginBottom: '8px',
       display: 'flex',
@@ -695,3 +884,13 @@ const ProfileTabButton = ({ active, onClick, icon, label }) => (
     <span>{label}</span>
   </button>
 );
+
+const inputStyle = {
+  border: '1px solid #d1d5db',
+  borderRadius: '10px',
+  padding: '10px 12px',
+  fontSize: '14px',
+  color: '#111827',
+  outline: 'none',
+  background: '#fff',
+};
