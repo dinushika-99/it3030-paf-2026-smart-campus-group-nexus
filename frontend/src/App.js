@@ -50,10 +50,19 @@ function AppRoutes() {
       } catch {
         setUser(null);
       }
+    } else {
+      setUser(null);
     }
   }, [location.pathname]);
 
-  const hideNavbarPaths = ['/login', '/register', '/auth/github/callback'];
+  const hideNavbarPaths = [
+    '/login',
+    '/register',
+    '/auth/github/callback',
+    '/forgot-password',
+    '/reset-password',
+  ];
+
   const shouldShowNavbar = user && !hideNavbarPaths.includes(location.pathname);
 
   return (
@@ -66,6 +75,8 @@ function AppRoutes() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/github/callback" element={<GithubAuthCallback />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/dashboard" element={<Dashboard />} />
 
@@ -132,8 +143,8 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <Router>
-          <Toaster 
-            position="top-right" 
+          <Toaster
+            position="top-right"
             toastOptions={{
               duration: 4000,
               style: {
@@ -143,71 +154,21 @@ export default function App() {
               success: {
                 duration: 3000,
                 iconTheme: {
-                  primary: '#10b981', // Green checkmark
+                  primary: '#10b981',
                   secondary: '#fff',
                 },
               },
               error: {
                 duration: 4000,
                 iconTheme: {
-                  primary: '#ef4444', // Red X
+                  primary: '#ef4444',
                   secondary: '#fff',
                 },
               },
             }}
           />
 
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/auth/github/callback" element={<GithubAuthCallback />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/facilities" element={<FacilitiesCatalogue />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route
-              path="/home"
-              element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-                  <HomePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/tickets" element={<TicketPage />} />
-            <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
-            <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
-            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
-            <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
-            <Route path="/resources/:id" element={<ResourceDetail />} />
-            <Route path="/admin/resources/new" element={<AdminResourceForm />} />
-            <Route path="/admin/resources/edit/:id" element={<AdminResourceForm />} />
-            <Route
-              path="/bookings/new/:resourceId?"
-              element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-                  <CreateBooking />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bookings/my"
-              element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-                  <MyBookings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bookings/:id"
-              element={
-                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
-                  <BookingDetail />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
+          <AppRoutes />
         </Router>
       </AuthProvider>
     </GoogleOAuthProvider>
