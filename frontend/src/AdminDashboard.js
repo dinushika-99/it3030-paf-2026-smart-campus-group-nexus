@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
 import { getAllResources, deleteResource, formatCategory, formatType } from './lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -1206,6 +1207,13 @@ function AdminResourcesTab({ navigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [showTopUsed, setShowTopUsed] = useState(false);
+  const [topUsedLoading, setTopUsedLoading] = useState(false);
+  const [topUsedError, setTopUsedError] = useState('');
+  const [topUsedResources, setTopUsedResources] = useState([]);
+
+  const [filterCapacity, setFilterCapacity] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -1217,6 +1225,25 @@ function AdminResourcesTab({ navigate }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const filteredResources = useMemo(() => {
+    return resources.filter((r) => {
+      let capacityMatch = true;
+      if (filterCapacity !== 'ALL') {
+        const cap = r.capacity || 0;
+        if (filterCapacity === 'SMALL') capacityMatch = cap < 50;
+        else if (filterCapacity === 'MEDIUM') capacityMatch = cap >= 50 && cap <= 150;
+        else if (filterCapacity === 'LARGE') capacityMatch = cap > 150;
+      }
+
+      let statusMatch = true;
+      if (filterStatus !== 'ALL') {
+        statusMatch = r.status === filterStatus;
+      }
+
+      return capacityMatch && statusMatch;
+    });
+  }, [resources, filterCapacity, filterStatus]);
 
   const handleDelete = async (id, name) => {
     if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
@@ -1233,14 +1260,237 @@ function AdminResourcesTab({ navigate }) {
 
   const statusColor = (s) => s === 'ACTIVE' ? '#22c55e' : '#ef4444';
 
+  const extractBookingRows = (response) => {
+    if (Array.isArray(response?.data?.data)) return response.data.data;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response)) return response;
+    return [];
+  };
+
+  const loadTopUsedResources = useCallback(async () => {
+    setTopUsedLoading(true);
+    setTopUsedError('');
+
+    try {
+      const response = await api.get('/api/bookings/all');
+      const bookings = extractBookingRows(response);
+      const usageMap = new Map();
+
+      bookings.forEach((booking) => {
+        const resourceId = booking?.resourcesId;
+        if (resourceId === null || resourceId === undefined) return;
+
+        const key = String(resourceId);
+        const status = String(booking?.status || 'UNKNOWN').toUpperCase();
+        const createdAt = booking?.createdAt ? new Date(booking.createdAt) : null;
+
+        if (!usageMap.has(key)) {
+          usageMap.set(key, {
+            resourcesId: resourceId,
+            resourceName: booking?.resourceName || `Resource #${resourceId}`,
+            total: 0,
+            approved: 0,
+            pending: 0,
+            rejected: 0,
+            cancelled: 0,
+            latestBookingAt: createdAt,
+          });
+        }
+
+        const row = usageMap.get(key);
+        row.total += 1;
+        if (status === 'APPROVED') row.approved += 1;
+        if (status === 'PENDING') row.pending += 1;
+        if (status === 'REJECTED') row.rejected += 1;
+        if (status === 'CANCELLED') row.cancelled += 1;
+
+        if (createdAt && (!row.latestBookingAt || createdAt > row.latestBookingAt)) {
+          row.latestBookingAt = createdAt;
+        }
+      });
+
+      const ranked = Array.from(usageMap.values())
+        .sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          const bTime = b.latestBookingAt ? b.latestBookingAt.getTime() : 0;
+          const aTime = a.latestBookingAt ? a.latestBookingAt.getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 5);
+
+      setTopUsedResources(ranked);
+    } catch {
+      setTopUsedError('Failed to load top used resources. Make sure you are logged in as admin.');
+    } finally {
+      setTopUsedLoading(false);
+    }
+  }, []);
+
+  const handleTopUsedToggle = async () => {
+    if (showTopUsed) {
+      setShowTopUsed(false);
+      return;
+    }
+
+    setShowTopUsed(true);
+    await loadTopUsedResources();
+  };
+
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', border: '1px solid #1f2937', borderRadius: '12px', backgroundColor: '#111827', flexWrap: 'wrap', marginBottom: '4px', alignItems: 'center' }}>
+        <button
+          type="button"
+          style={{
+            border: '1px solid #BF932A',
+            background: 'rgba(191,147,42,0.18)',
+            color: '#FDE68A',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'default',
+          }}
+        >
+          Resource Manager
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/facilities')}
+          style={{
+            border: '1px solid #334155',
+            background: '#0f172a',
+            color: '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Facilities Catalogue
+        </button>
+        <button
+          type="button"
+          onClick={handleTopUsedToggle}
+          style={{
+            border: showTopUsed ? '1px solid #BF932A' : '1px solid #334155',
+            background: showTopUsed ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: showTopUsed ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Top Used Resources
+        </button>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
+          <div style={{ width: '160px' }}>
+            <Select value={filterCapacity} onValueChange={setFilterCapacity}>
+              <SelectTrigger style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '999px', height: '34px', fontSize: '12px', fontWeight: 600 }}>
+                <SelectValue placeholder="All Capacities" />
+              </SelectTrigger>
+              <SelectContent style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '12px' }}>
+                <SelectItem value="ALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">All Capacities</SelectItem>
+                <SelectItem value="SMALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Small (&lt; 50)</SelectItem>
+                <SelectItem value="MEDIUM" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Medium (50-150)</SelectItem>
+                <SelectItem value="LARGE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Large (&gt; 150)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div style={{ width: '150px' }}>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '999px', height: '34px', fontSize: '12px', fontWeight: 600 }}>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent style={{ background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155', borderRadius: '12px' }}>
+                <SelectItem value="ALL" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">All Statuses</SelectItem>
+                <SelectItem value="ACTIVE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Active</SelectItem>
+                <SelectItem value="OUT_OF_SERVICE" className="focus:bg-[#1f2937] focus:text-white hover:bg-[#1f2937] cursor-pointer rounded-lg">Out Of Service</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {showTopUsed && (
+        <div style={{ ...CARD_STYLE, border: '1px solid #3f2f0c', background: 'linear-gradient(145deg, #18181b, #0f172a)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, color: '#FDE68A' }}>Top Used Resources</h3>
+              <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '13px' }}>
+                Ranked by total booking usage for innovation insights.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadTopUsedResources}
+              disabled={topUsedLoading}
+              style={{
+                border: '1px solid #334155',
+                background: '#0b1220',
+                color: topUsedLoading ? '#64748b' : '#cbd5e1',
+                borderRadius: '8px',
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: topUsedLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {topUsedLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+
+          {topUsedLoading && <p style={{ margin: 0, color: '#94a3b8' }}>Loading usage insights...</p>}
+
+          {!topUsedLoading && topUsedError && (
+            <p style={{ margin: 0, color: '#fca5a5' }}>{topUsedError}</p>
+          )}
+
+          {!topUsedLoading && !topUsedError && topUsedResources.length === 0 && (
+            <p style={{ margin: 0, color: '#9ca3af' }}>No booking usage data available yet.</p>
+          )}
+
+          {!topUsedLoading && !topUsedError && topUsedResources.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    {['Rank', 'Resource', 'Total', 'Approved', 'Pending', 'Rejected', 'Cancelled'].map((h) => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: '#9ca3af', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {topUsedResources.map((item, idx) => (
+                    <tr key={item.resourcesId} style={{ borderBottom: '1px solid #1f2937' }}>
+                      <td style={{ padding: '10px 12px', color: '#FDE68A', fontWeight: 700 }}>#{idx + 1}</td>
+                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{item.resourceName}</td>
+                      <td style={{ padding: '10px 12px', color: '#e5e7eb' }}>{item.total}</td>
+                      <td style={{ padding: '10px 12px', color: '#86efac' }}>{item.approved}</td>
+                      <td style={{ padding: '10px 12px', color: '#fde68a' }}>{item.pending}</td>
+                      <td style={{ padding: '10px 12px', color: '#fca5a5' }}>{item.rejected}</td>
+                      <td style={{ padding: '10px 12px', color: '#fda4af' }}>{item.cancelled}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h3 style={{ margin: 0, color: '#fff', fontSize: '18px' }}>All Resources</h3>
           <p style={{ margin: '4px 0 0 0', color: '#9ca3af', fontSize: '13px' }}>
-            {loading ? 'Loading...' : `${resources.length} resource${resources.length !== 1 ? 's' : ''} found`}
+            {loading ? 'Loading...' : `${filteredResources.length} resource${filteredResources.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
         <button
@@ -1270,14 +1520,14 @@ function AdminResourcesTab({ navigate }) {
       )}
 
       {/* Empty */}
-      {!loading && !error && resources.length === 0 && (
+      {!loading && !error && filteredResources.length === 0 && (
         <div style={{ ...CARD_STYLE, textAlign: 'center', padding: '40px' }}>
-          <p style={{ color: '#9ca3af', margin: 0 }}>No resources yet. Add your first one above.</p>
+          <p style={{ color: '#9ca3af', margin: 0 }}>No resources found matching the criteria.</p>
         </div>
       )}
 
       {/* Resource Table */}
-      {!loading && !error && resources.length > 0 && (
+      {!loading && !error && filteredResources.length > 0 && (
         <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
@@ -1289,7 +1539,7 @@ function AdminResourcesTab({ navigate }) {
                 </tr>
               </thead>
               <tbody>
-                {resources.map((r, idx) => (
+                {filteredResources.map((r, idx) => (
                   <tr
                     key={r.resourcesId}
                     style={{ borderBottom: '1px solid #1f2937', background: idx % 2 === 0 ? '#111827' : '#0f172a', transition: 'background 0.15s' }}
