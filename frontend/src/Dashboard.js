@@ -20,6 +20,11 @@ export default function Dashboard() {
 
   const [user, setUser] = useState(null);
   const [showPasswordCard, setShowPasswordCard] = useState(false);
+  const [passwordVisibility, setPasswordVisibility] = useState({
+    currentPassword: false,
+    newPassword: false,
+    confirmPassword: false,
+  });
   const [studentStats, setStudentStats] = useState({
     resources: 0,
     bookings: 0,
@@ -91,6 +96,16 @@ export default function Dashboard() {
     }
   }, [profileOpen, profileTab]);
 
+  const togglePasswordVisibility = (field) => {
+    setPasswordVisibility((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
+
+  // ==========================================
+  // 🎓 STUDENT VIEW
+  // ==========================================
   useEffect(() => {
     if (!user || user.role !== 'student') {
       return;
@@ -841,6 +856,34 @@ export default function Dashboard() {
                     {showPasswordCard && (
                       <div style={{ marginTop: '12px', border: '1px solid #dbe4ef', borderRadius: '14px', background: '#f8fafc', padding: '14px' }}>
                         <div style={{ display: 'grid', gap: '10px' }}>
+                          <input
+                            type={passwordVisibility.currentPassword ? 'text' : 'password'}
+                            value={passwordForm.currentPassword}
+                            onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
+                            placeholder="Current password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility('currentPassword')}
+                            style={{ justifySelf: 'end', border: 'none', background: 'transparent', color: '#475569', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '-6px' }}
+                          >
+                            {passwordVisibility.currentPassword ? 'Hide' : 'Show'} current password
+                          </button>
+                          <input
+                            type={passwordVisibility.newPassword ? 'text' : 'password'}
+                            value={passwordForm.newPassword}
+                            onChange={(e) => handlePasswordField('newPassword', e.target.value)}
+                            placeholder="New password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility('newPassword')}
+                            style={{ justifySelf: 'end', border: 'none', background: 'transparent', color: '#475569', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '-6px' }}
+                          >
+                            {passwordVisibility.newPassword ? 'Hide' : 'Show'} new password
+                          </button>
                           <input type="password" value={passwordForm.currentPassword} onChange={(e) => handlePasswordField('currentPassword', e.target.value)} placeholder="Current password" style={inputStyle} />
                           <input type="password" value={passwordForm.newPassword} onChange={(e) => handlePasswordField('newPassword', e.target.value)} placeholder="New password" style={inputStyle} />
 
@@ -853,6 +896,25 @@ export default function Dashboard() {
                                 Password strength: <span style={{ fontWeight: 700, color: passwordStrength.tone }}>{passwordStrength.label}</span>
                               </p>
                             </div>
+                          )}
+                          <input
+                            type={passwordVisibility.confirmPassword ? 'text' : 'password'}
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
+                            placeholder="Confirm new password"
+                            style={{ border: '1px solid #d1d5db', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', background: '#fff' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => togglePasswordVisibility('confirmPassword')}
+                            style={{ justifySelf: 'end', border: 'none', background: 'transparent', color: '#475569', fontSize: '12px', fontWeight: 700, cursor: 'pointer', marginTop: '-6px' }}
+                          >
+                            {passwordVisibility.confirmPassword ? 'Hide' : 'Show'} confirm password
+                          </button>
+                          {passwordForm.confirmPassword && (
+                            <p style={{ margin: 0, fontSize: '12px', color: passwordForm.newPassword === passwordForm.confirmPassword ? '#166534' : '#b91c1c' }}>
+                              {passwordForm.newPassword === passwordForm.confirmPassword ? 'Passwords match.' : 'Passwords do not match yet.'}
+                            </p>
                           )}
 
                           <input type="password" value={passwordForm.confirmPassword} onChange={(e) => handlePasswordField('confirmPassword', e.target.value)} placeholder="Confirm new password" style={inputStyle} />

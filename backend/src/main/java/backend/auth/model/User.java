@@ -2,11 +2,15 @@ package backend.auth.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
+import java.security.SecureRandom;
+import java.util.Base64;
 
 @Entity
 @Table(name = "users")
 public class User {
+
+    private static final SecureRandom ID_RANDOM = new SecureRandom();
+    private static final Base64.Encoder ID_ENCODER = Base64.getUrlEncoder().withoutPadding();
 
     @Id
     @Column(name = "user_id", nullable = false, updatable = false, length = 255)
@@ -200,7 +204,7 @@ public class User {
     @PrePersist
     public void onPrePersist() {
         if (user_id == null || user_id.isBlank()) {
-            user_id = UUID.randomUUID().toString();
+            user_id = generateShortUserId();
         }
         if (authProvider == null) {
             authProvider = AuthProvider.LOCAL;
@@ -211,6 +215,12 @@ public class User {
         if (twoFactorEnabled == null) {
             twoFactorEnabled = false;
         }
+    }
+
+    private static String generateShortUserId() {
+        byte[] randomBytes = new byte[9];
+        ID_RANDOM.nextBytes(randomBytes);
+        return "usr_" + ID_ENCODER.encodeToString(randomBytes);
     }
 }
 

@@ -515,7 +515,7 @@ public class BookingServiceImpl implements BookingServices {
             response.setUserRole("UNKNOWN");
         }
     
-        // Fetch Resource Name
+        // Fetch Resource Name and Category
         try {
             if (booking.getResourcesId() != null) {
                 Optional<Resource> resourceOpt = resourceRepository.findById(booking.getResourcesId());
@@ -525,13 +525,56 @@ public class BookingServiceImpl implements BookingServices {
                     if (resourceName == null || resourceName.trim().isEmpty()) {
                         resourceName = resource.getRoomNumber();
                     }
+                    
                     response.setResourceName(resourceName != null && !resourceName.trim().isEmpty() ? resourceName : "Resource #" + booking.getResourcesId());
+                    
+                    // SET RESOURCE CATEGORY
+                    if (resource.getCategory() != null) {
+                        response.setResourceCategory(resource.getCategory().name()); // Convert Enum to String
+                    } else {
+                        response.setResourceCategory("N/A");
+                    }
+                
                 } else {
                     response.setResourceName("Resource #" + booking.getResourcesId());
                 }
             }
         } catch (Exception e) {
             response.setResourceName("Resource #" + booking.getResourcesId());
+        }
+        
+        // Fetch Approved By User Name
+        try {
+            if (booking.getApprovedByUserId() != null) {
+                Optional<User> approverOpt = userRepository.findById(booking.getApprovedByUserId());
+                if (approverOpt.isPresent()) {
+                    User approver = approverOpt.get();
+                    String approverName = approver.getName();
+                    if (approverName == null || approverName.trim().isEmpty()) {
+                        approverName = approver.getEmail();
+                    }
+                    response.setApprovedByUserName(approverName != null && !approverName.trim().isEmpty() ? approverName : "Unknown Admin");
+                }
+            }
+        } catch (Exception e) {
+            // Name remains null if lookup fails
+        }
+        
+        // Fetch Cancelled By User Name
+        try {
+            if (booking.getCancelledByUserId() != null) {
+                Optional<User> cancellerOpt = userRepository.findById(booking.getCancelledByUserId());
+                if (cancellerOpt.isPresent()) {
+                    User canceller = cancellerOpt.get();
+                    String cancellerName = canceller.getName();
+                    if (cancellerName == null || cancellerName.trim().isEmpty()) {
+                        cancellerName = canceller.getEmail();
+                    }
+                    response.setCancelledByUserName(cancellerName != null && !cancellerName.trim().isEmpty() ? cancellerName : "Unknown Admin");
+                }
+            }
+        } catch (Exception e) {
+            // Name remains null if lookup fails
         }
         
         return response;

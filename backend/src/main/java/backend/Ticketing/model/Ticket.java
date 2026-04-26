@@ -1,4 +1,5 @@
 package backend.Ticketing.model;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -66,17 +67,13 @@ public class Ticket {
     @Column(columnDefinition = "TEXT")
     private String resolutionNotes;
 
-    
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime resolvedAt;
     private LocalDateTime closedAt;
 
-
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
-
 
     @PrePersist
     public void prePersist() {

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'r
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider } from './AuthContext';
 import './App.css';
+import { Toaster } from 'react-hot-toast';
 
 import Navbar from './components/Navbar';
 
@@ -11,6 +12,8 @@ import GithubAuthCallback from './GithubAuthCallback';
 import Register from './Register';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import { SITE_BRAND } from './siteConfig';
 
 import TicketPage from './pages/tickets/TicketPage';
@@ -129,7 +132,82 @@ export default function App() {
     <GoogleOAuthProvider clientId={clientId}>
       <AuthProvider>
         <Router>
-          <AppRoutes />
+          <Toaster 
+            position="top-right" 
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+              },
+              success: {
+                duration: 3000,
+                iconTheme: {
+                  primary: '#10b981', // Green checkmark
+                  secondary: '#fff',
+                },
+              },
+              error: {
+                duration: 4000,
+                iconTheme: {
+                  primary: '#ef4444', // Red X
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
+
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/auth/github/callback" element={<GithubAuthCallback />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/facilities" element={<FacilitiesCatalogue />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <HomePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/tickets" element={<TicketPage />} />
+            <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
+            <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
+            <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
+            <Route path="/resources/:id" element={<ResourceDetail />} />
+            <Route path="/admin/resources/new" element={<AdminResourceForm />} />
+            <Route path="/admin/resources/edit/:id" element={<AdminResourceForm />} />
+            <Route
+              path="/bookings/new/:resourceId?"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <CreateBooking />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bookings/my"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <MyBookings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bookings/:id"
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <BookingDetail />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
         </Router>
       </AuthProvider>
     </GoogleOAuthProvider>
