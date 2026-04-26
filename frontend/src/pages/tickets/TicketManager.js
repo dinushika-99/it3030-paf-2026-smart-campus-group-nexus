@@ -39,7 +39,6 @@ function toPayload(form, editingTicket) {
     category: form.category.trim(),
     description: form.description.trim(),
     priority: form.priority,
-    // New tickets must always start in OPEN; edits preserve current status.
     status: editingTicket?.status || 'OPEN',
     preferredContactName: form.preferredContactName.trim(),
     preferredContactEmail: form.preferredContactEmail.trim(),
@@ -51,6 +50,7 @@ function toPayload(form, editingTicket) {
 
 export default function TicketManager({ user, initialRoomId = '' }) {
   const navigate = useNavigate();
+
   const [tickets, setTickets] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -79,10 +79,17 @@ export default function TicketManager({ user, initialRoomId = '' }) {
   const submitLabel = useMemo(() => (editingId ? 'Update Ticket' : 'Create Ticket'), [editingId]);
   const currentUserId = user?.id || user?.userId || '';
 
+  const ticketStats = useMemo(() => {
+    const total = tickets.length;
+    const open = tickets.filter((ticket) => String(ticket.status || '').toUpperCase() === 'OPEN').length;
+    const progress = tickets.filter((ticket) => String(ticket.status || '').toUpperCase() === 'IN_PROGRESS').length;
+    const resolved = tickets.filter((ticket) => String(ticket.status || '').toUpperCase() === 'RESOLVED').length;
+
+    return { total, open, progress, resolved };
+  }, [tickets]);
+
   const isLockedTicket = (ticket) => {
-    if (!ticket) {
-      return false;
-    }
+    if (!ticket) return false;
     const isAdmin = String(user?.role || '').toUpperCase() === 'ADMIN';
     return !isAdmin && Boolean(String(ticket.assignedTechnicianId || '').trim());
   };
@@ -90,6 +97,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
   const fetchTickets = async () => {
     setIsLoading(true);
     setError('');
+
     try {
       const response = await api.get(API_BASE);
       const data = response.data;
@@ -118,12 +126,12 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   const fetchResourceOptions = async () => {
     setIsLoadingResources(true);
+
     try {
       const response = await api.get(RESOURCE_OPTIONS_API);
       const data = Array.isArray(response?.data) ? response.data : [];
       setResourceOptions(data);
     } catch {
-      // Keep ticket flow usable even if dropdown source fails temporarily.
       setResourceOptions([]);
     } finally {
       setIsLoadingResources(false);
@@ -154,7 +162,12 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   const applyQrRoomToForm = useCallback((lookup) => {
     setForm((prev) => {
-      const nextTitle = prev.title.trim() ? prev.title : (lookup.resourceName ? `Issue with ${lookup.resourceName}` : prev.title);
+      const nextTitle = prev.title.trim()
+        ? prev.title
+        : lookup.resourceName
+          ? `Issue with ${lookup.resourceName}`
+          : prev.title;
+
       return {
         ...prev,
         resourceId: lookup.resourceId ? String(lookup.resourceId) : prev.resourceId,
@@ -167,6 +180,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   const resolveQrRoom = useCallback(async (sourceRoomId) => {
     const normalized = extractRoomId(sourceRoomId);
+
     if (!normalized) {
       setError('Enter a room ID or QR URL first.');
       return;
@@ -195,29 +209,25 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   const stopScanner = useCallback(async () => {
     const scanner = qrScannerRef.current;
-    if (!scanner) {
-      return;
-    }
+    if (!scanner) return;
 
     try {
       await scanner.stop();
     } catch {
-      // Ignore stop errors when scanner has not started yet.
+      // ignore
     }
 
     try {
       await scanner.clear();
     } catch {
-      // Ignore clear errors if reader container is already detached.
+      // ignore
     }
 
     qrScannerRef.current = null;
   }, []);
 
   useEffect(() => {
-    if (!isScannerOpen) {
-      return undefined;
-    }
+    if (!isScannerOpen) return undefined;
 
     let active = true;
 
@@ -230,6 +240,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
         qrScannerRef.current = scanner;
 
         const cameras = await Html5Qrcode.getCameras();
+
         if (!active) {
           await stopScanner();
           return;
@@ -244,23 +255,16 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
         await scanner.start(
           cameraId,
-          {
-            fps: 10,
-            qrbox: { width: 240, height: 240 },
-          },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
           (decodedText) => {
-            if (!active) {
-              return;
-            }
+            if (!active) return;
 
             setScannerMessage('QR detected. Resolving room...');
             setQrRoomId(decodedText);
             setIsScannerOpen(false);
             resolveQrRoom(decodedText);
           },
-          () => {
-            // Ignore noisy scan failures while camera is searching.
-          }
+          () => {}
         );
 
         if (active) {
@@ -282,9 +286,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   useEffect(() => {
     const normalized = extractRoomId(initialRoomId);
-    if (!normalized) {
-      return;
-    }
+    if (!normalized) return;
 
     setQrRoomId(normalized);
     resolveQrRoom(normalized);
@@ -299,6 +301,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   useEffect(() => {
     const description = String(form.description || '').trim();
+
     if (!description) {
       setSuggestedPriority('MEDIUM');
       setSuggestionReason('');
@@ -308,6 +311,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
     const timeoutId = window.setTimeout(async () => {
       setIsSuggestingPriority(true);
+
       try {
         const response = await api.post(PRIORITY_SUGGESTION_API, {
           description: form.description,
@@ -379,8 +383,8 @@ export default function TicketManager({ user, initialRoomId = '' }) {
       }
 
       const nextTitle = prev.title.trim() ? prev.title : `Issue with ${selectedResource.name}`;
-      const nextCategory = prev.category.trim() ? prev.category : (selectedResource.category || '');
-      const nextLocation = prev.locationId.trim() ? prev.locationId : (selectedResource.location || '');
+      const nextCategory = prev.category.trim() ? prev.category : selectedResource.category || '';
+      const nextLocation = prev.locationId.trim() ? prev.locationId : selectedResource.location || '';
 
       return {
         ...prev,
@@ -403,13 +407,12 @@ export default function TicketManager({ user, initialRoomId = '' }) {
     const files = Array.from(event.target.files || []);
     event.target.value = '';
 
-    if (files.length === 0) {
-      return;
-    }
+    if (files.length === 0) return;
 
     setError('');
 
     const availableSlots = MAX_ATTACHMENTS - selectedImages.length;
+
     if (availableSlots <= 0) {
       setError('Maximum 3 images allowed. Remove one to add another.');
       return;
@@ -418,11 +421,10 @@ export default function TicketManager({ user, initialRoomId = '' }) {
     const nextImages = [];
 
     for (const file of files) {
-      if (nextImages.length >= availableSlots) {
-        break;
-      }
+      if (nextImages.length >= availableSlots) break;
 
       const type = (file.type || '').toLowerCase();
+
       if (!ALLOWED_ATTACHMENT_TYPES.includes(type)) {
         setError('Only JPG, JPEG, PNG, and WEBP images are allowed.');
         continue;
@@ -440,9 +442,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
       });
     }
 
-    if (nextImages.length === 0) {
-      return;
-    }
+    if (nextImages.length === 0) return;
 
     setSelectedImages((prev) => [...prev, ...nextImages]);
   };
@@ -450,9 +450,11 @@ export default function TicketManager({ user, initialRoomId = '' }) {
   const removeSelectedImage = (imageId) => {
     setSelectedImages((prev) => {
       const target = prev.find((image) => image.id === imageId);
+
       if (target) {
         URL.revokeObjectURL(target.previewUrl);
       }
+
       return prev.filter((image) => image.id !== imageId);
     });
   };
@@ -482,7 +484,9 @@ export default function TicketManager({ user, initialRoomId = '' }) {
       const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
       const payload = toPayload(form, editingTicket);
       const endpoint = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+
       let ticketResponse;
+
       if (editingId) {
         ticketResponse = await api.put(endpoint, payload);
       } else {
@@ -498,6 +502,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
         if (!targetTicketId) {
           throw new Error('Ticket created but attachment upload could not start (missing ticket ID).');
         }
+
         if (!uploadedByUserId) {
           throw new Error('Ticket created but attachment upload failed (missing user ID).');
         }
@@ -535,6 +540,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
     setIsPriorityManuallyOverridden(true);
     resetSelectedImages();
     await fetchAttachmentsForTicket(ticket.ticketId);
+
     setForm({
       title: ticket.title || '',
       category: ticket.category || '',
@@ -546,31 +552,35 @@ export default function TicketManager({ user, initialRoomId = '' }) {
       resourceId: String(ticket.resourceId ?? ''),
       locationId: String(ticket.locationId ?? ''),
     });
+
     setMessage('');
     setError('');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (ticketId) => {
     const targetTicket = tickets.find((ticket) => String(ticket.ticketId) === String(ticketId));
+
     if (isLockedTicket(targetTicket)) {
       setError('Assigned tickets are view-only. You cannot edit or delete this ticket.');
       return;
     }
 
     const confirmed = window.confirm('Delete this ticket?');
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setMessage('');
     setError('');
+
     try {
       await api.delete(`${API_BASE}/${ticketId}`);
-
       setMessage('Ticket deleted successfully.');
+
       if (editingId === ticketId) {
         resetForm();
       }
+
       await fetchTickets();
     } catch (deleteError) {
       setError(deleteError.response?.data?.error || deleteError.message || 'Delete request failed.');
@@ -578,16 +588,13 @@ export default function TicketManager({ user, initialRoomId = '' }) {
   };
 
   const handleDeleteAttachment = async (attachmentId) => {
-    if (!editingId) {
-      return;
-    }
+    if (!editingId) return;
 
     const confirmed = window.confirm('Delete this attachment?');
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     setError('');
+
     try {
       await api.delete(`${API_BASE}/attachments/${attachmentId}`);
       await fetchAttachmentsForTicket(editingId);
@@ -601,191 +608,282 @@ export default function TicketManager({ user, initialRoomId = '' }) {
     navigate(`/tickets/${ticketId}`);
   };
 
+  const shortText = (text, max = 90) => {
+    const value = String(text || '');
+    return value.length > max ? `${value.slice(0, max)}...` : value;
+  };
+
   return (
-    <section className="ticket-manager">
-      <h3 className="ticket-manager-title">Ticket Management</h3>
-      <p className="ticket-manager-subtitle">Create, view, update, and delete support tickets.</p>
-
-      <form className="ticket-form" onSubmit={handleSubmit}>
-        <div className="ticket-form-row qr-row">
-          <input
-            name="qrRoomId"
-            value={qrRoomId}
-            onChange={(event) => setQrRoomId(event.target.value)}
-            placeholder="Scan QR URL or enter Room ID (e.g., LAB-201)"
-          />
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => resolveQrRoom(qrRoomId)}
-            disabled={isResolvingQrRoom}
-          >
-            {isResolvingQrRoom ? 'Resolving...' : 'Resolve QR Room'}
-          </button>
+    <section className="ticket-manager ticket-two-column-page">
+      <div className="ticket-page-top">
+        <div>
+          <h3 className="ticket-manager-title">Ticket Management</h3>
+          <p className="ticket-manager-subtitle">
+            Create tickets from the left side and view ticket details from the right side.
+          </p>
         </div>
 
-        <div className="qr-scanner-action-row">
-          <button
-            type="button"
-            className="btn-view"
-            onClick={() => {
-              setScannerError('');
-              setScannerMessage('');
-              setIsScannerOpen((prev) => !prev);
-            }}
-          >
-            {isScannerOpen ? 'Close Camera Scanner' : 'Open Camera Scanner'}
-          </button>
-        </div>
+        <button type="button" className="ticket-nav-btn" onClick={fetchTickets}>
+          Refresh
+        </button>
+      </div>
 
-        {isScannerOpen && (
-          <div className="qr-scanner-panel">
-            <div id={QR_READER_ELEMENT_ID} className="qr-reader-box" />
-            {scannerMessage && <p className="ticket-feedback success" style={{ marginTop: '8px' }}>{scannerMessage}</p>}
-            {scannerError && <p className="ticket-feedback error" style={{ marginTop: '8px' }}>{scannerError}</p>}
+      <div className="ticket-top-stats">
+        <div className="ticket-stat-card">
+          <span>Total</span>
+          <strong>{ticketStats.total}</strong>
+        </div>
+        <div className="ticket-stat-card">
+          <span>Open</span>
+          <strong>{ticketStats.open}</strong>
+        </div>
+        <div className="ticket-stat-card">
+          <span>Progress</span>
+          <strong>{ticketStats.progress}</strong>
+        </div>
+        <div className="ticket-stat-card">
+          <span>Resolved</span>
+          <strong>{ticketStats.resolved}</strong>
+        </div>
+      </div>
+
+      {message && <p className="ticket-feedback success">{message}</p>}
+      {error && <p className="ticket-feedback error">{error}</p>}
+
+      <div className="ticket-split-layout">
+        <div className="ticket-create-column">
+          <div className="ticket-panel-heading">
+            <h2>{editingId ? 'Update Ticket' : 'Create Ticket'}</h2>
+            <p>
+              Fill the issue details clearly. Attach photos if needed and submit your request.
+            </p>
           </div>
-        )}
 
-        {qrLookupMessage && <p className="ticket-feedback success">{qrLookupMessage}</p>}
+          <form className="ticket-form" onSubmit={handleSubmit}>
+            <div className="ticket-form-row qr-row">
+              <input
+                name="qrRoomId"
+                value={qrRoomId}
+                onChange={(event) => setQrRoomId(event.target.value)}
+                placeholder="Scan QR URL or enter Room ID"
+              />
 
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Title"
-          list="ticket-title-suggestions"
-          required
-        />
-        <datalist id="ticket-title-suggestions">
-          {titleSuggestions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-        <input
-          name="category"
-          value={form.category}
-          onChange={handleChange}
-          placeholder="Category"
-          list="ticket-category-options"
-          required
-        />
-        <datalist id="ticket-category-options">
-          {categoryOptions.map((item) => (
-            <option key={item} value={item} />
-          ))}
-        </datalist>
-        <textarea
-          name="description"
-          value={form.description}
-          onChange={handleChange}
-          placeholder="Description"
-          rows={3}
-          required
-        />
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => resolveQrRoom(qrRoomId)}
+                disabled={isResolvingQrRoom}
+              >
+                {isResolvingQrRoom ? 'Resolving...' : 'Resolve'}
+              </button>
+            </div>
 
-        <div className="ticket-form-row">
-          <select name="priority" value={form.priority} onChange={handleChange}>
-            {PRIORITY_OPTIONS.map((priority) => (
-              <option key={priority} value={priority}>
-                {priority}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div className="qr-scanner-action-row">
+              <button
+                type="button"
+                className="btn-view"
+                onClick={() => {
+                  setScannerError('');
+                  setScannerMessage('');
+                  setIsScannerOpen((prev) => !prev);
+                }}
+              >
+                {isScannerOpen ? 'Close Camera Scanner' : 'Open Camera Scanner'}
+              </button>
+            </div>
 
-        {form.description.trim() && (
-          <p className="priority-suggestion-hint">
-            {isSuggestingPriority
-              ? 'Analyzing description for priority suggestion...'
-              : `Suggested priority: ${suggestedPriority}${suggestionReason ? ` (${suggestionReason})` : ''}${isPriorityManuallyOverridden ? ' - manual override enabled' : ''}`}
-          </p>
-        )}
+            {isScannerOpen && (
+              <div className="qr-scanner-panel">
+                <div id={QR_READER_ELEMENT_ID} className="qr-reader-box" />
 
-        <div className="ticket-form-row">
-          <select
-            name="resourceId"
-            value={form.resourceId}
-            onChange={handleResourceChange}
-            disabled={isLoadingResources}
-          >
-            <option value="">Select Resource (optional)</option>
-            {resourceOptions.map((resource) => (
-              <option key={resource.resourceId} value={resource.resourceId}>
-                {resource.name}
-              </option>
-            ))}
-          </select>
-          <input
-            name="locationId"
-            value={form.locationId}
-            onChange={handleChange}
-            placeholder="Location (optional)"
-            type="text"
-            list="ticket-location-options"
-          />
-          <datalist id="ticket-location-options">
-            {locationOptions.map((item) => (
-              <option key={item} value={item} />
-            ))}
-          </datalist>
-        </div>
+                {scannerMessage && (
+                  <p className="ticket-feedback success" style={{ marginTop: '8px' }}>
+                    {scannerMessage}
+                  </p>
+                )}
 
-        <div className="ticket-form-row">
-          <input
-            name="preferredContactName"
-            value={form.preferredContactName}
-            onChange={handleChange}
-            placeholder="Contact Name"
-          />
-          <input
-            name="preferredContactEmail"
-            value={form.preferredContactEmail}
-            onChange={handleChange}
-            placeholder="Contact Email"
-            type="email"
-          />
-        </div>
+                {scannerError && (
+                  <p className="ticket-feedback error" style={{ marginTop: '8px' }}>
+                    {scannerError}
+                  </p>
+                )}
+              </div>
+            )}
 
-        <input
-          name="preferredContactPhone"
-          value={form.preferredContactPhone}
-          onChange={handleChange}
-          placeholder="Contact Phone"
-          required
-        />
+            {qrLookupMessage && <p className="ticket-feedback success">{qrLookupMessage}</p>}
 
-        <div className="attachment-section">
-          <label className="attachment-label" htmlFor="ticket-attachments">
-            {editingId ? 'Add images while editing (optional)' : 'Attach images (optional)'}
-          </label>
-          <input
-            id="ticket-attachments"
-            type="file"
-            accept="image/jpeg,image/png,image/jpg,image/webp"
-            multiple
-            onChange={handleImageSelect}
-          />
-          <p className="attachment-rules">
-            Max 3 images per ticket. Only JPG/PNG/JPEG/WEBP. Max 5MB per image.
-          </p>
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Ticket Title"
+              list="ticket-title-suggestions"
+              required
+            />
 
-          {editingId && (
-            <div className="existing-attachments-wrap">
-              <p className="attachment-label">Existing attachments</p>
-              {editingAttachments.length === 0 ? (
-                <p className="attachment-rules">No attachments uploaded for this ticket yet.</p>
-              ) : (
+            <datalist id="ticket-title-suggestions">
+              {titleSuggestions.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+
+            <div className="ticket-form-row">
+              <input
+                name="category"
+                value={form.category}
+                onChange={handleChange}
+                placeholder="Category"
+                list="ticket-category-options"
+                required
+              />
+
+              <select name="priority" value={form.priority} onChange={handleChange}>
+                {PRIORITY_OPTIONS.map((priority) => (
+                  <option key={priority} value={priority}>
+                    {priority}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <datalist id="ticket-category-options">
+              {categoryOptions.map((item) => (
+                <option key={item} value={item} />
+              ))}
+            </datalist>
+
+            <textarea
+              name="description"
+              value={form.description}
+              onChange={handleChange}
+              placeholder="Describe the problem"
+              rows={4}
+              required
+            />
+
+            {form.description.trim() && (
+              <p className="priority-suggestion-hint">
+                {isSuggestingPriority
+                  ? 'Analyzing description for priority suggestion...'
+                  : `Suggested priority: ${suggestedPriority}${suggestionReason ? ` (${suggestionReason})` : ''}${isPriorityManuallyOverridden ? ' - manual override enabled' : ''}`}
+              </p>
+            )}
+
+            <div className="ticket-form-row">
+              <select
+                name="resourceId"
+                value={form.resourceId}
+                onChange={handleResourceChange}
+                disabled={isLoadingResources}
+              >
+                <option value="">Select Resource Optional</option>
+                {resourceOptions.map((resource) => (
+                  <option key={resource.resourceId} value={resource.resourceId}>
+                    {resource.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                name="locationId"
+                value={form.locationId}
+                onChange={handleChange}
+                placeholder="Location optional"
+                type="text"
+                list="ticket-location-options"
+              />
+
+              <datalist id="ticket-location-options">
+                {locationOptions.map((item) => (
+                  <option key={item} value={item} />
+                ))}
+              </datalist>
+            </div>
+
+            <input
+              name="preferredContactName"
+              value={form.preferredContactName}
+              onChange={handleChange}
+              placeholder="Contact Name"
+            />
+
+            <div className="ticket-form-row">
+              <input
+                name="preferredContactEmail"
+                value={form.preferredContactEmail}
+                onChange={handleChange}
+                placeholder="Contact Email"
+                type="email"
+              />
+
+              <input
+                name="preferredContactPhone"
+                value={form.preferredContactPhone}
+                onChange={handleChange}
+                placeholder="Contact Phone"
+                required
+              />
+            </div>
+
+            <div className="attachment-section">
+              <label className="attachment-label" htmlFor="ticket-attachments">
+                {editingId ? 'Add images while editing optional' : 'Attach images optional'}
+              </label>
+
+              <input
+                id="ticket-attachments"
+                type="file"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
+                multiple
+                onChange={handleImageSelect}
+              />
+
+              <p className="attachment-rules">
+                Max 3 images. JPG, PNG, JPEG, WEBP only. Max 5MB each.
+              </p>
+
+              {editingId && (
+                <div className="existing-attachments-wrap">
+                  <p className="attachment-label">Existing attachments</p>
+
+                  {editingAttachments.length === 0 ? (
+                    <p className="attachment-rules">No attachments uploaded for this ticket yet.</p>
+                  ) : (
+                    <div className="attachment-preview-grid">
+                      {editingAttachments.map((attachment) => (
+                        <div className="attachment-preview-card" key={attachment.attachmentId}>
+                          <div className="attachment-preview-meta">
+                            <span className="attachment-file-name">{attachment.fileName}</span>
+                            <button
+                              type="button"
+                              className="btn-danger attachment-remove-btn"
+                              onClick={() => handleDeleteAttachment(attachment.attachmentId)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedImages.length > 0 && (
                 <div className="attachment-preview-grid">
-                  {editingAttachments.map((attachment) => (
-                    <div className="attachment-preview-card" key={attachment.attachmentId}>
+                  {selectedImages.map((image) => (
+                    <div className="attachment-preview-card" key={image.id}>
+                      <img src={image.previewUrl} alt={image.file.name} className="attachment-preview-image" />
+
                       <div className="attachment-preview-meta">
-                        <span className="attachment-file-name">{attachment.fileName}</span>
+                        <span className="attachment-file-name">{image.file.name}</span>
+
                         <button
                           type="button"
                           className="btn-danger attachment-remove-btn"
-                          onClick={() => handleDeleteAttachment(attachment.attachmentId)}
+                          onClick={() => removeSelectedImage(image.id)}
                         >
-                          Delete
+                          Remove
                         </button>
                       </div>
                     </div>
@@ -793,77 +891,80 @@ export default function TicketManager({ user, initialRoomId = '' }) {
                 </div>
               )}
             </div>
-          )}
 
-          {selectedImages.length > 0 && (
-            <div className="attachment-preview-grid">
-              {selectedImages.map((image) => (
-                <div className="attachment-preview-card" key={image.id}>
-                  <img src={image.previewUrl} alt={image.file.name} className="attachment-preview-image" />
-                  <div className="attachment-preview-meta">
-                    <span className="attachment-file-name">{image.file.name}</span>
-                    <button
-                      type="button"
-                      className="btn-danger attachment-remove-btn"
-                      onClick={() => removeSelectedImage(image.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+            <div className="ticket-action-row">
+              <button type="submit" disabled={isSubmitting || isAttachmentSubmitting}>
+                {isSubmitting || isAttachmentSubmitting ? 'Saving...' : submitLabel}
+              </button>
 
-        <div className="ticket-action-row">
-          <button type="submit" disabled={isSubmitting || isAttachmentSubmitting}>
-            {isSubmitting || isAttachmentSubmitting ? 'Saving...' : submitLabel}
-          </button>
-          {editingId && (
-            <button type="button" className="btn-secondary" onClick={resetForm}>
-              Cancel Edit
-            </button>
-          )}
-        </div>
-      </form>
-
-      {message && <p className="ticket-feedback success">{message}</p>}
-      {error && <p className="ticket-feedback error">{error}</p>}
-
-      <div className="ticket-list-wrap">
-        {isLoading ? (
-          <p>Loading tickets...</p>
-        ) : (
-          <table className="ticket-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Code</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Priority</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tickets.length === 0 && (
-                <tr>
-                  <td colSpan="6">No tickets found.</td>
-                </tr>
+              {editingId && (
+                <button type="button" className="btn-secondary" onClick={resetForm}>
+                  Cancel Edit
+                </button>
               )}
+            </div>
+          </form>
+        </div>
 
+        <div className="ticket-details-column">
+          <div className="ticket-panel-heading">
+            <h2>Ticket Details</h2>
+            <p>
+              Your submitted tickets are shown as compact cards. If space is limited, details are reduced automatically.
+            </p>
+          </div>
+
+          {isLoading ? (
+            <div className="empty-ticket-card">Loading tickets...</div>
+          ) : tickets.length === 0 ? (
+            <div className="empty-ticket-card">No tickets found.</div>
+          ) : (
+            <div className="ticket-detail-card-list">
               {tickets.map((ticket) => (
-                <tr key={ticket.ticketId}>
-                  <td>{ticket.ticketId}</td>
-                  <td>{ticket.ticketCode || '-'}</td>
-                  <td>{ticket.title}</td>
-                  <td>{ticket.status}</td>
-                  <td>{ticket.priority}</td>
-                  <td className="ticket-row-actions">
+                <article className="ticket-detail-card" key={ticket.ticketId}>
+                  <div className="ticket-detail-main">
+                    <div>
+                      <h3>{ticket.title || 'Untitled Ticket'}</h3>
+                      <p className="ticket-id">
+                        #{ticket.ticketId} {ticket.ticketCode ? `• ${ticket.ticketCode}` : ''}
+                      </p>
+                    </div>
+
+                    <div className="ticket-status-stack">
+                      <span className="ticket-pill status-pill">{ticket.status || 'OPEN'}</span>
+                      <span className="ticket-pill priority-pill">{ticket.priority || 'MEDIUM'}</span>
+                    </div>
+                  </div>
+
+                  <p className="ticket-description">{shortText(ticket.description)}</p>
+
+                  <div className="ticket-mini-grid">
+                    <div>
+                      <span>Category</span>
+                      <strong>{ticket.category || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Location</span>
+                      <strong>{ticket.locationId || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Resource</span>
+                      <strong>{ticket.resourceId || '-'}</strong>
+                    </div>
+
+                    <div>
+                      <span>Phone</span>
+                      <strong>{ticket.preferredContactPhone || '-'}</strong>
+                    </div>
+                  </div>
+
+                  <div className="ticket-row-actions ticket-card-actions">
                     <button type="button" className="btn-view" onClick={() => openTicketDetails(ticket.ticketId)}>
                       View
                     </button>
+
                     <button
                       type="button"
                       className="btn-secondary"
@@ -873,6 +974,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
                     >
                       Edit
                     </button>
+
                     <button
                       type="button"
                       className="btn-danger"
@@ -882,12 +984,12 @@ export default function TicketManager({ user, initialRoomId = '' }) {
                     >
                       Delete
                     </button>
-                  </td>
-                </tr>
+                  </div>
+                </article>
               ))}
-            </tbody>
-          </table>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );

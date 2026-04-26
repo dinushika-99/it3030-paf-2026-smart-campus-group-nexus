@@ -1063,6 +1063,8 @@ export default function Dashboard() {
           </div>
         </div>
       </nav>
+    <div style={{ minHeight: '100vh', backgroundColor: COLORS.white, color: COLORS.black, fontFamily: 'system-ui, sans-serif' }}>
+      
 
       <div style={{ padding: "0", width: "100%", margin: 0 }}>
         <header
