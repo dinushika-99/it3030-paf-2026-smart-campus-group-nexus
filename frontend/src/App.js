@@ -63,7 +63,13 @@ function AppRoutes() {
     '/reset-password',
   ];
 
-  const shouldShowNavbar = user && !hideNavbarPaths.includes(location.pathname);
+  // ✅ NEW: hide navbar for all admin routes
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  const shouldShowNavbar =
+    user &&
+    !hideNavbarPaths.includes(location.pathname) &&
+    !isAdminRoute;
 
   return (
     <>
@@ -97,6 +103,7 @@ function AppRoutes() {
 
         <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
 
+        {/* ADMIN ROUTES */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/bookings" element={<AdminBookingsPage />} />
         <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
