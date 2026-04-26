@@ -214,7 +214,7 @@ public class ProfileController {
             }
 
             HttpHeaders headers = new HttpHeaders();
-            headers.setCacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic());
+            headers.setCacheControl(CacheControl.noCache().mustRevalidate());
             headers.setContentType(MediaType.parseMediaType(contentType));
             return new ResponseEntity<>(avatar, headers, HttpStatus.OK);
         } catch (IOException ex) {
