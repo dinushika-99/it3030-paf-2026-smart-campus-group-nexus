@@ -15,11 +15,13 @@ import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.regex.Pattern;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.Pattern;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -348,6 +350,60 @@ public class BookingServiceImpl implements BookingServices {
         response.setCreatedAt(booking.getCreatedAt());
         response.setApprovedAt(booking.getApprovedAt());
         response.setCancelledAt(booking.getCancelledAt());
+        
+        // Fetch and set User name and role
+        try {
+            String lookupUserId = booking.getUserId() != null ? booking.getUserId() : booking.getCreatedByUserId();
+            if (lookupUserId != null) {
+                Optional<User> userOpt = userRepository.findById(lookupUserId);
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    String nameFallback = user.getName();
+                    if (nameFallback == null || nameFallback.trim().isEmpty()) {
+                        nameFallback = user.getEmail();
+                    }
+                    if (nameFallback == null || nameFallback.trim().isEmpty()) {
+                        nameFallback = user.getStudentId();
+                    }
+                    response.setUserName(nameFallback != null && !nameFallback.trim().isEmpty() ? nameFallback : "Unknown User");
+                    response.setUserRole(user.getRole() != null ? user.getRole().name() : "UNKNOWN");
+                } else {
+                    response.setUserName("Unknown User");
+                    response.setUserRole("UNKNOWN");
+                }
+            } else {
+                response.setUserName("Unknown User");
+                response.setUserRole("UNKNOWN");
+            }
+        } catch (Exception e) {
+            response.setUserName("Unknown User");
+            response.setUserRole("UNKNOWN");
+        }
+    
+        // Fetch and set Resource name
+        try {
+            if (booking.getResourcesId() != null) {
+                Optional<Resource> resourceOpt = resourceRepository.findById(booking.getResourcesId());
+                if (resourceOpt.isPresent()) {
+                    Resource resource = resourceOpt.get();
+                    String resourceName = resource.getName();
+                    if (resourceName == null || resourceName.trim().isEmpty()) {
+                        resourceName = resource.getRoomNumber();
+                    }
+                    if (resourceName == null || resourceName.trim().isEmpty()) {
+                        resourceName = resource.getBuilding();
+                    }
+                    response.setResourceName(resourceName != null && !resourceName.trim().isEmpty() ? resourceName : "Resource #" + booking.getResourcesId());
+                } else {
+                    response.setResourceName("Resource #" + booking.getResourcesId());
+                }
+            } else {
+                response.setResourceName("Resource #" + booking.getResourcesId());
+            }
+        } catch (Exception e) {
+            response.setResourceName("Resource #" + booking.getResourcesId());
+        }
+        
         return response;
     }
 
@@ -391,13 +447,60 @@ public class BookingServiceImpl implements BookingServices {
 
     @Override
     public BookingResponseDTO updateBookingStatus(String bookingId, StatusUpdateDTO statusUpdateDTO, String currentUserId, boolean isAdmin) {
-        // ... (keep existing implementation)
-        return null;
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        Booking.BookingStatus currentStatus = booking.getStatus();
+        StatusUpdateDTO.BookingStatus newStatus = statusUpdateDTO.getStatus();
+
+        validateStatusTransition(currentStatus, newStatus, isAdmin);
+
+        booking.setStatus(Booking.BookingStatus.valueOf(newStatus.name()));
+
+        if (newStatus == StatusUpdateDTO.BookingStatus.APPROVED) {
+            booking.setApprovedByUserId(currentUserId);
+            booking.setApprovedAt(LocalDateTime.now());
+            booking.setRejectionReason(null);
+        } else if (newStatus == StatusUpdateDTO.BookingStatus.REJECTED) {
+            String rejectionReason = statusUpdateDTO.getRejectionReason();
+            if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+                throw new IllegalArgumentException("Rejection reason is required when rejecting a booking");
+            }
+            booking.setRejectionReason(rejectionReason.trim());
+            booking.setApprovedByUserId(currentUserId);
+            booking.setApprovedAt(LocalDateTime.now());
+        } else if (newStatus == StatusUpdateDTO.BookingStatus.CANCELLED) {
+            booking.setCancelledByUserId(currentUserId);
+            booking.setCancelledAt(LocalDateTime.now());
+        }
+
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusHistory(savedBooking.getBookingId(), currentStatus.name(), savedBooking.getStatus().name(), currentUserId, "Booking status updated to " + savedBooking.getStatus().name());
+
+        return mapToResponseDTO(savedBooking);
     }
     
     @Override
     public void cancelBooking(String bookingId, String currentUserId) {
-        // ... (keep existing implementation)
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        if (booking.getStatus() == Booking.BookingStatus.CANCELLED || booking.getStatus() == Booking.BookingStatus.REJECTED) {
+            throw new IllegalStateException("Cannot cancel a booking that is already " + booking.getStatus());
+        }
+
+        boolean isOwner = currentUserId != null && currentUserId.equals(booking.getCreatedByUserId());
+        if (!isOwner) {
+            throw new AccessDeniedException("Only the booking owner or an admin can cancel this booking");
+        }
+
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+        booking.setCancelledByUserId(currentUserId);
+        booking.setCancelledAt(LocalDateTime.now());
+        booking.setRejectionReason(null);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusHistory(savedBooking.getBookingId(), booking.getStatus().name(), savedBooking.getStatus().name(), currentUserId, "Booking cancelled by user");
     }
 
     @Override

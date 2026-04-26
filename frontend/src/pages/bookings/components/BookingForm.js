@@ -20,6 +20,10 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
   const [apiError, setApiError] = useState('');
   const [isResourceLocked, setIsResourceLocked] = useState(!!preSelectedResourceId);
   const [resourceInfo, setResourceInfo] = useState(null);
+  
+  // ✅ NEW: Track touched fields and submit attempt
+  const [touched, setTouched] = useState({});
+  const [submitted, setSubmitted] = useState(false);
 
   // Fetch resource info when selected
   useEffect(() => {
@@ -168,15 +172,40 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
       [name]: value
     }));
     
-    // Clear field error when user starts typing
+    // ✅ Mark field as touched when user interacts with it
+    if (!touched[name]) {
+      setTouched(prev => ({ ...prev, [name]: true }));
+    }
+    
+    // Clear field error when user starts typing (only for that field)
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
-    
-    // Re-validate when fields change
-    if (Object.keys(formData).length > 0) {
-      validateForm();
-    }
+  };
+
+  // ✅ NEW: Handle blur event to mark field as touched
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    // Validate this specific field on blur
+    validateForm();
+  };
+
+  // ✅ NEW: Handle submit attempt
+  const handleSubmitAttempt = () => {
+    setSubmitted(true);
+    // Mark all fields as touched
+    const allTouched = {
+      resourcesId: true,
+      bookingDate: true,
+      startTime: true,
+      endTime: true,
+      purpose: true,
+      expectedAttendees: true,
+      quantityRequested: true
+    };
+    setTouched(allTouched);
+    validateForm();
   };
 
   // Check if form is valid for submit button
@@ -193,6 +222,11 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
                : formData.expectedAttendees >= 1 && formData.expectedAttendees <= (selectedResource.capacity || 999))
              : false) &&
            Object.keys(errors).length === 0;
+  };
+
+  // ✅ Helper to determine if error should be shown
+  const shouldShowError = (fieldName) => {
+    return (touched[fieldName] || submitted) && errors[fieldName];
   };
 
   return (
@@ -242,8 +276,9 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
           onResourceChange={(resource) => {
             setSelectedResource(resource);
             setFormData(prev => ({ ...prev, resourcesId: resource.resourcesId }));
+            setTouched(prev => ({ ...prev, resourcesId: true }));
           }}
-          error={errors.resourcesId}
+          error={shouldShowError('resourcesId') ? errors.resourcesId : ''}
           isLocked={isResourceLocked}
           preSelectedResource={selectedResource}
         />
@@ -260,11 +295,18 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
           name="bookingDate"
           value={formData.bookingDate}
           onChange={handleChange}
+          onBlur={handleBlur}  // ✅ Add blur handler
           min={new Date().toISOString().split('T')[0]}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            shouldShowError('bookingDate') 
+              ? 'border-red-500 focus:ring-red-500' 
+              : 'border-gray-300 focus:ring-blue-500'
+          }`}
           required
         />
-        {errors.bookingDate && <p className="text-red-500 text-sm mt-1">{errors.bookingDate}</p>}
+        {shouldShowError('bookingDate') && (
+          <p className="text-red-500 text-sm mt-1">{errors.bookingDate}</p>
+        )}
       </div>
 
       {/* Time Selection */}
@@ -272,10 +314,17 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
         <TimePicker
           startTime={formData.startTime}
           endTime={formData.endTime}
-          onStartTimeChange={(value) => setFormData(prev => ({ ...prev, startTime: value }))}
-          onEndTimeChange={(value) => setFormData(prev => ({ ...prev, endTime: value }))}
-          startTimeError={errors.startTime}
-          endTimeError={errors.endTime}
+          onStartTimeChange={(value) => {
+            setFormData(prev => ({ ...prev, startTime: value }));
+            setTouched(prev => ({ ...prev, startTime: true }));
+          }}
+          onEndTimeChange={(value) => {
+            setFormData(prev => ({ ...prev, endTime: value }));
+            setTouched(prev => ({ ...prev, endTime: true }));
+          }}
+          onBlur={handleBlur}  // ✅ Add blur handler
+          startTimeError={shouldShowError('startTime') ? errors.startTime : ''}
+          endTimeError={shouldShowError('endTime') ? errors.endTime : ''}
           resourceOpenTime={resourceInfo?.dailyOpenTime || '08:00'}
           resourceCloseTime={resourceInfo?.dailyCloseTime || '22:00'}
           maxDurationHours={resourceInfo?.maxBookingDurationHours || 4}
@@ -291,9 +340,14 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
           name="purpose"
           value={formData.purpose}
           onChange={handleChange}
+          onBlur={handleBlur}  // ✅ Add blur handler
           rows="3"
           placeholder="Describe the purpose of your booking (e.g., 'Group project meeting for software development')"
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+            shouldShowError('purpose') 
+              ? 'border-red-500 focus:ring-red-500' 
+              : 'border-gray-300 focus:ring-blue-500'
+          }`}
           maxLength="255"
           required
         />
@@ -303,7 +357,9 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
             <p className="text-xs text-orange-500">Minimum 10 characters required</p>
           )}
         </div>
-        {errors.purpose && <p className="text-red-500 text-sm mt-1">{errors.purpose}</p>}
+        {shouldShowError('purpose') && (
+          <p className="text-red-500 text-sm mt-1">{errors.purpose}</p>
+        )}
       </div>
 
       {/* Attendees or Quantity */}
@@ -317,13 +373,20 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
             name="expectedAttendees"
             value={formData.expectedAttendees}
             onChange={handleChange}
+            onBlur={handleBlur}  // ✅ Add blur handler
             min="1"
             max={selectedResource.capacity || 999}
             placeholder={`Max: ${selectedResource.capacity || 'N/A'}`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              shouldShowError('expectedAttendees') 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             required
           />
-          {errors.expectedAttendees && <p className="text-red-500 text-sm mt-1">{errors.expectedAttendees}</p>}
+          {shouldShowError('expectedAttendees') && (
+            <p className="text-red-500 text-sm mt-1">{errors.expectedAttendees}</p>
+          )}
         </div>
       )}
 
@@ -337,13 +400,20 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
             name="quantityRequested"
             value={formData.quantityRequested}
             onChange={handleChange}
+            onBlur={handleBlur}  // ✅ Add blur handler
             min="1"
             max={selectedResource.maxQuantity || 999}
             placeholder={`Max: ${selectedResource.maxQuantity || 'N/A'}`}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              shouldShowError('quantityRequested') 
+                ? 'border-red-500 focus:ring-red-500' 
+                : 'border-gray-300 focus:ring-blue-500'
+            }`}
             required
           />
-          {errors.quantityRequested && <p className="text-red-500 text-sm mt-1">{errors.quantityRequested}</p>}
+          {shouldShowError('quantityRequested') && (
+            <p className="text-red-500 text-sm mt-1">{errors.quantityRequested}</p>
+          )}
         </div>
       )}
 
@@ -351,6 +421,12 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
       <div className="mt-6">
         <button
           type="button"
+          onClick={() => {
+            handleSubmitAttempt();  // ✅ Mark as submitted and validate all
+            if (isFormValid()) {
+              // Parent will handle actual submission
+            }
+          }}
           disabled={!isFormValid()}
           className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 ${
             isFormValid()

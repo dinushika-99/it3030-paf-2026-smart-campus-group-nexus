@@ -9,6 +9,7 @@ const CreateBooking = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formValidated, setFormValidated] = useState(false);  // ✅ NEW
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -19,14 +20,27 @@ const CreateBooking = () => {
   };
 
   const handleSubmit = async () => {
+    setFormValidated(true);  // ✅ Mark as validated
+    
     if (!formData) return;
+    
+    // Check if form is valid before submitting
+    if (!formData.resourcesId || !formData.bookingDate || !formData.startTime || 
+        !formData.endTime || !formData.purpose) {
+      alert('Please fill all required fields');
+      return;
+    }
     
     setIsSubmitting(true);
     try {
+      const bookingDate = formData.bookingDate;
+      const startDateTime = `${bookingDate}T${formData.startTime}`;
+      const endDateTime = `${bookingDate}T${formData.endTime}`; 
+      
       const bookingData = {
         resourcesId: parseInt(formData.resourcesId),
-        startTime: formData.startTime,
-        endTime: formData.endTime,
+        startTime: startDateTime,
+        endTime: endDateTime,
         purpose: formData.purpose,
         expectedAttendees: formData.selectedResource && 
           ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR']
@@ -44,7 +58,9 @@ const CreateBooking = () => {
       alert('Booking created successfully!');
       navigate('/bookings/my');
     } catch (error) {
-      alert('Error creating booking: ' + error.message);
+      console.error('Full error:', error);
+      console.error('Error response:', error.response?.data);
+      alert('Error creating booking: ' + (error.response?.data?.message || error.message));
     } finally {
       setIsSubmitting(false);
     }

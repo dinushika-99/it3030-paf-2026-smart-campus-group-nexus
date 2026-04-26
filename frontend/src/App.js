@@ -13,6 +13,7 @@ import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
 import AdminTicketManagementPage from './pages/tickets/AdminTicketManagementPage';
+import AdminBookingsPage from './pages/bookings/AdminBookingsPage';
 import AdminResourceForm from './pages/features/AdminResourceForm';
 import ResourceDetail from './pages/features/ResourceDetail';
 import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/tickets/:ticketId" element={<TicketDetailsPage />} />
             <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/bookings" element={<AdminBookingsPage />} />
             <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
             <Route path="/resources/:id" element={<ResourceDetail />} />
             <Route path="/admin/resources/new" element={<AdminResourceForm />} />
