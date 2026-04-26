@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
 import useDashboardProfile from './hooks/useDashboardProfile';
+import api from './api/axiosClient';
 
 const COLORS = {
   white: '#FFFFFF',
   bg: '#E9EEF4',
-  purple: '#7260B4',
+  overlay: 'rgba(233, 238, 244, 0.48)',
+  purple: '#B99443',
   black: '#111111',
   muted: '#5f6470',
   border: '#d9deea',
-  softPurple: '#f1effa',
+  softPurple: '#f7eedf',
 };
 
 export default function Dashboard() {
@@ -18,6 +20,13 @@ export default function Dashboard() {
 
   const [user, setUser] = useState(null);
   const [showPasswordCard, setShowPasswordCard] = useState(false);
+  const [studentStats, setStudentStats] = useState({
+    resources: 0,
+    bookings: 0,
+    pendingBookings: 0,
+    notifications: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
 
   const {
     notifications,
@@ -81,6 +90,61 @@ export default function Dashboard() {
       setShowPasswordCard(false);
     }
   }, [profileOpen, profileTab]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'student') {
+      return;
+    }
+
+    let active = true;
+
+    const fetchStudentStats = async () => {
+      setStatsLoading(true);
+      try {
+        const [resourcesRes, bookingsRes] = await Promise.all([
+          api.get('/api/resources'),
+          api.get('/api/bookings/my'),
+        ]);
+
+        const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data : [];
+        const bookingsData = bookingsRes.data?.data ?? bookingsRes.data ?? [];
+        const bookings = Array.isArray(bookingsData) ? bookingsData : [];
+
+        const pendingBookings = bookings.filter((booking) => {
+          const status = String(booking.status || booking.bookingStatus || '').toUpperCase();
+          return status === 'PENDING';
+        }).length;
+
+        if (active) {
+          setStudentStats({
+            resources: resources.length,
+            bookings: bookings.length,
+            pendingBookings,
+            notifications: notifications.length,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch student dashboard stats:', error);
+      } finally {
+        if (active) {
+          setStatsLoading(false);
+        }
+      }
+    };
+
+    fetchStudentStats();
+
+    return () => {
+      active = false;
+    };
+  }, [user, notifications.length]);
+
+  const formatStat = (value) => {
+    if (statsLoading) {
+      return '...';
+    }
+    return String(value).padStart(2, '0');
+  };
 
   const ActionButton = ({ children, onClick, filled = false }) => (
     <button
@@ -155,7 +219,7 @@ export default function Dashboard() {
         {text}
       </p>
       <span style={{ fontSize: '13px', fontWeight: 900 }}>
-        Open Now →
+        Open Now
       </span>
     </div>
   );
@@ -164,37 +228,49 @@ export default function Dashboard() {
     <div>
       <section
         style={{
-          background: COLORS.bg,
-          borderRadius: '0',
-          padding: '55px 48px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 0.9fr',
-          gap: '40px',
-          alignItems: 'center',
+          background: '#0f172a',
+          padding: '70px 30px',
           marginBottom: '55px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        <div>
-          <p style={{ color: COLORS.purple, fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
-            Welcome to Smart Campus
-          </p>
-          <h1 style={{ margin: 0, color: COLORS.black, fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
-            Manage Your Campus Tasks And Resources
-          </h1>
-          <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: COLORS.muted, lineHeight: 1.8, fontSize: '14px' }}>
-            Request facilities, check your bookings, create maintenance tickets, and follow campus updates from one simple student dashboard.
-          </p>
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `
+              linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)),
+              url('/authleft.jpg')
+            `,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            filter: 'blur(2px)',
+            transform: 'scale(1.03)',
+          }}
+        />
 
-          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-            <ActionButton filled onClick={() => navigate('/facilities')}>Browse Facilities</ActionButton>
-            <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
-            <ActionButton onClick={() => navigate('/tickets')}>Create Ticket</ActionButton>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '40px', alignItems: 'center',paddingTop : '50px' }}>
+          <div>
+            <p style={{ color: '#ffffff', fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
+              Welcome to Smart Campus
+            </p>
+            <h1 style={{ margin: 0, color: '#ffffff', fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
+              Manage Your Campus Tasks And Resources
+            </h1>
+            <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: '#e2e8f0', lineHeight: 1.8, fontSize: '14px' }}>
+              Request facilities, check your bookings, create maintenance tickets, and follow campus updates from one simple student dashboard.
+            </p>
+
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+              <ActionButton filled onClick={() => navigate('/facilities')}>Browse Facilities</ActionButton>
+              <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
+              <ActionButton onClick={() => navigate('/tickets')}>Create Ticket</ActionButton>
+            </div>
           </div>
-        </div>
 
-        <div style={{ position: 'relative', minHeight: '320px' }}>
+          <div style={{ position: 'relative', minHeight: '320px' }}>
           <div
             style={{
               position: 'absolute',
@@ -206,34 +282,27 @@ export default function Dashboard() {
               top: '-10px',
             }}
           />
-          <StatBadge value="24/7" label="Campus Access" top="8px" left="0" />
-          <StatBadge value="3+" label="Core Workflows" top="115px" left="-55px" />
+          
+         
 
           <div
             style={{
               position: 'relative',
               marginLeft: '70px',
               marginTop: '35px',
-              background: COLORS.white,
-              borderRadius: '8px',
               height: '285px',
-              padding: '28px',
-              boxShadow: '0 25px 55px rgba(0,0,0,0.12)',
-              border: `1px solid ${COLORS.border}`,
+              display: 'grid',
+              placeItems: 'center',
             }}
           >
-            <h3 style={{ margin: 0, fontSize: '22px', color: COLORS.black }}>Student Quick Panel</h3>
-            <p style={{ color: COLORS.muted, lineHeight: 1.7, fontSize: '14px' }}>
-              Search lecture halls, labs, rooms, projectors, and report campus incidents when something needs attention.
-            </p>
-
-            <div style={{ display: 'grid', gap: '12px', marginTop: '22px' }}>
-              <MiniRow label="Facilities Catalogue" value="Search & filter" />
-              <MiniRow label="Booking Requests" value="Pending → Approved" />
-              <MiniRow label="Incident Tickets" value="Open → Closed" />
-            </div>
+            <img
+              src="/LOGO.png"
+              alt="Smart Campus logo"
+              style={{ width: '280px', height: '280px', objectFit: 'contain' }}
+            />
           </div>
         </div>
+      </div>
       </section>
 
       <section
@@ -243,6 +312,11 @@ export default function Dashboard() {
           gap: '45px',
           alignItems: 'center',
           marginBottom: '65px',
+          maxWidth: '1200px',
+          margin: '0 auto 65px auto',
+          padding: '0 30px',
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         <div
@@ -255,16 +329,16 @@ export default function Dashboard() {
             boxShadow: '0 16px 40px rgba(17,17,17,0.06)',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '30px', color: COLORS.black }}>Today’s Student Overview</h2>
+          <h2 style={{ margin: 0, fontSize: '30px', color: COLORS.black }}>Today's Student Overview</h2>
           <p style={{ color: COLORS.muted, lineHeight: 1.8 }}>
             Keep your campus work organized. This dashboard helps you access booking, resource, and support services faster.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
-            <InfoBox number="01" title="Find Resource" />
-            <InfoBox number="02" title="Request Booking" />
-            <InfoBox number="03" title="Track Status" />
-            <InfoBox number="04" title="Get Notification" />
+            <InfoBox number={formatStat(studentStats.resources)} title="Find Resource" />
+            <InfoBox number={formatStat(studentStats.bookings)} title="Request Booking" />
+            <InfoBox number={formatStat(studentStats.pendingBookings)} title="Track Status" />
+            <InfoBox number={formatStat(studentStats.notifications)} title="Get Notification" />
           </div>
         </div>
 
@@ -293,38 +367,32 @@ export default function Dashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
           <ServiceCard
-            icon="🏢"
+            icon="FC"
             title="Facilities Catalogue"
             text="View lecture halls, labs, meeting rooms, projectors, cameras, capacity, location, availability, and status."
             onClick={() => navigate('/facilities')}
           />
           <ServiceCard
-            icon="📅"
+            icon="BK"
             title="Booking Management"
             text="Create resource booking requests and track the workflow from pending to approved, rejected, or cancelled."
             active
             onClick={() => navigate('/bookings/my')}
           />
           <ServiceCard
-            icon="🛠️"
+            icon="MT"
             title="Maintenance Tickets"
             text="Report incidents for resources or locations with category, description, priority, contact details, and images."
             onClick={() => navigate('/tickets')}
           />
           <ServiceCard
-            icon="🔔"
+            icon="NT"
             title="Notifications"
             text="View updates for booking approval, rejection, ticket status changes, and comments in your profile panel."
             onClick={openProfile}
           />
           <ServiceCard
-            icon="🔍"
-            title="Search & Filtering"
-            text="Filter resources by type, capacity, location, and status to quickly find suitable facilities."
-            onClick={() => navigate('/facilities')}
-          />
-          <ServiceCard
-            icon="👤"
+            icon="PS"
             title="Profile & Security"
             text="Manage your profile, account settings, password security, and two-factor authentication from one place."
             onClick={openProfile}
@@ -338,36 +406,39 @@ export default function Dashboard() {
     <div>
       <section
         style={{
-          background: COLORS.bg,
-          padding: '55px 48px',
-          display: 'grid',
-          gridTemplateColumns: '1fr 0.9fr',
-          gap: '40px',
-          alignItems: 'center',
+          backgroundImage: `
+            linear-gradient(${COLORS.overlay}, ${COLORS.overlay}),
+            url('/authleft.jpg')
+          `,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          padding: '70px 30px',
           marginBottom: '55px',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        <div>
-          <p style={{ color: COLORS.purple, fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
-            Welcome Lecturer
-          </p>
-          <h1 style={{ margin: 0, color: COLORS.black, fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
-            Coordinate Campus Resources And Academic Requests
-          </h1>
-          <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: COLORS.muted, lineHeight: 1.8, fontSize: '14px' }}>
-            Manage lecture resources, review bookings, monitor classroom issues, and support smooth academic operations.
-          </p>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '40px', alignItems: 'center' }}>
+          <div>
+            <p style={{ color: COLORS.purple, fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
+              Welcome Lecturer
+            </p>
+            <h1 style={{ margin: 0, color: COLORS.black, fontSize: '46px', lineHeight: 1.12, fontWeight: 900 }}>
+              Coordinate Campus Resources And Academic Requests
+            </h1>
+            <p style={{ margin: '18px 0 26px', maxWidth: '560px', color: COLORS.muted, lineHeight: 1.8, fontSize: '14px' }}>
+              Manage lecture resources, review bookings, monitor classroom issues, and support smooth academic operations.
+            </p>
 
-          <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-            <ActionButton filled onClick={() => navigate('/facilities')}>View Resources</ActionButton>
-            <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
-            <ActionButton onClick={() => navigate('/tickets')}>Report Issue</ActionButton>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+              <ActionButton filled onClick={() => navigate('/facilities')}>View Resources</ActionButton>
+              <ActionButton onClick={() => navigate('/bookings/my')}>My Bookings</ActionButton>
+              <ActionButton onClick={() => navigate('/tickets')}>Report Issue</ActionButton>
+            </div>
           </div>
-        </div>
 
-        <div style={{ position: 'relative', minHeight: '320px' }}>
+          <div style={{ position: 'relative', minHeight: '320px' }}>
           <div
             style={{
               position: 'absolute',
@@ -407,6 +478,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+      </div>
       </section>
 
       <section
@@ -466,38 +538,38 @@ export default function Dashboard() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
           <ServiceCard
-            icon="🏫"
+            icon="LH"
             title="Lecture Hall Booking"
             text="Search lecture halls and labs by capacity, location, status, and available time windows."
             onClick={() => navigate('/facilities')}
           />
           <ServiceCard
-            icon="📅"
+            icon="BK"
             title="Booking Requests"
             text="Request campus resources for lectures, meetings, workshops, and consultation sessions."
             active
             onClick={() => navigate('/bookings/my')}
           />
           <ServiceCard
-            icon="🧰"
+            icon="EQ"
             title="Equipment Issues"
             text="Report damaged projectors, lab equipment issues, room problems, or technical failures."
             onClick={() => navigate('/tickets')}
           />
           <ServiceCard
-            icon="🔔"
+            icon="AL"
             title="Academic Alerts"
             text="Receive updates when bookings are approved, rejected, cancelled, or when tickets are updated."
             onClick={openProfile}
           />
           <ServiceCard
-            icon="📍"
+            icon="LS"
             title="Location Support"
             text="Find facilities by building, floor, room type, and available resources."
             onClick={() => navigate('/facilities')}
           />
           <ServiceCard
-            icon="🔐"
+            icon="SA"
             title="Secure Account"
             text="Manage profile information, password security, and two-factor authentication."
             onClick={openProfile}
@@ -546,7 +618,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLORS.white, color: COLORS.black, fontFamily: 'system-ui, sans-serif' }}>
-      <nav style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 1100, backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Link to="/facilities" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
           <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
@@ -573,22 +645,51 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div style={{ padding: '30px', maxWidth: '1200px', margin: '0 auto' }}>
-        <header style={{ marginBottom: '28px' }}>
-          <h2 style={{ fontSize: '28px', margin: '0 0 5px 0', color: COLORS.black }}>Welcome back, {user.name}.</h2>
-          <p style={{ color: COLORS.muted, margin: 0 }}>
-            {user.role === 'lecturer'
-              ? 'Here is your academic operations dashboard for today.'
-              : user.role === 'technician'
-              ? 'Here is your technician workspace overview.'
-              : "Here is what's happening around campus today."}
-          </p>
+      <div style={{ padding: '0', width: '100%', margin: 0 }}>
+        <header style={{  top: '72px', zIndex: 1090, width: '100%', margin: 0, padding: '12px 30px', background: '#ffffff', borderBottom: '1px solid #eef2f7' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px 12px' }}>
+            <h2 style={{ fontSize: '28px', margin: 0, color: COLORS.black }}>
+              Welcome back, {user.name}.
+            </h2>
+            <p style={{ color: COLORS.muted, margin: 0 }}>
+              {user.role === 'lecturer'
+                ? 'Here is your academic operations dashboard for today.'
+                : user.role === 'technician'
+                ? 'Here is your technician workspace overview.'
+                : "Here is what's happening around campus today."}
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px 18px', marginTop: '10px', color: COLORS.black, fontSize: '13px', fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>U</span>
+              <span>University Contact: NEXUS Student Services</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>☎</span>
+              <span>Phone: +94 11 234 5678</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>@</span>
+              <span>Email: support@nexus.edu.lk</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>⏰</span>
+              <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
+            </div>
+          </div>
         </header>
 
-        {user.role === 'technician' && <TechnicianView />}
-        {user.role === 'lecturer' && <LecturerView />}
-        {user.role === 'student' && <StudentView />}
-        {!['technician', 'lecturer', 'student'].includes(user.role) && <StudentView />}
+        <div style={{ width: '100%' }}>
+          {user.role === 'technician' && (
+            <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 30px' }}>
+              <TechnicianView />
+            </div>
+          )}
+
+          {user.role === 'lecturer' && <LecturerView />}
+          {user.role === 'student' && <StudentView />}
+          {!['technician', 'lecturer', 'student'].includes(user.role) && <StudentView />}
+        </div>
       </div>
 
       {profileOpen && (
@@ -631,10 +732,10 @@ export default function Dashboard() {
                 <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#6b7280', textTransform: 'capitalize' }}>{user.role}</p>
               </div>
 
-              <ProfileTabButton active={profileTab === 'profile'} onClick={() => selectProfileTab('profile')} icon="👤" label="Profile" />
-              <ProfileTabButton active={profileTab === 'edit'} onClick={() => selectProfileTab('edit')} icon="✏️" label="Edit Profile" />
-              <ProfileTabButton active={profileTab === 'notifications'} onClick={() => selectProfileTab('notifications')} icon="🔔" label="Notifications" />
-              <ProfileTabButton active={profileTab === 'account'} onClick={() => selectProfileTab('account')} icon="⚙️" label="Account Settings" />
+              <ProfileTabButton active={profileTab === 'profile'} onClick={() => selectProfileTab('profile')} icon="PR" label="Profile" />
+              <ProfileTabButton active={profileTab === 'edit'} onClick={() => selectProfileTab('edit')} icon="ED" label="Edit Profile" />
+              <ProfileTabButton active={profileTab === 'notifications'} onClick={() => selectProfileTab('notifications')} icon="NT" label="Notifications" />
+              <ProfileTabButton active={profileTab === 'account'} onClick={() => selectProfileTab('account')} icon="AC" label="Account Settings" />
             </aside>
 
             <section style={{ padding: '26px 28px', overflowY: 'auto' }}>
@@ -842,7 +943,7 @@ const MiniRow = ({ label, value }) => (
 
 const InfoBox = ({ number, title }) => (
   <div style={{ background: '#f1effa', border: '1px solid #ded8f4', borderRadius: '8px', padding: '18px' }}>
-    <p style={{ margin: 0, color: '#7260B4', fontWeight: 900, fontSize: '22px' }}>{number}</p>
+    <p style={{ margin: 0, color: COLORS.purple, fontWeight: 900, fontSize: '22px' }}>{number}</p>
     <p style={{ margin: '6px 0 0', color: '#111111', fontWeight: 800, fontSize: '14px' }}>{title}</p>
   </div>
 );
@@ -868,7 +969,7 @@ const ProfileTabButton = ({ active, onClick, icon, label }) => (
       width: '100%',
       border: active ? 'none' : '1px solid #e5e7eb',
       borderRadius: '10px',
-      background: active ? '#7260B4' : '#ffffff',
+      background: active ? COLORS.purple : '#ffffff',
       color: active ? '#ffffff' : '#374151',
       padding: '10px 12px',
       marginBottom: '8px',
