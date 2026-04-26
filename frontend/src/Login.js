@@ -278,7 +278,7 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
                     placeholder="Enter your password"
                     required
                   />
-                  <button type="button" className="forgot-link">Forgot Password?</button>
+                  <Link to="/forgot-password" className="forgot-link" style={{ textDecoration: 'none' }}>Forgot Password?</Link>
                 </div>
               </>
             )}

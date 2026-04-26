@@ -10,6 +10,8 @@ import GithubAuthCallback from './GithubAuthCallback';
 import Register from './Register';
 import Dashboard from './Dashboard';
 import AdminDashboard from './AdminDashboard';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import { SITE_BRAND } from './siteConfig';
 import TicketPage from './pages/tickets/TicketPage';
 import TicketDetailsPage from './pages/tickets/TicketDetailsPage';
@@ -66,6 +68,8 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/auth/github/callback" element={<GithubAuthCallback />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/facilities" element={<FacilitiesCatalogue />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route
