@@ -13,12 +13,19 @@ import backend.auth.model.Role;
 import backend.auth.repository.UserRepository;
 import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
+import backend.notifications.model.Notification;
+import backend.notifications.repository.NotificationRepository;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,22 +36,27 @@ public class BookingServiceImpl implements BookingServices {
     private final BookingHistoryRepository bookingHistoryRepository;
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
+    private final NotificationRepository notificationRepository; 
     
-    // Manual Constructor Injection
+    // Regex for meaningful purpose (letters, numbers, spaces, basic punctuation)
+    private static final Pattern PURPOSE_PATTERN = Pattern.compile("^[a-zA-Z0-9\\s,.'-]+$");
+    
     public BookingServiceImpl(BookingRepository bookingRepository, 
                               BookingHistoryRepository bookingHistoryRepository,
                               UserRepository userRepository,
-                              ResourceRepository resourceRepository) {
+                              ResourceRepository resourceRepository,
+                              NotificationRepository notificationRepository) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
     public BookingResponseDTO createBooking(BookingRequestDTO requestDTO, String currentUserId) {
         
-        // 1. Validate User Exists & Role (Only STUDENT, LECTURER, MANAGER can create)
+        // 1. Validate User Exists & Role
         User user = userRepository.findById(currentUserId)
             .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + currentUserId));
         
@@ -54,19 +66,26 @@ public class BookingServiceImpl implements BookingServices {
             );
         }
         
-        // 2. Validate Time Range
-        if (requestDTO.getEndTime().isBefore(requestDTO.getStartTime()) ||
-            requestDTO.getEndTime().isEqual(requestDTO.getStartTime())) {
-            throw new IllegalArgumentException("End time must be after start time");
-        }
-        
-        // 3. Validate Resource Exists & Type-Specific Fields
+        // 2. Validate Resource Exists
         Resource resource = resourceRepository.findById(requestDTO.getResourcesId())
             .orElseThrow(() -> new ResourceNotFoundException("Resource not found with ID: " + requestDTO.getResourcesId()));
         
+        // 3. Validate Time Range
+        validateTimeRange(requestDTO.getStartTime(), requestDTO.getEndTime());
+        
+        // 4. Validate Within Resource Available Hours
+        validateWithinAvailableHours(requestDTO, resource);
+        
+        // 5. Validate Maximum Booking Duration
+        validateMaxBookingDuration(requestDTO, resource);
+        
+        // 6. Validate Purpose (no symbols, meaningful text)
+        validatePurpose(requestDTO.getPurpose());
+        
+        // 7. Validate Resource Type & Fields
         validateResourceTypeAndFields(requestDTO, resource);
         
-        // 4. Check Scheduling Conflicts
+        // 8. Check Scheduling Conflicts
         int overlappingCount = bookingRepository.countOverlappingBookings(
             requestDTO.getResourcesId(),
             requestDTO.getStartTime(),
@@ -79,7 +98,7 @@ public class BookingServiceImpl implements BookingServices {
             );
         }
         
-        // 5. Create Booking Entity
+        // 9. Create Booking Entity
         Booking booking = new Booking();
         booking.setBookingId(UUID.randomUUID().toString());
         booking.setBookingCode(generateBookingCode());
@@ -96,47 +115,13 @@ public class BookingServiceImpl implements BookingServices {
         
         Booking savedBooking = bookingRepository.save(booking);
         
-        // 6. Record Status History
+        // 10. Record Status History
         recordStatusHistory(savedBooking.getBookingId(), null, "PENDING", currentUserId, "Booking created");
         
         return mapToResponseDTO(savedBooking);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public BookingResponseDTO getBookingById(String bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
-        
-        return mapToResponseDTO(booking);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<BookingResponseDTO> getMyBookings(String userId) {
-        return bookingRepository.findByUserIdOrderByCreatedAtDesc(userId)
-            .stream()
-            .map(this::mapToResponseDTO)
-            .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<BookingResponseDTO> getAllBookings() {
-        return bookingRepository.findAllByOrderByCreatedAtDesc()
-            .stream()
-            .map(this::mapToResponseDTO)
-            .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<BookingResponseDTO> getPendingBookings() {
-        return bookingRepository.findByStatusOrderByCreatedAtDesc(Booking.BookingStatus.PENDING)
-            .stream()
-            .map(this::mapToResponseDTO)
-            .collect(Collectors.toList());
-    }
+    // ==================== UPDATE STATUS WITH NOTIFICATIONS ====================
 
     @Override
     public BookingResponseDTO updateBookingStatus(String bookingId, StatusUpdateDTO statusUpdateDTO, String currentUserId, boolean isAdmin) {
@@ -147,7 +132,7 @@ public class BookingServiceImpl implements BookingServices {
         String oldStatus = booking.getStatus().name();
         String newStatus = statusUpdateDTO.getStatus().name();
 
-        // Validate status transition
+        // Validate status transition rules
         validateStatusTransition(booking.getStatus(), statusUpdateDTO.getStatus(), isAdmin);
 
         // Update status based on action
@@ -159,16 +144,29 @@ public class BookingServiceImpl implements BookingServices {
                 booking.setStatus(Booking.BookingStatus.APPROVED);
                 booking.setApprovedByUserId(currentUserId);
                 booking.setApprovedAt(LocalDateTime.now());
+                booking.setRejectionReason(null); // Clear any previous rejection reason
+                
+                // Send approval notification
+                sendApprovalNotification(booking);
                 break;
 
             case REJECTED:
                 if (!isAdmin) {
                     throw new AccessDeniedException("Only admins can reject bookings");
                 }
+                
+                // Validate rejection reason
+                if (statusUpdateDTO.getRejectionReason() == null || statusUpdateDTO.getRejectionReason().trim().isEmpty()) {
+                    throw new IllegalArgumentException("Rejection reason is required");
+                }
+                
                 booking.setStatus(Booking.BookingStatus.REJECTED);
-                booking.setRejectionReason(statusUpdateDTO.getRejectionReason());
-                booking.setApprovedByUserId(currentUserId);
+                booking.setRejectionReason(statusUpdateDTO.getRejectionReason().trim());
+                booking.setApprovedByUserId(currentUserId); // Using approvedBy field for audit trail of who acted
                 booking.setApprovedAt(LocalDateTime.now());
+                
+                // Send rejection notification with reason
+                sendRejectionNotification(booking, statusUpdateDTO.getRejectionReason().trim());
                 break;
 
             case CANCELLED:
@@ -182,10 +180,11 @@ public class BookingServiceImpl implements BookingServices {
                 booking.setStatus(Booking.BookingStatus.CANCELLED);
                 booking.setCancelledByUserId(currentUserId);
                 booking.setCancelledAt(LocalDateTime.now());
+                // Optional: Send cancellation notification if needed
                 break;
 
             default:
-                throw new IllegalArgumentException("Invalid status update");
+                throw new IllegalArgumentException("Invalid status update: " + statusUpdateDTO.getStatus());
         }
 
         Booking updatedBooking = bookingRepository.save(booking);
@@ -201,89 +200,218 @@ public class BookingServiceImpl implements BookingServices {
 
         return mapToResponseDTO(updatedBooking);
     }
-    
-    @Override
-    public void cancelBooking(String bookingId, String currentUserId) {
-        Booking booking = bookingRepository.findById(bookingId)
-            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
 
-        if (!booking.getUserId().equals(currentUserId)) {
-            throw new AccessDeniedException("You can only cancel your own bookings");
+    // ==================== NOTIFICATION HELPERS ====================
+
+    private void sendApprovalNotification(Booking booking) {
+        try {
+            String userName = fetchUserName(booking.getUserId());
+            String resourceName = fetchResourceName(booking.getResourcesId());
+            
+            String title = "Booking Request Approved";
+            String message = String.format(
+                "Great news! Your booking request for %s has been approved.\n\n" +
+                "Booking Code: %s\n" +
+                "Date: %s\n" +
+                "Time: %s - %s\n\n" +
+                "Please arrive on time. If you need to cancel, please do so at least 24 hours in advance.",
+                resourceName,
+                booking.getBookingCode(),
+                booking.getStartTime().toLocalDate(),
+                booking.getStartTime().toLocalTime(),
+                booking.getEndTime().toLocalTime()
+            );
+            
+            saveNotification(booking.getUserId(), title, message, "BOOKING_APPROVED", booking.getBookingId());
+            System.out.println("✅ Approval notification sent to: " + userName);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send approval notification: " + e.getMessage());
+            // Fail-safe: Do not throw exception, allow booking update to succeed
+        }
+    }
+
+    private void sendRejectionNotification(Booking booking, String rejectionReason) {
+        try {
+            String userName = fetchUserName(booking.getUserId());
+            String resourceName = fetchResourceName(booking.getResourcesId());
+            
+            String title = "Booking Request Rejected";
+            String message = String.format(
+                "Your booking request for %s has been rejected.\n\n" +
+                "Booking Code: %s\n" +
+                "Date: %s\n" +
+                "Time: %s - %s\n\n" +
+                "Rejection Reason:\n%s\n\n" +
+                "Please contact the administration if you have any questions.",
+                resourceName,
+                booking.getBookingCode(),
+                booking.getStartTime().toLocalDate(),
+                booking.getStartTime().toLocalTime(),
+                booking.getEndTime().toLocalTime(),
+                rejectionReason
+            );
+            
+            saveNotification(booking.getUserId(), title, message, "BOOKING_REJECTED", booking.getBookingId());
+            System.out.println("✅ Rejection notification sent to: " + userName);
+            
+        } catch (Exception e) {
+            System.err.println("❌ Failed to send rejection notification: " + e.getMessage());
+            // Fail-safe: Do not throw exception
+        }
+    }
+
+    private void saveNotification(String userId, String title, String message, String type, String referenceId) {
+        User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            System.err.println("❌ Cannot save notification: user not found for ID " + userId);
+            return;
         }
 
-        if (booking.getStatus() != Booking.BookingStatus.APPROVED) {
-            throw new IllegalStateException("Only approved bookings can be cancelled");
+        Notification notification = new Notification();
+        notification.setUser(user);
+        notification.setTitle(title);
+        notification.setMessage(message);
+        notification.setType(type);
+        notification.setReadFlag(false);
+        notification.setCreatedAt(LocalDateTime.now());
+        notification.setRelatedEntityType("BOOKING");
+        notification.setRelatedEntityId(referenceId);
+
+        notificationRepository.save(notification);
+    }
+
+    private String fetchUserName(String userId) {
+        if (userId == null) return "User";
+        return userRepository.findById(userId)
+            .map(user -> {
+                if (user.getName() != null && !user.getName().trim().isEmpty()) return user.getName();
+                if (user.getEmail() != null && !user.getEmail().trim().isEmpty()) return user.getEmail();
+                return "User";
+            })
+            .orElse("User");
+    }
+
+    private String fetchResourceName(Long resourceId) {
+        if (resourceId == null) return "Resource";
+        return resourceRepository.findById(resourceId)
+            .map(resource -> {
+                if (resource.getName() != null && !resource.getName().trim().isEmpty()) return resource.getName();
+                return "Resource";
+            })
+            .orElse("Resource");
+    }
+
+    // ==================== VALIDATION METHODS ====================
+
+    private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
+        if (endTime.isBefore(startTime) || endTime.isEqual(startTime)) {
+            throw new IllegalArgumentException("End time must be after start time");
         }
-
-        booking.setStatus(Booking.BookingStatus.CANCELLED);
-        booking.setCancelledByUserId(currentUserId);
-        booking.setCancelledAt(LocalDateTime.now());
-
-        bookingRepository.save(booking);
-
-        recordStatusHistory(bookingId, "APPROVED", "CANCELLED", currentUserId, "Booking cancelled by user");
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public boolean existsById(String bookingId) {
-        return bookingRepository.existsById(bookingId);
+    private void validateWithinAvailableHours(BookingRequestDTO requestDTO, Resource resource) {
+ LocalTime bookingStartTime = requestDTO.getStartTime().toLocalTime();
+        LocalTime bookingEndTime = requestDTO.getEndTime().toLocalTime();
+        
+        LocalTime resourceOpenTime = resource.getDailyOpenTime();
+        LocalTime resourceCloseTime = resource.getDailyCloseTime();
+        
+        if (bookingStartTime.isBefore(resourceOpenTime)) {
+            throw new IllegalArgumentException(
+                String.format("Booking start time (%s) is before resource opening time (%s).",
+                    bookingStartTime, resourceOpenTime)
+            );
+        }
+        
+        if (bookingEndTime.isAfter(resourceCloseTime)) {
+            throw new IllegalArgumentException(
+                String.format("Booking end time (%s) is after resource closing time (%s).",
+                    bookingEndTime, resourceCloseTime)
+            );
+        }
     }
 
-    // ==================== PRIVATE HELPER METHODS ====================
-
-    // Helper: Validate Creator Role
-    private boolean isValidCreatorRole(Role role) {
-        return role == Role.STUDENT || 
-               role == Role.LECTURER || 
-               role == Role.MANAGER;
+    private void validateMaxBookingDuration(BookingRequestDTO requestDTO, Resource resource) {
+        LocalDateTime startTime = requestDTO.getStartTime();
+        LocalDateTime endTime = requestDTO.getEndTime();
+        
+        long bookingDurationHours = Duration.between(startTime, endTime).toHours();
+        int maxDurationHours = resource.getMaxBookingDurationHours();
+        
+        if (bookingDurationHours > maxDurationHours) {
+            throw new IllegalArgumentException(
+                String.format("Booking duration (%d hours) exceeds maximum allowed duration (%d hours).",
+                    bookingDurationHours, maxDurationHours)
+            );
+        }
+        
+        if (bookingDurationHours <= 0) {
+            throw new IllegalArgumentException("Booking duration must be at least 1 hour");
+        }
     }
-    
-    // Helper: Validate Resource Type & Fields
+
+    private void validatePurpose(String purpose) {
+        if (purpose == null || purpose.trim().isEmpty()) {
+            throw new IllegalArgumentException("Purpose is required");
+        }
+        
+        if (purpose.trim().length() < 10) {
+            throw new IllegalArgumentException("Purpose must be at least 10 characters long.");
+        }
+        
+        if (purpose.trim().length() > 255) {
+            throw new IllegalArgumentException("Purpose must not exceed 255 characters");
+        }
+        
+        if (!PURPOSE_PATTERN.matcher(purpose).matches()) {
+            throw new IllegalArgumentException(
+                "Purpose contains invalid characters. Only letters, numbers, spaces, and basic punctuation (, . ' -) are allowed"
+            );
+        }
+        
+        if (purpose.trim().matches("^(.)\\1+$")) {
+            throw new IllegalArgumentException("Purpose must be a meaningful description, not repeated characters");
+        }
+        
+        String[] words = purpose.trim().split("\\s+");
+        if (words.length < 3) {
+            throw new IllegalArgumentException("Purpose must be at least 3 words long.");
+        }
+    }
+
     private void validateResourceTypeAndFields(BookingRequestDTO requestDTO, Resource resource) {
+        String resourceType = resource.getType();
         
-        String resourceType = resource.getType(); // e.g., "PROJECTOR", "LAB", "GYM"
-        
-        // EQUIPMENT types: PROJECTOR, PRINTER, SPEAKER, SPORT_MATERIAL, VR_HEADSET_SET
         if (isEquipmentType(resourceType)) {
-            // Must have quantityRequested (minimum 1)
             if (requestDTO.getQuantityRequested() == null || requestDTO.getQuantityRequested() < 1) {
-                throw new IllegalArgumentException(
-                    "Equipment resources require quantityRequested (minimum 1)"
-                );
+                throw new IllegalArgumentException("Equipment resources require quantityRequested (minimum 1)");
             }
-            // Should NOT have expectedAttendees
             if (requestDTO.getExpectedAttendees() != null) {
+                throw new IllegalArgumentException("Equipment resources do not use expectedAttendees.");
+            }
+            if (requestDTO.getQuantityRequested() > resource.getMaxQuantity()) {
                 throw new IllegalArgumentException(
-                    "Equipment resources do not use expectedAttendees. Use quantityRequested instead."
+                    String.format("Requested quantity (%d) exceeds maximum allowed quantity (%d).",
+                        requestDTO.getQuantityRequested(), resource.getMaxQuantity())
                 );
             }
         } else {
-            // ACADEMIC, SPORTS, COMMON, ADMINISTRATIVE resources
-            // Must have expectedAttendees (minimum 1)
             if (requestDTO.getExpectedAttendees() == null || requestDTO.getExpectedAttendees() < 1) {
-                throw new IllegalArgumentException(
-                    "Non-equipment resources require expectedAttendees (minimum 1)"
-                );
+                throw new IllegalArgumentException("Non-equipment resources require expectedAttendees (minimum 1)");
             }
-            // Should NOT have quantityRequested
             if (requestDTO.getQuantityRequested() != null) {
-                throw new IllegalArgumentException(
-                    "Non-equipment resources do not use quantityRequested. Use expectedAttendees instead."
-                );
+                throw new IllegalArgumentException("Non-equipment resources do not use quantityRequested.");
             }
-            
-            // Validate against resource capacity
             if (requestDTO.getExpectedAttendees() > resource.getCapacity()) {
                 throw new IllegalArgumentException(
-                    "Expected attendees (" + requestDTO.getExpectedAttendees() + 
-                    ") exceeds resource capacity (" + resource.getCapacity() + ")"
+                    String.format("Expected attendees (%d) exceeds resource capacity (%d).",
+                        requestDTO.getExpectedAttendees(), resource.getCapacity())
                 );
             }
         }
     }
     
-    // Helper: Check if resource is EQUIPMENT type
     private boolean isEquipmentType(String type) {
         return type != null && (
             type.equals("PROJECTOR") || 
@@ -291,8 +419,14 @@ public class BookingServiceImpl implements BookingServices {
             type.equals("SPEAKER") || 
             type.equals("SPORT_MATERIAL") || 
             type.equals("VR_HEADSET_SET") ||
-            type.equals("VR") // Handle your existing "VR" type
+            type.equals("VR")
         );
+    }
+
+    private boolean isValidCreatorRole(Role role) {
+        return role == Role.STUDENT || 
+               role == Role.LECTURER || 
+               role == Role.MANAGER;
     }
 
     private String generateBookingCode() {
@@ -333,7 +467,8 @@ public class BookingServiceImpl implements BookingServices {
         history.setOldStatus(oldStatus);
         history.setNewStatus(newStatus);
         history.setChangedByUserId(changedByUserId);
-        history.setChangeNote(changeNote);
+        history.setChangeNote(changeNote != null ? changeNote : "Status updated");
+        history.setChangedAt(LocalDateTime.now()); // Ensure this field exists in your entity
 
         bookingHistoryRepository.save(history);
     }
@@ -356,26 +491,136 @@ public class BookingServiceImpl implements BookingServices {
         response.setCreatedAt(booking.getCreatedAt());
         response.setApprovedAt(booking.getApprovedAt());
         response.setCancelledAt(booking.getCancelledAt());
+        
+        // Fetch User Name
+        try {
+            String lookupUserId = booking.getUserId() != null ? booking.getUserId() : booking.getCreatedByUserId();
+            if (lookupUserId != null) {
+                Optional<User> userOpt = userRepository.findById(lookupUserId);
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    String nameFallback = user.getName();
+                    if (nameFallback == null || nameFallback.trim().isEmpty()) {
+                        nameFallback = user.getEmail();
+                    }
+                    response.setUserName(nameFallback != null && !nameFallback.trim().isEmpty() ? nameFallback : "Unknown User");
+                    response.setUserRole(user.getRole() != null ? user.getRole().name() : "UNKNOWN");
+                } else {
+                    response.setUserName("Unknown User");
+                    response.setUserRole("UNKNOWN");
+                }
+            }
+        } catch (Exception e) {
+            response.setUserName("Unknown User");
+            response.setUserRole("UNKNOWN");
+        }
+    
+        // Fetch Resource Name
+        try {
+            if (booking.getResourcesId() != null) {
+                Optional<Resource> resourceOpt = resourceRepository.findById(booking.getResourcesId());
+                if (resourceOpt.isPresent()) {
+                    Resource resource = resourceOpt.get();
+                    String resourceName = resource.getName();
+                    if (resourceName == null || resourceName.trim().isEmpty()) {
+                        resourceName = resource.getRoomNumber();
+                    }
+                    response.setResourceName(resourceName != null && !resourceName.trim().isEmpty() ? resourceName : "Resource #" + booking.getResourcesId());
+                } else {
+                    response.setResourceName("Resource #" + booking.getResourcesId());
+                }
+            }
+        } catch (Exception e) {
+            response.setResourceName("Resource #" + booking.getResourcesId());
+        }
+        
         return response;
+    }
+
+    // ==================== OTHER REQUIRED METHODS ====================
+    
+    @Override
+    @Transactional(readOnly = true)
+    public BookingResponseDTO getBookingById(String bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+        return mapToResponseDTO(booking);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getMyBookings(String userId) {
+        return bookingRepository.findByUserIdOrderByCreatedAtDesc(userId)
+            .stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getAllBookings() {
+        return bookingRepository.findAllByOrderByCreatedAtDesc()
+            .stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getPendingBookings() {
+        return bookingRepository.findByStatusOrderByCreatedAtDesc(Booking.BookingStatus.PENDING)
+            .stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Override
+    public void cancelBooking(String bookingId, String currentUserId) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        if (booking.getStatus() == Booking.BookingStatus.CANCELLED || booking.getStatus() == Booking.BookingStatus.REJECTED) {
+            throw new IllegalStateException("Cannot cancel a booking that is already " + booking.getStatus());
+        }
+
+        boolean isOwner = currentUserId != null && currentUserId.equals(booking.getUserId());
+        // Note: You might want to inject a service to check admin status properly here if needed
+        // For now, assuming strict owner-only via this specific method, or pass isAdmin flag if available
+        if (!isOwner) { 
+             // If you want admins to cancel here too, you need to fetch user role and check
+             User currentUser = userRepository.findById(currentUserId)
+                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+             if (currentUser.getRole() != Role.ADMIN) {
+                 throw new AccessDeniedException("Only the booking owner or an admin can cancel this booking");
+             }
+        }
+
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+        booking.setCancelledByUserId(currentUserId);
+        booking.setCancelledAt(LocalDateTime.now());
+        booking.setRejectionReason(null);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusHistory(savedBooking.getBookingId(), "APPROVED", "CANCELLED", currentUserId, "Booking cancelled by user");
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsById(String bookingId) {
+        return bookingRepository.existsById(bookingId);
     }
 
     // ==================== CUSTOM EXCEPTIONS ====================
 
     public static class BookingConflictException extends RuntimeException {
-        public BookingConflictException(String message) {
-            super(message);
-        }
+        public BookingConflictException(String message) { super(message); }
     }
 
     public static class ResourceNotFoundException extends RuntimeException {
-        public ResourceNotFoundException(String message) {
-            super(message);
-        }
+        public ResourceNotFoundException(String message) { super(message); }
     }
 
     public static class AccessDeniedException extends RuntimeException {
-        public AccessDeniedException(String message) {
-            super(message);
-        }
+        public AccessDeniedException(String message) { super(message); }
     }
 }

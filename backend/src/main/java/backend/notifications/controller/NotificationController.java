@@ -4,7 +4,7 @@ import backend.notifications.model.Notification;
 import backend.auth.model.User;
 import backend.notifications.repository.NotificationRepository;
 import backend.auth.repository.UserRepository;
-import backend.notifications.services.NotificationService;
+import backend.notifications.service.NotificationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -61,6 +61,7 @@ public class NotificationController {
         return userRepository.findByEmail(email).orElse(null);
     }
 
+    // Get all notifications for current user
     @GetMapping("/me")
     public ResponseEntity<List<Map<String, Object>>> myNotifications(Authentication authentication) {
         User user = getCurrentUser(authentication);
@@ -77,6 +78,11 @@ public class NotificationController {
                     map.put("message", n.getMessage());
                     map.put("read", n.isReadFlag());
                     map.put("createdAt", n.getCreatedAt());
+                    // Include related entity info if present
+                    if (n.getRelatedEntityType() != null) {
+                        map.put("relatedEntityType", n.getRelatedEntityType());
+                        map.put("relatedEntityId", n.getRelatedEntityId());
+                    }
                     return map;
                 })
                 .collect(Collectors.toList());
@@ -84,7 +90,24 @@ public class NotificationController {
         return ResponseEntity.ok(result);
     }
 
-    @PostMapping("/{id}/read")
+    // Get unread notifications count
+    @GetMapping("/me/unread-count")
+    public ResponseEntity<Map<String, Object>> getUnreadCount(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        long count = notificationService.countUnreadNotifications(user);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", count);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    // Mark notification as read
+    @PatchMapping("/{id}/read")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id,
                                            Authentication authentication) {
         User user = getCurrentUser(authentication);
@@ -100,6 +123,43 @@ public class NotificationController {
         notificationService.markAsRead(notification);
         return ResponseEntity.ok().build();
     }
+
+    // Mark all notifications as read
+    @PatchMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        notificationService.markAllAsRead(user);
+        return ResponseEntity.ok().build();
+    }
+
+    // Get unread notifications list
+    @GetMapping("/me/unread")
+    public ResponseEntity<List<Map<String, Object>>> getUnreadNotifications(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        List<Map<String, Object>> result = notificationService.getUnreadNotifications(user).stream()
+                .map(n -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", n.getId());
+                    map.put("type", n.getType());
+                    map.put("title", n.getTitle());
+                    map.put("message", n.getMessage());
+                    map.put("createdAt", n.getCreatedAt());
+                    if (n.getRelatedEntityType() != null) {
+                        map.put("relatedEntityType", n.getRelatedEntityType());
+                        map.put("relatedEntityId", n.getRelatedEntityId());
+                    }
+                    return map;
+                })
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
+    }
 }
-
-

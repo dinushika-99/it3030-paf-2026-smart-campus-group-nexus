@@ -24,6 +24,22 @@ export default function AdminDashboard({ user: userProp }) {
   const [profileNoticeTone, setProfileNoticeTone] = useState('success');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileAvatarUploading, setProfileAvatarUploading] = useState(false);
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorConfigured, setTwoFactorConfigured] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorOtpAuthUri, setTwoFactorOtpAuthUri] = useState('');
+  const [showPasswordCard, setShowPasswordCard] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordNotice, setPasswordNotice] = useState('');
+  const [passwordNoticeTone, setPasswordNoticeTone] = useState('success');
   const [notifications, setNotifications] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const profileAvatarInputRef = useRef(null);
@@ -102,7 +118,67 @@ export default function AdminDashboard({ user: userProp }) {
   const selectProfileTab = useCallback((tab) => {
     setProfileTab(tab);
     setProfileNotice('');
+    setShowPasswordCard(false);
+    setPasswordNotice('');
   }, []);
+
+  const handlePasswordField = useCallback((field, value) => {
+    setPasswordForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const handleChangePassword = useCallback(async () => {
+    setPasswordNotice('');
+
+    const currentPassword = String(passwordForm.currentPassword || '').trim();
+    const newPassword = String(passwordForm.newPassword || '').trim();
+    const confirmPassword = String(passwordForm.confirmPassword || '').trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordNoticeTone('error');
+      setPasswordNotice('Please fill in all password fields.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordNoticeTone('error');
+      setPasswordNotice('New password must be at least 8 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordNoticeTone('error');
+      setPasswordNotice('New password and confirm password must match.');
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setPasswordNoticeTone('error');
+      setPasswordNotice('New password must be different from current password.');
+      return;
+    }
+
+    setPasswordSaving(true);
+    try {
+      const res = await api.post('/api/auth/change-password', {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+
+      setPasswordNoticeTone('success');
+      setPasswordNotice(res.data?.message || 'Password changed successfully.');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordCard(false);
+    } catch (err) {
+      setPasswordNoticeTone('error');
+      setPasswordNotice(err.response?.data?.error || 'Could not change password. Please try again.');
+    } finally {
+      setPasswordSaving(false);
+    }
+  }, [passwordForm]);
 
   const triggerProfileAvatarPick = useCallback(() => {
     profileAvatarInputRef.current?.click();
@@ -215,6 +291,91 @@ export default function AdminDashboard({ user: userProp }) {
     }
   }, []);
 
+  const startTwoFactorSetup = useCallback(async () => {
+    setTwoFactorBusy(true);
+    setProfileNotice('');
+    try {
+      const response = await api.post('/api/auth/2fa/setup');
+      const data = response.data || {};
+      setTwoFactorEnabled(false);
+      setTwoFactorConfigured(true);
+      setTwoFactorSecret(data.secret || '');
+      setTwoFactorOtpAuthUri(data.otpAuthUri || '');
+      setTwoFactorCode('');
+      setProfileNotice('Setup ready. Scan the QR code and confirm with a 6-digit code.');
+      setProfileNoticeTone('success');
+    } catch (error) {
+      setProfileNotice(error.response?.data?.error || 'Could not start two-factor setup.');
+      setProfileNoticeTone('error');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }, []);
+
+  const enableTwoFactor = useCallback(async () => {
+    const code = String(twoFactorCode || '').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setProfileNotice('Enter a valid 6-digit code from your authenticator app.');
+      setProfileNoticeTone('error');
+      return;
+    }
+
+    setTwoFactorBusy(true);
+    setProfileNotice('');
+    try {
+      await api.post('/api/auth/2fa/enable', { code });
+      setTwoFactorEnabled(true);
+      setTwoFactorConfigured(true);
+      setTwoFactorSecret('');
+      setTwoFactorOtpAuthUri('');
+      setTwoFactorCode('');
+      setUser((prev) => {
+        const next = { ...(prev || {}), twoFactorEnabled: true };
+        localStorage.setItem('smartCampusUser', JSON.stringify(next));
+        return next;
+      });
+      setProfileNotice('Two-factor authentication is now enabled.');
+      setProfileNoticeTone('success');
+    } catch (error) {
+      setProfileNotice(error.response?.data?.error || 'Could not enable two-factor authentication.');
+      setProfileNoticeTone('error');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }, [twoFactorCode]);
+
+  const disableTwoFactor = useCallback(async () => {
+    const code = String(twoFactorCode || '').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setProfileNotice('Enter your current 6-digit authenticator code to disable 2FA.');
+      setProfileNoticeTone('error');
+      return;
+    }
+
+    setTwoFactorBusy(true);
+    setProfileNotice('');
+    try {
+      await api.post('/api/auth/2fa/disable', { code });
+      setTwoFactorEnabled(false);
+      setTwoFactorConfigured(false);
+      setTwoFactorSecret('');
+      setTwoFactorOtpAuthUri('');
+      setTwoFactorCode('');
+      setUser((prev) => {
+        const next = { ...(prev || {}), twoFactorEnabled: false };
+        localStorage.setItem('smartCampusUser', JSON.stringify(next));
+        return next;
+      });
+      setProfileNotice('Two-factor authentication has been disabled.');
+      setProfileNoticeTone('success');
+    } catch (error) {
+      setProfileNotice(error.response?.data?.error || 'Could not disable two-factor authentication.');
+      setProfileNoticeTone('error');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  }, [twoFactorCode]);
+
   useEffect(() => {
     if (!user) return;
     setProfileDraft({
@@ -249,6 +410,20 @@ export default function AdminDashboard({ user: userProp }) {
         }
       })
       .catch(() => { });
+      .catch(() => {});
+
+    setTwoFactorLoading(true);
+    api.get('/api/auth/2fa/status')
+      .then((res) => res.data || {})
+      .then((data) => {
+        setTwoFactorEnabled(Boolean(data.enabled));
+        setTwoFactorConfigured(Boolean(data.configured));
+      })
+      .catch(() => {
+        setTwoFactorEnabled(false);
+        setTwoFactorConfigured(false);
+      })
+      .finally(() => setTwoFactorLoading(false));
   }, [user, refreshKey]);
 
   if (!user) {
@@ -519,7 +694,7 @@ export default function AdminDashboard({ user: userProp }) {
                 )}
 
                 {profileTab === 'account' && (
-                  <div style={{ display: 'grid', gap: '14px' }}>
+                  <div style={{ display: 'grid', gap: '14px', maxHeight: 'calc(88vh - 240px)', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
                     <div style={{ border: '1px solid #334155', borderRadius: '12px', background: '#111827', padding: '14px' }}>
                       <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Role</p>
                       <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff', textTransform: 'capitalize' }}>{roleLabel}</p>
@@ -528,10 +703,147 @@ export default function AdminDashboard({ user: userProp }) {
                       <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Email</p>
                       <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user.email}</p>
                     </div>
+                    <div style={{ border: '1px solid #334155', borderRadius: '12px', background: '#111827', padding: '14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Two-factor authentication (Google Authenticator)</p>
+                      <p style={{ margin: '6px 0 12px 0', fontSize: '13px', color: '#cbd5e1' }}>
+                        Status: <strong>{twoFactorLoading ? 'Checking...' : (twoFactorEnabled ? 'Enabled' : 'Disabled')}</strong>
+                      </p>
+
+                      {!twoFactorEnabled && (
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          <button
+                            onClick={startTwoFactorSetup}
+                            disabled={twoFactorBusy}
+                            style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 14px', color: '#111827', fontWeight: 700, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                          >
+                            {twoFactorConfigured ? 'Generate New Setup Key' : 'Enable 2FA'}
+                          </button>
+
+                          {twoFactorOtpAuthUri && (
+                            <div style={{ display: 'grid', gap: '8px', justifyItems: 'start' }}>
+                              <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(twoFactorOtpAuthUri)}`}
+                                alt="Authenticator QR"
+                                style={{ width: '180px', height: '180px', border: '1px solid #334155', borderRadius: '10px', background: '#fff' }}
+                              />
+                              <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af' }}>Manual key:</p>
+                              <code style={{ fontSize: '12px', padding: '7px 9px', background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e5e7eb' }}>{twoFactorSecret}</code>
+                            </div>
+                          )}
+
+                          {(twoFactorConfigured || twoFactorOtpAuthUri) && (
+                            <>
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                maxLength={6}
+                                value={twoFactorCode}
+                                onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                                placeholder="Enter 6-digit code"
+                                style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#0f172a' }}
+                              />
+                              <button
+                                onClick={enableTwoFactor}
+                                disabled={twoFactorBusy}
+                                style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 14px', color: '#111827', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                              >
+                                Confirm and Enable 2FA
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {twoFactorEnabled && (
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1' }}>To disable 2FA, enter the current code from your authenticator app.</p>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            value={twoFactorCode}
+                            onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="Enter 6-digit code"
+                            style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#0f172a' }}
+                          />
+                          <button
+                            onClick={disableTwoFactor}
+                            disabled={twoFactorBusy}
+                            style={{ border: '1px solid #7f1d1d', background: 'rgba(127,29,29,0.22)', borderRadius: '10px', padding: '10px 14px', color: '#fca5a5', fontWeight: 800, cursor: twoFactorBusy ? 'not-allowed' : 'pointer', opacity: twoFactorBusy ? 0.8 : 1 }}
+                          >
+                            Disable 2FA
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ border: '1px solid #334155', borderRadius: '12px', background: '#111827', padding: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                        <div>
+                          <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Password security</p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#cbd5e1' }}>Use a strong password and update it regularly.</p>
+                        </div>
+                        <button
+                          onClick={() => setShowPasswordCard((prev) => !prev)}
+                          style={{
+                            border: 'none',
+                            background: 'linear-gradient(135deg, #BF932A 0%, #e8bf57 100%)',
+                            borderRadius: '10px',
+                            padding: '10px 16px',
+                            color: '#111827',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            boxShadow: '0 10px 24px rgba(191,147,42,0.28)',
+                          }}
+                        >
+                          {showPasswordCard ? 'Hide Change Password' : 'Change Password'}
+                        </button>
+                      </div>
+
+                      {showPasswordCard && (
+                        <div style={{ marginTop: '12px', border: '1px solid #334155', borderRadius: '14px', background: 'linear-gradient(180deg, #0f172a 0%, #111827 100%)', padding: '14px' }}>
+                          <div style={{ display: 'grid', gap: '10px' }}>
+                            <input
+                              type="password"
+                              value={passwordForm.currentPassword}
+                              onChange={(e) => handlePasswordField('currentPassword', e.target.value)}
+                              placeholder="Current password"
+                              style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#0b1120' }}
+                            />
+                            <input
+                              type="password"
+                              value={passwordForm.newPassword}
+                              onChange={(e) => handlePasswordField('newPassword', e.target.value)}
+                              placeholder="New password"
+                              style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#0b1120' }}
+                            />
+                            <input
+                              type="password"
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) => handlePasswordField('confirmPassword', e.target.value)}
+                              placeholder="Confirm new password"
+                              style={{ border: '1px solid #334155', borderRadius: '10px', padding: '10px 12px', fontSize: '14px', color: '#e5e7eb', background: '#0b1120' }}
+                            />
+                          </div>
+
+                          {passwordNotice && (
+                            <p style={{ margin: '12px 0 0 0', padding: '10px 12px', borderRadius: '10px', border: passwordNoticeTone === 'success' ? '1px solid #14532d' : '1px solid #7f1d1d', color: passwordNoticeTone === 'success' ? '#86efac' : '#fca5a5', background: passwordNoticeTone === 'success' ? 'rgba(20,83,45,0.26)' : 'rgba(127,29,29,0.22)' }}>
+                              {passwordNotice}
+                            </p>
+                          )}
+
+                          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+                            <button
+                              onClick={handleChangePassword}
+                              disabled={passwordSaving}
+                              style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 14px', color: '#111827', fontWeight: 800, cursor: passwordSaving ? 'not-allowed' : 'pointer', opacity: passwordSaving ? 0.8 : 1 }}
+                            >
+                              {passwordSaving ? 'Updating...' : 'Update Password'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      <button style={{ border: '1px solid #334155', background: '#0f172a', borderRadius: '10px', padding: '10px 14px', color: '#94a3b8', fontWeight: 600, cursor: 'not-allowed', opacity: 0.7 }} disabled>
-                        Change Password
-                      </button>
                       <button onClick={handleLogout} style={{ border: 'none', background: '#BF932A', borderRadius: '10px', padding: '10px 14px', color: '#111827', fontWeight: 700, cursor: 'pointer' }}>
                         Logout Now
                       </button>

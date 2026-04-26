@@ -64,7 +64,12 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 createErrorResponse(e.getMessage())
             );
-        }
+        }catch (Exception e) {
+        e.printStackTrace();  
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+            createErrorResponse("Server error: " + e.getMessage())
+        );
+    }
     }
 
     // ✅ GET /api/bookings/my - Get current user's bookings

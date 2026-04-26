@@ -26,14 +26,46 @@ public class Notification {
     @Column(nullable = false, length = 1000)
     private String message;
 
-    @Column(nullable = false)
+    @Column(name = "read_flag", nullable = false)
     private boolean readFlag = false;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    // ✅ NEW: For tracking related entity (booking, ticket, etc.)
+    @Column(name = "related_entity_type", length = 50)
+    private String relatedEntityType;
+
+    // ✅ NEW: ID of the related entity
+    @Column(name = "related_entity_id", length = 255)
+    private String relatedEntityId;
+
+    // Default constructor
     public Notification() {
     }
+
+    // Constructor with required fields
+    public Notification(User user, String type, String title, String message) {
+        this.user = user;
+        this.type = type;
+        this.title = title;
+        this.message = message;
+        this.readFlag = false;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    // ✅ Auto-set createdAt before persist
+    @PrePersist
+    public void prePersist() {
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.readFlag == false) {
+            this.readFlag = false;
+        }
+    }
+
+    // ==================== GETTERS AND SETTERS ====================
 
     public Long getId() {
         return id;
@@ -90,5 +122,33 @@ public class Notification {
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-}
 
+    // ✅ NEW: Getters and Setters for related entity fields
+    public String getRelatedEntityType() {
+        return relatedEntityType;
+    }
+
+    public void setRelatedEntityType(String relatedEntityType) {
+        this.relatedEntityType = relatedEntityType;
+    }
+
+    public String getRelatedEntityId() {
+        return relatedEntityId;
+    }
+
+    public void setRelatedEntityId(String relatedEntityId) {
+        this.relatedEntityId = relatedEntityId;
+    }
+
+    // ✅ HELPER: Set booking reference
+    public void setBookingReference(String bookingId) {
+        this.relatedEntityType = "BOOKING";
+        this.relatedEntityId = bookingId;
+    }
+
+    // ✅ HELPER: Set ticket reference
+    public void setTicketReference(String ticketId) {
+        this.relatedEntityType = "TICKET";
+        this.relatedEntityId = ticketId;
+    }
+}

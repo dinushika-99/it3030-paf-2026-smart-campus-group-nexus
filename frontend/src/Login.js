@@ -7,6 +7,9 @@ import api from './api/axiosClient';
 
 export default function Login() {
   const [formFields, setFormFields] = useState({ email: '', password: '' });
+  const [twoFactorToken, setTwoFactorToken] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorSubmitting, setTwoFactorSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
   const navigate = useNavigate();
@@ -17,12 +20,37 @@ export default function Login() {
 
   React.useEffect(() => {
     const oauthError = location.state?.oauthError;
+    const incomingTwoFactorToken = location.state?.twoFactorToken;
+
+    if (incomingTwoFactorToken) {
+      setTwoFactorToken(incomingTwoFactorToken);
+      setTwoFactorCode('');
+      setShowRegisterPrompt(false);
+      setError('');
+      navigate('/login', { replace: true, state: null });
+      return;
+    }
+
     if (oauthError) {
       setShowRegisterPrompt(false);
       setError(oauthError);
       navigate('/login', { replace: true, state: null });
     }
   }, [location.state, navigate]);
+
+  const handleTwoFactorChallenge = (data) => {
+    setTwoFactorToken(data?.twoFactorToken || '');
+    setTwoFactorCode('');
+    setShowRegisterPrompt(false);
+    setError('');
+    setFormFields((prev) => ({ ...prev, password: '' }));
+  };
+
+  const resetTwoFactorChallenge = () => {
+    setTwoFactorToken('');
+    setTwoFactorCode('');
+    setTwoFactorSubmitting(false);
+  };
 
   const handleGithubSignIn = () => {
     if (!githubClientId) {
@@ -55,6 +83,10 @@ export default function Login() {
     try {
       const res = await api.post('/api/auth/google', { token }, { skipAuthRefresh: true });
       const data = res.data;
+      if (data?.requiresTwoFactor && data?.twoFactorToken) {
+        handleTwoFactorChallenge(data);
+        return;
+      }
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
@@ -96,6 +128,10 @@ export default function Login() {
         password: formFields.password,
       }, { skipAuthRefresh: true });
       const data = res.data;
+      if (data?.requiresTwoFactor && data?.twoFactorToken) {
+        handleTwoFactorChallenge(data);
+        return;
+      }
       if (data?.user) {
         const normalizedUser = {
           ...data.user,
@@ -127,6 +163,44 @@ export default function Login() {
     }
   };
 
+  const handleTwoFactorSubmit = async (e) => {
+    e.preventDefault();
+    const code = String(twoFactorCode || '').replace(/\s/g, '');
+
+    if (!twoFactorToken) {
+      setError('Two-factor session is missing. Please sign in again.');
+      return;
+    }
+    if (!/^\d{6}$/.test(code)) {
+      setError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+
+    setError('');
+    setTwoFactorSubmitting(true);
+    try {
+      const res = await api.post('/api/auth/2fa/verify', {
+        twoFactorToken,
+        code,
+      }, { skipAuthRefresh: true });
+      const data = res.data;
+      if (data?.user) {
+        const normalizedUser = {
+          ...data.user,
+          role: data.user.role ? data.user.role.toLowerCase() : undefined,
+        };
+        localStorage.setItem('smartCampusUser', JSON.stringify(normalizedUser));
+        navigate(['admin', 'manager'].includes(normalizedUser.role) ? '/admin' : '/dashboard');
+        return;
+      }
+      setError('Could not verify the authenticator code.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not verify code. Please try again.');
+    } finally {
+      setTwoFactorSubmitting(false);
+    }
+  };
+
   return (
     <div className="auth-page" style={{ '--auth-bg-image': `url(${process.env.PUBLIC_URL}/authleft.jpg)` }}>
       <div className="auth-split">
@@ -141,63 +215,90 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
         </section>
 
         <section className="clean-login-right">
-          <h1 className="clean-login-title">Sign in</h1>
-          <p className="clean-login-subtitle">Sign in if you have an account in here</p>
+          <h1 className="clean-login-title">{twoFactorToken ? 'Two-Factor Verification' : 'Sign in'}</h1>
+          <p className="clean-login-subtitle">
+            {twoFactorToken ? 'Enter the 6-digit code from Google Authenticator.' : 'Sign in if you have an account in here'}
+          </p>
 
-          <div className="oauth-buttons">
-            <div className="oauth-google-wrap">
-              <GoogleLogin
-                onSuccess={handleGoogleSuccess}
-                onError={() => setError('Google sign-in was cancelled or failed.')}
-                width={380}
-                text="continue_with"
-                shape="rectangular"
-                logo_alignment="left"
-                theme="outline"
-              />
-            </div>
+          {!twoFactorToken && (
+            <>
+              <div className="oauth-buttons">
+                <div className="oauth-google-wrap">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError('Google sign-in was cancelled or failed.')}
+                    width={380}
+                    text="continue_with"
+                    shape="rectangular"
+                    logo_alignment="left"
+                    theme="outline"
+                  />
+                </div>
 
-            <button type="button" onClick={handleGithubSignIn} className="oauth-btn">
-              <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
-                <path
-                  fill="#24292e"
-                  d="M12 .5C5.649.5.5 5.649.5 12A11.5 11.5 0 008.36 22.91c.575.106.786-.25.786-.556 0-.275-.01-1.003-.016-1.969-3.198.695-3.873-1.54-3.873-1.54-.523-1.328-1.278-1.682-1.278-1.682-1.045-.714.079-.699.079-.699 1.156.081 1.764 1.188 1.764 1.188 1.028 1.761 2.697 1.253 3.354.958.104-.745.402-1.253.731-1.541-2.553-.29-5.238-1.277-5.238-5.684 0-1.255.448-2.282 1.183-3.086-.119-.29-.513-1.457.112-3.037 0 0 .965-.309 3.162 1.179A10.98 10.98 0 0112 6.039c.973.005 1.954.132 2.87.387 2.195-1.488 3.158-1.179 3.158-1.179.628 1.58.234 2.747.115 3.037.737.804 1.181 1.831 1.181 3.086 0 4.418-2.689 5.39-5.25 5.675.413.355.781 1.057.781 2.131 0 1.539-.014 2.78-.014 3.158 0 .309.207.668.793.554A11.502 11.502 0 0023.5 12C23.5 5.649 18.351.5 12 .5z"
+                <button type="button" onClick={handleGithubSignIn} className="oauth-btn">
+                  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      fill="#24292e"
+                      d="M12 .5C5.649.5.5 5.649.5 12A11.5 11.5 0 008.36 22.91c.575.106.786-.25.786-.556 0-.275-.01-1.003-.016-1.969-3.198.695-3.873-1.54-3.873-1.54-.523-1.328-1.278-1.682-1.278-1.682-1.045-.714.079-.699.079-.699 1.156.081 1.764 1.188 1.764 1.188 1.028 1.761 2.697 1.253 3.354.958.104-.745.402-1.253.731-1.541-2.553-.29-5.238-1.277-5.238-5.684 0-1.255.448-2.282 1.183-3.086-.119-.29-.513-1.457.112-3.037 0 0 .965-.309 3.162 1.179A10.98 10.98 0 0112 6.039c.973.005 1.954.132 2.87.387 2.195-1.488 3.158-1.179 3.158-1.179.628 1.58.234 2.747.115 3.037.737.804 1.181 1.831 1.181 3.086 0 4.418-2.689 5.39-5.25 5.675.413.355.781 1.057.781 2.131 0 1.539-.014 2.78-.014 3.158 0 .309.207.668.793.554A11.502 11.502 0 0023.5 12C23.5 5.649 18.351.5 12 .5z"
+                    />
+                  </svg>
+                  <span>Continue with GitHub</span>
+                </button>
+              </div>
+
+              <div className="divider clean-divider">
+                <span>or continue with email</span>
+              </div>
+            </>
+          )}
+
+          <form className="form" onSubmit={twoFactorToken ? handleTwoFactorSubmit : handleFormSubmit}>
+            {!twoFactorToken && (
+              <>
+                <div className="form-row">
+                  <label htmlFor="email" className="clean-label">Your email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={formFields.email}
+                    onChange={(e) => setFormFields((prev) => ({ ...prev, email: e.target.value }))}
+                    className={showRegisterPrompt ? 'clean-input input-shake' : 'clean-input'}
+                    placeholder="Enter your email"
+                    required
+                  />
+                </div>
+                <div className="form-row">
+                  <label htmlFor="password" className="clean-label">Password</label>
+                  <input
+                    id="password"
+                    type="password"
+                    value={formFields.password}
+                    onChange={(e) => setFormFields((prev) => ({ ...prev, password: e.target.value }))}
+                    className="clean-input"
+                    placeholder="Enter your password"
+                    required
+                  />
+                  <Link to="/forgot-password" className="forgot-link" style={{ textDecoration: 'none' }}>Forgot Password?</Link>
+                </div>
+              </>
+            )}
+
+            {twoFactorToken && (
+              <div className="form-row">
+                <label htmlFor="totp" className="clean-label">Authenticator code</label>
+                <input
+                  id="totp"
+                  type="text"
+                  inputMode="numeric"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  className="clean-input"
+                  placeholder="Enter 6-digit code"
+                  maxLength={6}
+                  required
                 />
-              </svg>
-              <span>Continue with GitHub</span>
-            </button>
-          </div>
-
-          <div className="divider clean-divider">
-            <span>or continue with email</span>
-          </div>
-
-          <form className="form" onSubmit={handleFormSubmit}>
-            <div className="form-row">
-              <label htmlFor="email" className="clean-label">Your email</label>
-              <input
-                id="email"
-                type="email"
-                value={formFields.email}
-                onChange={(e) => setFormFields((prev) => ({ ...prev, email: e.target.value }))}
-                className={showRegisterPrompt ? 'clean-input input-shake' : 'clean-input'}
-                placeholder="Enter your email"
-                required
-              />
-            </div>
-            <div className="form-row">
-              <label htmlFor="password" className="clean-label">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={formFields.password}
-                onChange={(e) => setFormFields((prev) => ({ ...prev, password: e.target.value }))}
-                className="clean-input"
-                placeholder="Enter your password"
-                required
-              />
-              <button type="button" className="forgot-link">Forgot Password?</button>
-            </div>
+              </div>
+            )}
 
             {showRegisterPrompt && (
               <div className="register-cta-card" role="alert" aria-live="assertive">
@@ -222,21 +323,35 @@ Log in to manage facility bookings, track maintenance tickets, and view notifica
 
             <button
               type="submit"
+              disabled={twoFactorSubmitting}
               className="mt-2 h-12 w-full rounded-xl bg-[#BF932A] text-[#111827] font-extrabold tracking-[0.4px] shadow-[0_12px_28px_rgba(191,147,42,0.38)] transition duration-200 hover:bg-[#9F781E] hover:shadow-[0_16px_32px_rgba(159,120,30,0.45)] focus:outline-none focus:ring-2 focus:ring-[#BF932A]/50"
+              style={{ opacity: twoFactorSubmitting ? 0.8 : 1, cursor: twoFactorSubmitting ? 'not-allowed' : 'pointer' }}
             >
-              SIGN IN
+              {twoFactorToken ? (twoFactorSubmitting ? 'VERIFYING...' : 'VERIFY CODE') : 'SIGN IN'}
             </button>
+
+            {twoFactorToken && (
+              <button
+                type="button"
+                onClick={resetTwoFactorChallenge}
+                className="mt-2 h-11 w-full rounded-xl border border-[#4b5563] bg-[#111827] text-[#e5e7eb] font-bold tracking-[0.3px]"
+              >
+                Back to Sign In
+              </button>
+            )}
           </form>
 
-          <div className="clean-switch-row">
-            <span>Not a member?</span>
-            <Link
-              to="/register"
-              className={showRegisterPrompt ? 'auth-switch-link auth-switch-link-highlight' : 'auth-switch-link'}
-            >
-              Sign up
-            </Link>
-          </div>
+          {!twoFactorToken && (
+            <div className="clean-switch-row">
+              <span>Not a member?</span>
+              <Link
+                to="/register"
+                className={showRegisterPrompt ? 'auth-switch-link auth-switch-link-highlight' : 'auth-switch-link'}
+              >
+                Sign up
+              </Link>
+            </div>
+          )}
         </section>
       </div>
     </div>
