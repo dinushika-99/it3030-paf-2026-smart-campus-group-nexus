@@ -15,6 +15,34 @@ const COLORS = {
   softPurple: '#f7eedf',
 };
 
+// Background images for random rotation
+const BACKGROUND_IMAGES = [
+  '/authleft.jpg',
+  '/hero-campus-1.jpg',
+  '/hero-campus-2.jpg',
+  '/hero-campus-3.jpg',
+  '/hero-library.jpg',
+  '/hero-sports.jpg',
+];
+
+const useRandomBackground = () => {
+  const [currentImage, setCurrentImage] = useState(BACKGROUND_IMAGES[0]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => {
+        const available = BACKGROUND_IMAGES.filter((img) => img !== prev);
+        const next = available[Math.floor(Math.random() * available.length)];
+        return next;
+      });
+    }, 5000); // Change every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return currentImage;
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -32,6 +60,7 @@ export default function Dashboard() {
     openTickets: 0,
   });
   const [statsLoading, setStatsLoading] = useState(false);
+  const backgroundImage = useRandomBackground();
 
   const {
     notifications,
@@ -267,13 +296,13 @@ export default function Dashboard() {
             inset: 0,
             backgroundImage: `
               linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)),
-              url('/authleft.jpg')
+              url('${backgroundImage}')
             `,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
-            filter: 'blur(2px)',
             transform: 'scale(1.03)',
+            transition: 'background-image 1s ease-in-out',
           }}
         />
 
@@ -323,7 +352,7 @@ export default function Dashboard() {
             />
           </div>
         </div>
-      </div>
+        </div>
       </section>
 
       <section
@@ -444,7 +473,7 @@ export default function Dashboard() {
         style={{
           backgroundImage: `
             linear-gradient(${COLORS.overlay}, ${COLORS.overlay}),
-            url('/authleft.jpg')
+            url('${backgroundImage}')
           `,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
@@ -453,6 +482,7 @@ export default function Dashboard() {
           marginBottom: '55px',
           position: 'relative',
           overflow: 'hidden',
+          transition: 'background-image 1s ease-in-out',
         }}
       >
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '40px', alignItems: 'center' }}>
