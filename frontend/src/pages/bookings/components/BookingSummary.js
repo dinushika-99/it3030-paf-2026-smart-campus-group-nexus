@@ -13,26 +13,15 @@ const BookingSummary = ({
 }) => {
   
   const formatTime = (timeString) => {
-    if (!timeString) return null;
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
+    if (!timeString) return '--:--';
+    return timeString; // Assuming 24h format from input, or add formatting logic here
   };
 
   const formatDate = (dateString) => {
-    if (!dateString) return null;
+    if (!dateString) return 'Not selected';
     return new Date(dateString).toLocaleDateString('en-US', { 
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+      weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' 
     });
-  };
-
-  const isEquipment = (type) => {
-    return ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(type);
   };
 
   return (
@@ -47,11 +36,7 @@ const BookingSummary = ({
         {resource ? (
           <div>
             <p className="font-semibold text-gray-900 text-base">{resource.name}</p>
-            <p className="text-sm text-gray-600">{resource.type}</p>
-            <p className="text-sm text-gray-600">{resource.location}</p>
-            {resource.capacity && (
-              <p className="text-xs text-gray-500 mt-1">Capacity: {resource.capacity}</p>
-            )}
+            <p className="text-sm text-gray-600">{resource.type} • Capacity: {resource.capacity}</p>
           </div>
         ) : (
           <p className="text-gray-400 text-sm italic">Not selected</p>
@@ -61,11 +46,7 @@ const BookingSummary = ({
       {/* Date */}
       <div className="mb-5 pb-5 border-b border-gray-200">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Date</p>
-        {date ? (
-          <p className="font-medium text-gray-900">{formatDate(date)}</p>
-        ) : (
-          <p className="text-gray-400 text-sm italic">Not selected</p>
-        )}
+        <p className="font-medium text-gray-900">{formatDate(date)}</p>
       </div>
 
       {/* Time */}
@@ -73,12 +54,7 @@ const BookingSummary = ({
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Time</p>
         {startTime && endTime ? (
           <div>
-            <p className="font-medium text-gray-900">
-              {formatTime(startTime)} - {formatTime(endTime)}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              Duration: {calculateDuration(startTime, endTime)}
-            </p>
+            <p className="font-medium text-gray-900">{formatTime(startTime)} - {formatTime(endTime)}</p>
           </div>
         ) : (
           <p className="text-gray-400 text-sm italic">Not selected</p>
@@ -88,7 +64,7 @@ const BookingSummary = ({
       {/* Attendees/Quantity */}
       <div className="mb-5 pb-5 border-b border-gray-200">
         <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-          {resource && isEquipment(resource.type) ? 'Quantity' : 'Attendees'}
+          {resource && ['PROJECTOR', 'PRINTER', 'SPEAKER', 'SPORT_MATERIAL', 'VR_HEADSET_SET', 'VR'].includes(resource.type) ? 'Quantity' : 'Attendees'}
         </p>
         {attendees ? (
           <p className="font-medium text-gray-900">{attendees}</p>
@@ -101,7 +77,7 @@ const BookingSummary = ({
       {purpose && (
         <div className="mb-5 pb-5 border-b border-gray-200">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Purpose</p>
-          <p className="text-sm text-gray-700 italic line-clamp-3">"{purpose}"</p>
+          <p className="text-sm text-gray-700 italic">"{purpose}"</p>
         </div>
       )}
 
@@ -124,46 +100,15 @@ const BookingSummary = ({
             Creating Booking...
           </>
         ) : (
-          <>
-            ✓ Submit Booking
-          </>
+          <>✓ Submit Booking</>
         )}
       </button>
-
-      {/* Helper Text */}
-      <p className="text-xs text-gray-500 mt-4 text-center">
-        Your booking will be sent for approval
-      </p>
-
-      {/* Validation Warning */}
+      
       {!isValid && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-yellow-800 text-xs font-medium">⚠️ Please fill all required fields</p>
-        </div>
+         <p className="text-center text-xs text-gray-500 mt-2">Fill all fields correctly to enable submission</p>
       )}
     </div>
   );
-};
-
-// Helper function to calculate duration
-const calculateDuration = (start, end) => {
-  const [startHour, startMin] = start.split(':').map(Number);
-  const [endHour, endMin] = end.split(':').map(Number);
-  
-  const startMinutes = startHour * 60 + startMin;
-  const endMinutes = endHour * 60 + endMin;
-  
-  const diffMinutes = endMinutes - startMinutes;
-  const hours = Math.floor(diffMinutes / 60);
-  const minutes = diffMinutes % 60;
-  
-  if (hours > 0 && minutes > 0) {
-    return `${hours}h ${minutes}m`;
-  } else if (hours > 0) {
-    return `${hours}h`;
-  } else {
-    return `${minutes}m`;
-  }
 };
 
 export default BookingSummary;

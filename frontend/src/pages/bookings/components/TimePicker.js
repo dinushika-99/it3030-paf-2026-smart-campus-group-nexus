@@ -7,50 +7,35 @@ const TimePicker = ({
   onEndTimeChange, 
   startTimeError, 
   endTimeError,
-  resourceOpenTime = '08:00',
-  resourceCloseTime = '22:00',
-  maxDurationHours = 4
+  onBlurStart,
+  onBlurEnd,
+  resourceOpenTime,
+  resourceCloseTime,
+  maxDurationHours
 }) => {
   
   const calculateDuration = () => {
     if (!startTime || !endTime) return null;
-    
-    const [startHour, startMin] = startTime.split(':').map(Number);
-    const [endHour, endMin] = endTime.split(':').map(Number);
-    
-    const startMinutes = startHour * 60 + startMin;
-    const endMinutes = endHour * 60 + endMin;
-    
-    const diffMinutes = endMinutes - startMinutes;
-    
-    if (diffMinutes <= 0) return 'Invalid';
-    
-    const hours = Math.floor(diffMinutes / 60);
-    const minutes = diffMinutes % 60;
-    
-    if (hours > 0 && minutes > 0) {
-      return `${hours}h ${minutes}m`;
-    } else if (hours > 0) {
-      return `${hours}h`;
-    } else {
-      return `${minutes}m`;
-    }
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff <= 0) return 'Invalid';
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
   };
 
   const duration = calculateDuration();
-  const isOverMaxDuration = duration && duration !== 'Invalid' && 
+  const isOverMax = maxDurationHours && duration !== 'Invalid' && duration !== null && 
     (() => {
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-      const totalMinutes = (endHour * 60 + endMin) - (startHour * 60 + startMin);
-      return totalMinutes > (maxDurationHours * 60);
+       const [sh, sm] = startTime.split(':').map(Number);
+       const [eh, em] = endTime.split(':').map(Number);
+       return ((eh * 60 + em) - (sh * 60 + sm)) > (maxDurationHours * 60);
     })();
 
   return (
     <div className="mb-4">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Time Range *
-      </label>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Time Range *</label>
       
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -59,12 +44,14 @@ const TimePicker = ({
             type="time"
             value={startTime}
             onChange={(e) => onStartTimeChange(e.target.value)}
-            min={resourceOpenTime}
-            max={resourceCloseTime}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            onBlur={onBlurStart}
+            min={resourceOpenTime || "08:00"}
+            max={resourceCloseTime || "22:00"}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              startTimeError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+            }`}
           />
-          {startTimeError && <p className="text-red-500 text-sm mt-1">{startTimeError}</p>}
+          {startTimeError && <p className="text-red-500 text-xs mt-1">{startTimeError}</p>}
         </div>
 
         <div>
@@ -73,22 +60,24 @@ const TimePicker = ({
             type="time"
             value={endTime}
             onChange={(e) => onEndTimeChange(e.target.value)}
-            min={startTime || resourceOpenTime}
-            max={resourceCloseTime}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            onBlur={onBlurEnd}
+            min={startTime || resourceOpenTime || "08:00"}
+            max={resourceCloseTime || "22:00"}
+            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+              endTimeError ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+            }`}
           />
-          {endTimeError && <p className="text-red-500 text-sm mt-1">{endTimeError}</p>}
+          {endTimeError && <p className="text-red-500 text-xs mt-1">{endTimeError}</p>}
         </div>
       </div>
       
       <div className="mt-2 flex justify-between items-center text-xs">
         <p className="text-gray-500">
-          Available hours: {resourceOpenTime} - {resourceCloseTime}
+          Available: {resourceOpenTime || '08:00'} - {resourceCloseTime || '22:00'}
         </p>
         {duration && (
-          <p className={`font-medium ${isOverMaxDuration ? 'text-red-600' : 'text-blue-600'}`}>
-            Duration: {duration} {isOverMaxDuration && `(Max: ${maxDurationHours}h)`}
+          <p className={`font-medium ${isOverMax ? 'text-red-600' : 'text-blue-600'}`}>
+            Duration: {duration} {isOverMax && `(Max: ${maxDurationHours}h)`}
           </p>
         )}
       </div>
