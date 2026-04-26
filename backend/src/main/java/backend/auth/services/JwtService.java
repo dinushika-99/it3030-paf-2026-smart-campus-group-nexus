@@ -20,11 +20,13 @@ public class JwtService {
     private final SecretKey secretKey;
     private final Duration accessTokenTtl;
     private final Duration refreshTokenTtl;
+    private final Duration twoFactorTokenTtl;
 
     public JwtService(JwtProperties jwtProperties) {
         String jwtSecret = jwtProperties.getSecret();
         long accessTokenMinutes = jwtProperties.getAccessTokenMinutes();
         long refreshTokenDays = jwtProperties.getRefreshTokenDays();
+        long twoFactorMinutes = jwtProperties.getTwoFactorMinutes();
 
         byte[] keyBytes;
         try {
@@ -35,6 +37,7 @@ public class JwtService {
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
         this.accessTokenTtl = Duration.ofMinutes(accessTokenMinutes);
         this.refreshTokenTtl = Duration.ofDays(refreshTokenDays);
+        this.twoFactorTokenTtl = Duration.ofMinutes(twoFactorMinutes);
     }
 
     public String generateAccessToken(User user) {
@@ -43,6 +46,10 @@ public class JwtService {
 
     public String generateRefreshToken(User user) {
         return buildToken(user, "refresh", refreshTokenTtl);
+    }
+
+    public String generateTwoFactorToken(User user) {
+        return buildToken(user, "two_factor", twoFactorTokenTtl);
     }
 
     private String buildToken(User user, String tokenType, Duration ttl) {
@@ -86,6 +93,10 @@ public class JwtService {
 
     public boolean isRefreshToken(String token) {
         return "refresh".equals(extractTokenType(token));
+    }
+
+    public boolean isTwoFactorToken(String token) {
+        return "two_factor".equals(extractTokenType(token));
     }
 
     public Duration getAccessTokenTtl() {

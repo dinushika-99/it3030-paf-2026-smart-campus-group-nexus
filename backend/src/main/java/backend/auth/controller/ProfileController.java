@@ -75,6 +75,7 @@ public class ProfileController {
         body.put("role", user.getRole() != null ? user.getRole().name() : "STUDENT");
         body.put("studentId", user.getStudentId());
         body.put("avatarUrl", user.getAvatarUrl());
+        body.put("twoFactorEnabled", Boolean.TRUE.equals(user.getTwoFactorEnabled()));
         return ResponseEntity.ok(body);
     }
 
@@ -142,6 +143,7 @@ public class ProfileController {
         userBody.put("role", user.getRole() != null ? user.getRole().name() : "STUDENT");
         userBody.put("studentId", user.getStudentId());
         userBody.put("avatarUrl", user.getAvatarUrl());
+        userBody.put("twoFactorEnabled", Boolean.TRUE.equals(user.getTwoFactorEnabled()));
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("message", "Profile updated successfully");

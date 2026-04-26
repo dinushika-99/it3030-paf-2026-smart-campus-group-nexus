@@ -23,6 +23,15 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordNotice, setPasswordNotice] = useState('');
   const [passwordNoticeTone, setPasswordNoticeTone] = useState('success');
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [twoFactorConfigured, setTwoFactorConfigured] = useState(false);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorBusy, setTwoFactorBusy] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorSecret, setTwoFactorSecret] = useState('');
+  const [twoFactorOtpAuthUri, setTwoFactorOtpAuthUri] = useState('');
+  const [twoFactorNotice, setTwoFactorNotice] = useState('');
+  const [twoFactorNoticeTone, setTwoFactorNoticeTone] = useState('success');
   const profileAvatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -89,6 +98,19 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
         }
       })
       .catch((err) => console.error('Failed to fetch notifications', err));
+
+    setTwoFactorLoading(true);
+    api.get('/api/auth/2fa/status')
+      .then((res) => res.data || {})
+      .then((data) => {
+        setTwoFactorEnabled(Boolean(data.enabled));
+        setTwoFactorConfigured(Boolean(data.configured));
+      })
+      .catch(() => {
+        setTwoFactorEnabled(false);
+        setTwoFactorConfigured(false);
+      })
+      .finally(() => setTwoFactorLoading(false));
   }, [user, setUser]);
 
   useEffect(() => {
@@ -268,6 +290,94 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
     }
   };
 
+  const startTwoFactorSetup = async () => {
+    setTwoFactorNotice('');
+    setTwoFactorBusy(true);
+    try {
+      const res = await api.post('/api/auth/2fa/setup');
+      const data = res.data || {};
+      setTwoFactorEnabled(false);
+      setTwoFactorConfigured(true);
+      setTwoFactorSecret(data.secret || '');
+      setTwoFactorOtpAuthUri(data.otpAuthUri || '');
+      setTwoFactorNoticeTone('success');
+      setTwoFactorNotice('Setup ready. Scan the QR code and confirm with a 6-digit code.');
+    } catch (err) {
+      setTwoFactorNoticeTone('error');
+      setTwoFactorNotice(err.response?.data?.error || 'Could not start two-factor setup.');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const enableTwoFactor = async () => {
+    const code = String(twoFactorCode || '').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setTwoFactorNoticeTone('error');
+      setTwoFactorNotice('Enter a valid 6-digit code from your authenticator app.');
+      return;
+    }
+
+    setTwoFactorNotice('');
+    setTwoFactorBusy(true);
+    try {
+      await api.post('/api/auth/2fa/enable', { code });
+      setTwoFactorEnabled(true);
+      setTwoFactorConfigured(true);
+      setTwoFactorSecret('');
+      setTwoFactorOtpAuthUri('');
+      setTwoFactorCode('');
+
+      setUser((prev) => {
+        const next = { ...(prev || {}), twoFactorEnabled: true };
+        localStorage.setItem('smartCampusUser', JSON.stringify(next));
+        return next;
+      });
+
+      setTwoFactorNoticeTone('success');
+      setTwoFactorNotice('Two-factor authentication is now enabled.');
+    } catch (err) {
+      setTwoFactorNoticeTone('error');
+      setTwoFactorNotice(err.response?.data?.error || 'Could not enable two-factor authentication.');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
+  const disableTwoFactor = async () => {
+    const code = String(twoFactorCode || '').replace(/\s/g, '');
+    if (!/^\d{6}$/.test(code)) {
+      setTwoFactorNoticeTone('error');
+      setTwoFactorNotice('Enter your current 6-digit authenticator code to disable 2FA.');
+      return;
+    }
+
+    setTwoFactorNotice('');
+    setTwoFactorBusy(true);
+    try {
+      await api.post('/api/auth/2fa/disable', { code });
+      setTwoFactorEnabled(false);
+      setTwoFactorConfigured(false);
+      setTwoFactorSecret('');
+      setTwoFactorOtpAuthUri('');
+      setTwoFactorCode('');
+
+      setUser((prev) => {
+        const next = { ...(prev || {}), twoFactorEnabled: false };
+        localStorage.setItem('smartCampusUser', JSON.stringify(next));
+        return next;
+      });
+
+      setTwoFactorNoticeTone('success');
+      setTwoFactorNotice('Two-factor authentication has been disabled.');
+    } catch (err) {
+      setTwoFactorNoticeTone('error');
+      setTwoFactorNotice(err.response?.data?.error || 'Could not disable two-factor authentication.');
+    } finally {
+      setTwoFactorBusy(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await api.post('/api/auth/logout', null, { skipAuthRefresh: true });
@@ -293,6 +403,15 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
     passwordSaving,
     passwordNotice,
     passwordNoticeTone,
+    twoFactorEnabled,
+    twoFactorConfigured,
+    twoFactorLoading,
+    twoFactorBusy,
+    twoFactorCode,
+    twoFactorSecret,
+    twoFactorOtpAuthUri,
+    twoFactorNotice,
+    twoFactorNoticeTone,
     profileAvatarInputRef,
     passwordStrength,
     openProfile,
@@ -304,6 +423,10 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
     handleProfileAvatarChange,
     handlePasswordField,
     handleChangePassword,
+    setTwoFactorCode,
+    startTwoFactorSetup,
+    enableTwoFactor,
+    disableTwoFactor,
     handleLogout,
   };
 }

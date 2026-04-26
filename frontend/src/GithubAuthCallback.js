@@ -32,6 +32,16 @@ export default function GithubAuthCallback() {
         const res = await api.post('/api/auth/github', payload, { skipAuthRefresh: true });
         const data = res.data;
 
+        if (data?.requiresTwoFactor && data?.twoFactorToken) {
+          sessionStorage.removeItem('github_oauth_mode');
+          sessionStorage.removeItem('github_oauth_role');
+          navigate('/login', {
+            replace: true,
+            state: { twoFactorToken: data.twoFactorToken },
+          });
+          return;
+        }
+
         if (!data?.user) {
           setError('GitHub sign-in failed. Please try again.');
           setLoading(false);
