@@ -5,6 +5,7 @@ import backend.auth.model.Role;
 import backend.auth.model.User;
 import backend.auth.repository.UserRepository;
 import backend.auth.services.JwtAuthenticationFilter;
+import backend.auth.services.EmailService;
 import backend.auth.services.JwtService;
 import backend.auth.services.RefreshTokenService;
 import backend.auth.services.TotpService;
@@ -26,10 +27,16 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.net.URLEncoder;
 
 record RegisterRequest(String name, String email, String password, String role, String studentId) {}
 record LoginRequest(String email, String password) {}
@@ -38,6 +45,8 @@ record GithubAuthRequest(String code, String role) {}
 record ChangePasswordRequest(String currentPassword, String newPassword, String confirmPassword) {}
 record TwoFactorVerifyRequest(String twoFactorToken, String code) {}
 record TwoFactorCodeRequest(String code) {}
+record ForgotPasswordRequest(String email) {}
+record ResetPasswordRequest(String token, String newPassword, String confirmPassword) {}
 
 @RestController
 @RequestMapping("/api/auth")
@@ -48,6 +57,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final TotpService totpService;
+    private final EmailService emailService;
     private JwtDecoder googleIdTokenDecoder;
     private final RestClient restClient;
     private final boolean cookieSecure;
@@ -56,6 +66,8 @@ public class AuthController {
     private final String githubClientSecret;
     private final String githubRedirectUri;
     private final String totpIssuer;
+    private final String frontendBaseUrl;
+    private final SecureRandom secureRandom = new SecureRandom();
 
     private static final Set<Role> SELF_REGISTRATION_ROLES = Set.of(Role.STUDENT, Role.LECTURER);
 
@@ -64,23 +76,27 @@ public class AuthController {
                           JwtService jwtService,
                           RefreshTokenService refreshTokenService,
                           TotpService totpService,
+                          EmailService emailService,
                           @Value("${app.auth.jwt.cookie-secure:false}") boolean cookieSecure,
                           @Value("${app.auth.jwt.cookie-same-site:Lax}") String cookieSameSite,
                           @Value("${app.auth.github.client-id:}") String githubClientId,
                           @Value("${app.auth.github.client-secret:}") String githubClientSecret,
                           @Value("${app.auth.github.redirect-uri:http://localhost:3000/auth/github/callback}") String githubRedirectUri,
-                          @Value("${app.auth.totp.issuer:NEXUS}") String totpIssuer) {
+                          @Value("${app.auth.totp.issuer:NEXUS}") String totpIssuer,
+                          @Value("${app.frontend.base-url:http://localhost:3000}") String frontendBaseUrl) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
         this.totpService = totpService;
+        this.emailService = emailService;
         this.cookieSecure = cookieSecure;
         this.cookieSameSite = cookieSameSite;
         this.githubClientId = githubClientId;
         this.githubClientSecret = githubClientSecret;
         this.githubRedirectUri = githubRedirectUri;
         this.totpIssuer = totpIssuer;
+        this.frontendBaseUrl = frontendBaseUrl;
         this.restClient = RestClient.builder().build();
         this.googleIdTokenDecoder = null;
     }
@@ -172,6 +188,8 @@ public class AuthController {
         user.setCreatedAt(LocalDateTime.now());
         userRepository.save(user);
 
+        sendWelcomeEmailSafely(user);
+
         return ResponseEntity.status(201).body(Map.of("message", "Registration successful"));
     }
 
@@ -223,6 +241,7 @@ public class AuthController {
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
             isNewUser = true;
+            sendWelcomeEmailSafely(user);
         } else {
             if (user.getAuthProvider() == null) {
                 user.setAuthProvider(AuthProvider.GOOGLE);
@@ -369,6 +388,7 @@ public class AuthController {
             user.setCreatedAt(LocalDateTime.now());
             user = userRepository.save(user);
             isNewUser = true;
+            sendWelcomeEmailSafely(user);
         } else {
             if (user.getAuthProvider() == null) {
                 user.setAuthProvider(AuthProvider.GITHUB);
@@ -628,6 +648,59 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        String email = request.email() == null ? "" : request.email().trim().toLowerCase(Locale.ROOT);
+        if (email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is required"));
+        }
+
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user != null && user.getAuthProvider() == AuthProvider.LOCAL) {
+            String token = generatePasswordResetToken();
+            user.setPasswordResetTokenHash(sha256Hex(token));
+            user.setPasswordResetTokenExpiresAt(LocalDateTime.now().plusMinutes(30));
+            userRepository.save(user);
+            emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), buildResetLink(token));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "message", "If an account exists for that email, a password reset link has been sent."
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        if (request.token() == null || request.token().isBlank()
+                || request.newPassword() == null || request.newPassword().isBlank()
+                || request.confirmPassword() == null || request.confirmPassword().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Token and new password fields are required"));
+        }
+
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password and confirm password must match"));
+        }
+
+        if (request.newPassword().length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("error", "New password must be at least 8 characters long"));
+        }
+
+        String tokenHash = sha256Hex(request.token().trim());
+        User user = userRepository.findByPasswordResetTokenHash(tokenHash).orElse(null);
+        if (user == null || user.getPasswordResetTokenExpiresAt() == null
+                || user.getPasswordResetTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid or expired reset token"));
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        user.setPasswordResetTokenHash(null);
+        user.setPasswordResetTokenExpiresAt(null);
+        userRepository.save(user);
+        refreshTokenService.revokeRefreshToken(user);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+    }
+
     private void issueAuthCookies(User user, HttpServletResponse response) {
         String accessToken = jwtService.generateAccessToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -743,6 +816,38 @@ public class AuthController {
             case "lecturer", "staff" -> Role.LECTURER;
             default -> Role.STUDENT;
         };
+    }
+
+    private String generatePasswordResetToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String buildResetLink(String token) {
+        String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+        return frontendBaseUrl.replaceAll("/+$", "") + "/reset-password?token=" + encodedToken;
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 not available", ex);
+        }
+    }
+
+    private void sendWelcomeEmailSafely(User user) {
+        try {
+            emailService.sendWelcomeEmail(user.getEmail(), user.getName());
+        } catch (RuntimeException ignored) {
+        }
     }
 }
 

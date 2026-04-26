@@ -53,6 +53,12 @@ public class User {
     @Column(name = "totp_secret", length = 128)
     private String totpSecret;
 
+    @Column(name = "password_reset_token_hash", length = 128)
+    private String passwordResetTokenHash;
+
+    @Column(name = "password_reset_token_expires_at")
+    private LocalDateTime passwordResetTokenExpiresAt;
+
     public User() {
     }
 
@@ -173,6 +179,22 @@ public class User {
 
     public void setTotpSecret(String totpSecret) {
         this.totpSecret = totpSecret;
+    }
+
+    public String getPasswordResetTokenHash() {
+        return passwordResetTokenHash;
+    }
+
+    public void setPasswordResetTokenHash(String passwordResetTokenHash) {
+        this.passwordResetTokenHash = passwordResetTokenHash;
+    }
+
+    public LocalDateTime getPasswordResetTokenExpiresAt() {
+        return passwordResetTokenExpiresAt;
+    }
+
+    public void setPasswordResetTokenExpiresAt(LocalDateTime passwordResetTokenExpiresAt) {
+        this.passwordResetTokenExpiresAt = passwordResetTokenExpiresAt;
     }
 
     @PrePersist
