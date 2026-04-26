@@ -3,7 +3,7 @@ package backend.notifications.controller;
 import backend.auth.model.Role;
 import backend.auth.model.User;
 import backend.auth.repository.UserRepository;
-import backend.notifications.services.NotificationService;
+import backend.notifications.service.NotificationService; 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -84,8 +84,7 @@ public class AdminNotificationController {
         return ResponseEntity.ok().build();
     }
 
+    // Record for broadcast request
     public record BroadcastRequest(String title, String message, String type, String targetRole) {
     }
 }
-
-
