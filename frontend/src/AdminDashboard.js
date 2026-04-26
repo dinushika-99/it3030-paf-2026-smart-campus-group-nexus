@@ -840,6 +840,10 @@ function AdminResourcesTab({ navigate }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [showTopUsed, setShowTopUsed] = useState(false);
+  const [topUsedLoading, setTopUsedLoading] = useState(false);
+  const [topUsedError, setTopUsedError] = useState('');
+  const [topUsedResources, setTopUsedResources] = useState([]);
 
   const [filterCapacity, setFilterCapacity] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
@@ -889,6 +893,82 @@ function AdminResourcesTab({ navigate }) {
 
   const statusColor = (s) => s === 'ACTIVE' ? '#22c55e' : '#ef4444';
 
+  const extractBookingRows = (response) => {
+    if (Array.isArray(response?.data?.data)) return response.data.data;
+    if (Array.isArray(response?.data)) return response.data;
+    if (Array.isArray(response)) return response;
+    return [];
+  };
+
+  const loadTopUsedResources = useCallback(async () => {
+    setTopUsedLoading(true);
+    setTopUsedError('');
+
+    try {
+      const response = await api.get('/api/bookings/all');
+      const bookings = extractBookingRows(response);
+      const usageMap = new Map();
+
+      bookings.forEach((booking) => {
+        const resourceId = booking?.resourcesId;
+        if (resourceId === null || resourceId === undefined) return;
+
+        const key = String(resourceId);
+        const status = String(booking?.status || 'UNKNOWN').toUpperCase();
+        const createdAt = booking?.createdAt ? new Date(booking.createdAt) : null;
+
+        if (!usageMap.has(key)) {
+          usageMap.set(key, {
+            resourcesId: resourceId,
+            resourceName: booking?.resourceName || `Resource #${resourceId}`,
+            total: 0,
+            approved: 0,
+            pending: 0,
+            rejected: 0,
+            cancelled: 0,
+            latestBookingAt: createdAt,
+          });
+        }
+
+        const row = usageMap.get(key);
+        row.total += 1;
+        if (status === 'APPROVED') row.approved += 1;
+        if (status === 'PENDING') row.pending += 1;
+        if (status === 'REJECTED') row.rejected += 1;
+        if (status === 'CANCELLED') row.cancelled += 1;
+
+        if (createdAt && (!row.latestBookingAt || createdAt > row.latestBookingAt)) {
+          row.latestBookingAt = createdAt;
+        }
+      });
+
+      const ranked = Array.from(usageMap.values())
+        .sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          const bTime = b.latestBookingAt ? b.latestBookingAt.getTime() : 0;
+          const aTime = a.latestBookingAt ? a.latestBookingAt.getTime() : 0;
+          return bTime - aTime;
+        })
+        .slice(0, 5);
+
+      setTopUsedResources(ranked);
+    } catch {
+      setTopUsedError('Failed to load top used resources. Make sure you are logged in as admin.');
+    } finally {
+      setTopUsedLoading(false);
+    }
+  }, []);
+
+  const handleTopUsedToggle = async () => {
+    if (showTopUsed) {
+      setShowTopUsed(false);
+      return;
+    }
+
+    setShowTopUsed(true);
+    await loadTopUsedResources();
+  };
+
   return (
     <div style={{ display: 'grid', gap: '18px' }}>
       <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', border: '1px solid #1f2937', borderRadius: '12px', backgroundColor: '#111827', flexWrap: 'wrap', marginBottom: '4px', alignItems: 'center' }}>
@@ -923,6 +1003,22 @@ function AdminResourcesTab({ navigate }) {
         >
           Facilities Catalogue
         </button>
+        <button
+          type="button"
+          onClick={handleTopUsedToggle}
+          style={{
+            border: showTopUsed ? '1px solid #BF932A' : '1px solid #334155',
+            background: showTopUsed ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: showTopUsed ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Top Used Resources
+        </button>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
           <div style={{ width: '160px' }}>
@@ -952,6 +1048,75 @@ function AdminResourcesTab({ navigate }) {
           </div>
         </div>
       </div>
+
+      {showTopUsed && (
+        <div style={{ ...CARD_STYLE, border: '1px solid #3f2f0c', background: 'linear-gradient(145deg, #18181b, #0f172a)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <div>
+              <h3 style={{ margin: 0, color: '#FDE68A' }}>Top Used Resources</h3>
+              <p style={{ margin: '4px 0 0 0', color: '#cbd5e1', fontSize: '13px' }}>
+                Ranked by total booking usage for innovation insights.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={loadTopUsedResources}
+              disabled={topUsedLoading}
+              style={{
+                border: '1px solid #334155',
+                background: '#0b1220',
+                color: topUsedLoading ? '#64748b' : '#cbd5e1',
+                borderRadius: '8px',
+                padding: '7px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: topUsedLoading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {topUsedLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+
+          {topUsedLoading && <p style={{ margin: 0, color: '#94a3b8' }}>Loading usage insights...</p>}
+
+          {!topUsedLoading && topUsedError && (
+            <p style={{ margin: 0, color: '#fca5a5' }}>{topUsedError}</p>
+          )}
+
+          {!topUsedLoading && !topUsedError && topUsedResources.length === 0 && (
+            <p style={{ margin: 0, color: '#9ca3af' }}>No booking usage data available yet.</p>
+          )}
+
+          {!topUsedLoading && !topUsedError && topUsedResources.length > 0 && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #334155' }}>
+                    {['Rank', 'Resource', 'Total', 'Approved', 'Pending', 'Rejected', 'Cancelled'].map((h) => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: 'left', color: '#9ca3af', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {topUsedResources.map((item, idx) => (
+                    <tr key={item.resourcesId} style={{ borderBottom: '1px solid #1f2937' }}>
+                      <td style={{ padding: '10px 12px', color: '#FDE68A', fontWeight: 700 }}>#{idx + 1}</td>
+                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{item.resourceName}</td>
+                      <td style={{ padding: '10px 12px', color: '#e5e7eb' }}>{item.total}</td>
+                      <td style={{ padding: '10px 12px', color: '#86efac' }}>{item.approved}</td>
+                      <td style={{ padding: '10px 12px', color: '#fde68a' }}>{item.pending}</td>
+                      <td style={{ padding: '10px 12px', color: '#fca5a5' }}>{item.rejected}</td>
+                      <td style={{ padding: '10px 12px', color: '#fda4af' }}>{item.cancelled}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
