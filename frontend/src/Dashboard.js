@@ -819,7 +819,6 @@ export default function Dashboard() {
     </div>
   );
 
-  // Technician view kept same as your original
   const TechnicianView = () => (
     <div style={{ display: "grid", gap: "18px" }}>
       <div
@@ -1063,8 +1062,6 @@ export default function Dashboard() {
           </div>
         </div>
       </nav>
-    <div style={{ minHeight: '100vh', backgroundColor: COLORS.white, color: COLORS.black, fontFamily: 'system-ui, sans-serif' }}>
-      
 
       <div style={{ padding: "0", width: "100%", margin: 0 }}>
         <header
@@ -1204,8 +1201,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      /* Profile Modal * /
-
+      {/* Profile Modal */}
       {profileOpen && (
         <div
           style={{
@@ -1658,13 +1654,7 @@ export default function Dashboard() {
                               )
                             }
                             placeholder="Current password"
-                            style={{
-                              border: "1px solid #d1d5db",
-                              borderRadius: "10px",
-                              padding: "10px 12px",
-                              fontSize: "14px",
-                              background: "#fff",
-                            }}
+                            style={inputStyle}
                           />
                           <button
                             type="button"
@@ -1698,13 +1688,7 @@ export default function Dashboard() {
                               handlePasswordField("newPassword", e.target.value)
                             }
                             placeholder="New password"
-                            style={{
-                              border: "1px solid #d1d5db",
-                              borderRadius: "10px",
-                              padding: "10px 12px",
-                              fontSize: "14px",
-                              background: "#fff",
-                            }}
+                            style={inputStyle}
                           />
                           <button
                             type="button"
@@ -1725,27 +1709,6 @@ export default function Dashboard() {
                             {passwordVisibility.newPassword ? "Hide" : "Show"}{" "}
                             new password
                           </button>
-                          <input
-                            type="password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) =>
-                              handlePasswordField(
-                                "currentPassword",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Current password"
-                            style={inputStyle}
-                          />
-                          <input
-                            type="password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) =>
-                              handlePasswordField("newPassword", e.target.value)
-                            }
-                            placeholder="New password"
-                            style={inputStyle}
-                          />
 
                           {passwordForm.newPassword && (
                             <div style={{ display: "grid", gap: "6px" }}>
@@ -1798,13 +1761,7 @@ export default function Dashboard() {
                               )
                             }
                             placeholder="Confirm new password"
-                            style={{
-                              border: "1px solid #d1d5db",
-                              borderRadius: "10px",
-                              padding: "10px 12px",
-                              fontSize: "14px",
-                              background: "#fff",
-                            }}
+                            style={inputStyle}
                           />
                           <button
                             type="button"
@@ -1845,19 +1802,6 @@ export default function Dashboard() {
                                 : "Passwords do not match yet."}
                             </p>
                           )}
-
-                          <input
-                            type="password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) =>
-                              handlePasswordField(
-                                "confirmPassword",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="Confirm new password"
-                            style={inputStyle}
-                          />
                         </div>
 
                         {passwordNotice && (
@@ -2158,6 +2102,16 @@ const ProfileInfo = ({ label, value }) => (
   </div>
 );
 
+const inputStyle = {
+  border: "1px solid #d1d5db",
+  borderRadius: "10px",
+  padding: "10px 12px",
+  fontSize: "14px",
+  color: "#111827",
+  outline: "none",
+  background: "#fff",
+};
+
 const Field = ({ label, value, onChange }) => (
   <label style={{ display: "grid", gap: "6px" }}>
     <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: 600 }}>
@@ -2184,23 +2138,13 @@ const ProfileTabButton = ({ active, onClick, label }) => (
       marginBottom: "8px",
       display: "flex",
       alignItems: "center",
-      justifyContent: "center", // This centers the text horizontally
+      justifyContent: "center",
       textAlign: "center",
       fontWeight: 700,
       cursor: "pointer",
-      transition: "all 0.2s ease", // Adds a smooth color transition
+      transition: "all 0.2s ease",
     }}
   >
     <span>{label}</span>
   </button>
 );
-
-const inputStyle = {
-  border: "1px solid #d1d5db",
-  borderRadius: "10px",
-  padding: "10px 12px",
-  fontSize: "14px",
-  color: "#111827",
-  outline: "none",
-  background: "#fff",
-};
