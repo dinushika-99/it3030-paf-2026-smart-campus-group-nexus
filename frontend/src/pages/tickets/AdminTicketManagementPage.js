@@ -109,6 +109,51 @@ const NavButton = ({ active, onClick, text, icon }) => (
   </button>
 );
 
+const TopNavIconButton = ({ children, onClick, label }) => (
+  <button
+    onClick={onClick}
+    title={label}
+    style={{
+      width: '36px',
+      height: '36px',
+      borderRadius: '10px',
+      border: '1px solid #334155',
+      backgroundColor: '#0f172a',
+      color: '#BF932A',
+      display: 'grid',
+      placeItems: 'center',
+      cursor: 'pointer',
+    }}
+  >
+    {children}
+  </button>
+);
+
+const AdminProfileTabButton = ({ active, onClick, icon, label }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{
+      width: '100%',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+      padding: '12px 14px',
+      marginBottom: '10px',
+      borderRadius: '12px',
+      border: active ? '1px solid #BF932A' : '1px solid #374151',
+      background: active ? 'rgba(191,147,42,0.16)' : '#0f172a',
+      color: active ? '#FDE68A' : '#cbd5e1',
+      cursor: 'pointer',
+      textAlign: 'left',
+      fontWeight: active ? 700 : 600,
+    }}
+  >
+    <span style={{ fontSize: '15px', width: '18px', textAlign: 'center' }}>{icon}</span>
+    <span>{label}</span>
+  </button>
+);
+
 const MenuIcon = ({ type }) => {
   const common = {
     width: 14,
@@ -180,6 +225,23 @@ function statusColor(status) {
   return '#94a3b8';
 }
 
+const STATUS_SECTION_ORDER = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'REJECTED', 'CLOSED'];
+
+const STATUS_SECTION_LABEL = {
+  OPEN: 'Open',
+  IN_PROGRESS: 'In Progress',
+  RESOLVED: 'Solved',
+  REJECTED: 'Rejected',
+  CLOSED: 'Closed',
+};
+
+const PRIORITY_RANK = {
+  CRITICAL: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
 function formatDate(value) {
   if (!value) return '-';
 
@@ -235,10 +297,17 @@ function canAssign(ticket) {
   return ticket?.status === 'OPEN' || ticket?.status === 'IN_PROGRESS';
 }
 
+function canClose(ticket) {
+  return ticket?.status === 'RESOLVED';
+}
+
 export default function AdminTicketManagementPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState('profile');
+  const [notifications] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [staffDirectory, setStaffDirectory] = useState([]);
   const [technicians, setTechnicians] = useState([]);
@@ -270,6 +339,33 @@ export default function AdminTicketManagementPage() {
     () => tickets.find((ticket) => String(ticket.ticketId) === String(selectedTicketId)) || null,
     [tickets, selectedTicketId]
   );
+
+  const ticketsByStatusSections = useMemo(() => {
+    const normalizeStatus = (status) => {
+      const normalized = String(status || '').toUpperCase();
+      return STATUS_SECTION_ORDER.includes(normalized) ? normalized : 'OPEN';
+    };
+
+    const sortByPriority = (left, right) => {
+      const leftPriority = PRIORITY_RANK[String(left.priority || '').toUpperCase()] || 0;
+      const rightPriority = PRIORITY_RANK[String(right.priority || '').toUpperCase()] || 0;
+      if (rightPriority !== leftPriority) return rightPriority - leftPriority;
+      return new Date(right.createdAt || 0) - new Date(left.createdAt || 0);
+    };
+
+    const grouped = new Map(STATUS_SECTION_ORDER.map((status) => [status, []]));
+
+    tickets.forEach((ticket) => {
+      const status = normalizeStatus(ticket.status);
+      grouped.get(status).push(ticket);
+    });
+
+    return STATUS_SECTION_ORDER.map((status) => ({
+      status,
+      label: STATUS_SECTION_LABEL[status] || status,
+      tickets: [...grouped.get(status)].sort(sortByPriority),
+    }));
+  }, [tickets]);
 
   const usersById = useMemo(() => {
     const map = new Map();
@@ -314,6 +410,11 @@ export default function AdminTicketManagementPage() {
     if (user?.id && userId === user.id) return `${user.name || 'Admin'} (${userId})`;
     return userId;
   };
+
+  const openProfileTab = useCallback((tab) => {
+    setProfileTab(tab);
+    setProfileOpen(true);
+  }, []);
 
   const viewTitle = ticketView === 'manager'
     ? 'Ticket Management'
@@ -646,6 +747,49 @@ export default function AdminTicketManagementPage() {
     }
   };
 
+  const handleCloseTicket = async () => {
+    if (!selectedTicket) {
+      setError('Select a ticket first.');
+      return;
+    }
+
+    if (!canClose(selectedTicket)) {
+      setError('Only RESOLVED tickets can be closed.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const statusResponse = await fetch(`${API_BASE}/api/tickets/${selectedTicket.ticketId}/status`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'CLOSED',
+          changeNote: 'Closed by admin after resolution.',
+        }),
+      });
+
+      if (!statusResponse.ok) {
+        throw new Error('Failed to close ticket.');
+      }
+
+      setMessage('Ticket closed successfully.');
+      await refreshData();
+      await fetchHistory(selectedTicket.ticketId);
+      await fetchAssignmentHistory(selectedTicket.ticketId);
+    } catch (closeError) {
+      setError(normalizeError(closeError, 'Failed to close ticket.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const canDeleteAttachment = (attachment) => {
     if (!user || !attachment) return false;
     const role = String(user.role || '').toLowerCase();
@@ -822,6 +966,15 @@ export default function AdminTicketManagementPage() {
   const handleLogout = () => {
     localStorage.removeItem('smartCampusUser');
     navigate('/login');
+  };
+
+  const closeProfilePanel = () => {
+    setProfileOpen(false);
+    setProfileTab('profile');
+  };
+
+  const goToAdminTab = (activeTab) => {
+    navigate('/admin', { state: { activeTab } });
   };
 
   const renderCommentNode = (comment, depth = 0) => {
@@ -1022,55 +1175,170 @@ export default function AdminTicketManagementPage() {
 
         <div className="admin-nav-group">
           <MenuCategory title="Main" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Command Center" icon="dashboard" />
+          <NavButton active={false} onClick={() => goToAdminTab('command-center')} text="Command Center" icon="dashboard" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
           <NavButton active={true} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Asset Directory" icon="asset" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Resource Scheduling" icon="schedule" />
+          <NavButton active={false} onClick={() => goToAdminTab('asset-directory')} text="Asset Directory" icon="asset" />
+          <NavButton active={false} onClick={() => goToAdminTab('scheduling')} text="Resource Scheduling" icon="schedule" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Resolution" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Incident Desk" icon="incident" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Active Dispatch" icon="dispatch" />
+          <NavButton active={false} onClick={() => goToAdminTab('incident-desk')} text="Incident Desk" icon="incident" />
+          <NavButton active={false} onClick={() => goToAdminTab('dispatch')} text="Active Dispatch" icon="dispatch" />
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Administration" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Access & Identity" icon="identity" />
-          <NavButton active={false} onClick={() => navigate('/admin')} text="Broadcast & Audit" icon="audit" />
+          <NavButton active={false} onClick={() => goToAdminTab('admin-users')} text="Access & Identity" icon="identity" />
+          <NavButton active={false} onClick={() => goToAdminTab('admin-communication')} text="Broadcast & Audit" icon="audit" />
         </div>
       </aside>
 
       <main style={MAIN_CONTENT_STYLE}>
         <div style={pageTitleCardStyle}>
           <div>
-            <p style={{ margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#BF932A' }}>Administration</p>
-            <h1 style={{ margin: '3px 0 0 0', fontSize: '24px', color: '#fff' }}>{viewTitle}</h1>
+            <p style={{ color: '#BF932A', margin: 0, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px' }}>Welcome back</p>
+            <h1 style={{ color: '#fff', margin: '2px 0 0 0', fontSize: '24px', textTransform: 'capitalize' }}>
+              {viewTitle}
+            </h1>
             <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '13px' }}>
               {viewSubtitle}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleLogout}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '9px 14px',
-              backgroundColor: '#BF932A',
-              color: '#111827',
-              border: 'none',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '13px',
-            }}
-          >
-            Logout
-          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <TopNavIconButton label="Profile" onClick={() => openProfileTab('profile')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21a8 8 0 0 0-16 0"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </TopNavIconButton>
+
+            <TopNavIconButton label="Notifications" onClick={() => openProfileTab('notifications')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </TopNavIconButton>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 14px',
+                backgroundColor: '#BF932A',
+                color: '#111827',
+                border: 'none',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '13px',
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Logout
+            </button>
+          </div>
         </div>
+
+        {profileOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(4, 8, 20, 0.62)',
+              backdropFilter: 'blur(9px)',
+              WebkitBackdropFilter: 'blur(9px)',
+              display: 'grid',
+              placeItems: 'center',
+              padding: '20px',
+              zIndex: 1000,
+            }}
+            onClick={closeProfilePanel}
+          >
+            <div
+              style={{
+                width: 'min(920px, 100%)',
+                minHeight: 'min(580px, 86vh)',
+                borderRadius: '18px',
+                overflow: 'hidden',
+                background: '#0b1120',
+                border: '1px solid #334155',
+                boxShadow: '0 35px 80px rgba(0,0,0,0.45)',
+                display: 'grid',
+                gridTemplateColumns: '230px 1fr',
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <aside style={{ borderRight: '1px solid #334155', background: '#111827', padding: '20px 14px' }}>
+                <div style={{ display: 'grid', justifyItems: 'center', textAlign: 'center', marginBottom: '18px' }}>
+                  <div style={{ width: '78px', height: '78px', borderRadius: '999px', background: '#0f172a', color: '#BF932A', border: '2px solid #BF932A', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '26px', overflow: 'hidden' }}>
+                    {avatarUrl
+                      ? <img src={avatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : (user?.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <p style={{ margin: '10px 0 0 0', fontWeight: 700, fontSize: '14px', color: '#fff' }}>{user?.name || 'Admin User'}</p>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#9ca3af', textTransform: 'capitalize' }}>Admin</p>
+                </div>
+
+                <AdminProfileTabButton active={profileTab === 'profile'} onClick={() => setProfileTab('profile')} icon="👤" label="Profile" />
+                <AdminProfileTabButton active={profileTab === 'notifications'} onClick={() => setProfileTab('notifications')} icon="🔔" label="Notifications" />
+              </aside>
+
+              <section style={{ padding: '26px 28px', overflowY: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ margin: 0, fontSize: '26px', color: '#fff' }}>
+                    {profileTab === 'profile' && 'Profile'}
+                    {profileTab === 'notifications' && 'Notifications'}
+                  </h2>
+                  <button onClick={closeProfilePanel} style={{ border: '1px solid #334155', background: '#111827', color: '#e5e7eb', borderRadius: '8px', padding: '8px 12px', cursor: 'pointer' }}>
+                    Close
+                  </button>
+                </div>
+
+                {profileTab === 'profile' && (
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Full Name</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user?.name || '—'}</p>
+                    </div>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Role</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff', textTransform: 'capitalize' }}>Admin</p>
+                    </div>
+                    <div style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>Email</p>
+                      <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#fff' }}>{user?.email || '—'}</p>
+                    </div>
+                  </div>
+                )}
+
+                {profileTab === 'notifications' && (
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {notifications.length === 0 && <p style={{ margin: 0, color: '#9ca3af' }}>No notifications available.</p>}
+                    {notifications.map((item, index) => (
+                      <div key={item.id || index} style={{ border: '1px solid #334155', background: '#111827', borderRadius: '12px', padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+                          <p style={{ margin: 0, fontWeight: 700, color: '#fff' }}>{item.title || 'Notification'}</p>
+                          <span style={{ fontSize: '12px', color: '#9ca3af' }}>{item.type || 'GENERAL'}</span>
+                        </div>
+                        <p style={{ margin: '6px 0 0 0', color: '#cbd5e1', fontSize: '13px' }}>{item.message || 'No message provided.'}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+          </div>
+        )}
 
       <div style={ticketSubNavStyle}>
         <button
@@ -1179,50 +1447,89 @@ export default function AdminTicketManagementPage() {
               No tickets returned. If backend still filters by owner, admin list may be empty until admin ticket APIs are enabled.
             </p>
           ) : (
-            <div style={{ display: 'grid', gap: '8px', maxHeight: '68vh', overflowY: 'auto', paddingRight: '2px' }}>
-              {tickets.map((ticket) => {
-                const active = String(ticket.ticketId) === String(selectedTicketId);
-                return (
-                  <button
-                    key={ticket.ticketId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedTicketId(ticket.ticketId);
-                      setMessage('');
-                      setError('');
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      background: active ? 'rgba(191,147,42,0.12)' : '#0f172a',
-                      border: active ? '1px solid #BF932A' : '1px solid #1f2937',
-                      color: '#e5e7eb',
-                      borderRadius: '10px',
-                      padding: '10px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                      <strong style={{ color: '#fff', fontSize: '13px' }}>{ticket.ticketCode || `#${ticket.ticketId}`}</strong>
-                      <span
-                        style={{
-                          border: `1px solid ${statusColor(ticket.status)}`,
-                          color: statusColor(ticket.status),
-                          borderRadius: '999px',
-                          fontSize: '11px',
-                          padding: '2px 8px',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {ticket.status || 'OPEN'}
-                      </span>
-                    </div>
-                    <p style={{ margin: '7px 0 0 0', fontSize: '13px', color: '#cbd5e1' }}>{ticket.title || 'Untitled ticket'}</p>
-                    <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>
-                      Priority: {ticket.priority || '-'}
-                    </p>
-                  </button>
-                );
-              })}
+            <div style={{ display: 'grid', gap: '12px', alignContent: 'start' }}>
+              {ticketsByStatusSections.map((section) => (
+                <div key={section.status} style={{ display: 'grid', gap: '8px' }}>
+                  <p style={{ margin: '2px 0 0 0', color: '#cbd5e1', fontSize: '12px', fontWeight: 700, letterSpacing: '0.3px' }}>
+                    {section.label} ({section.tickets.length})
+                  </p>
+
+                  {section.tickets.length === 0 ? (
+                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>No tickets in this section.</p>
+                  ) : (
+                    section.tickets.map((ticket) => {
+                      const active = String(ticket.ticketId) === String(selectedTicketId);
+                      const isHighPriority = ['HIGH', 'CRITICAL'].includes(String(ticket.priority || '').toUpperCase());
+                      const hasAssignedTechnician = Boolean(String(ticket.assignedTechnicianId || '').trim());
+                      const isOpenHighPriorityUnassigned = String(ticket.status || '').toUpperCase() === 'OPEN'
+                        && isHighPriority
+                        && !hasAssignedTechnician;
+                      return (
+                        <button
+                          key={ticket.ticketId}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTicketId(ticket.ticketId);
+                            setMessage('');
+                            setError('');
+                          }}
+                          style={{
+                            textAlign: 'left',
+                            background: active ? 'rgba(191,147,42,0.12)' : '#0f172a',
+                            border: isOpenHighPriorityUnassigned
+                              ? '2px solid #ef4444'
+                              : (active ? '1px solid #BF932A' : '1px solid #1f2937'),
+                            borderLeft: isOpenHighPriorityUnassigned
+                              ? '4px solid #ef4444'
+                              : (active ? '4px solid #BF932A' : '4px solid transparent'),
+                            color: '#e5e7eb',
+                            borderRadius: '12px',
+                            boxShadow: isOpenHighPriorityUnassigned
+                              ? '0 0 0 2px rgba(239,68,68,0.2)'
+                              : 'none',
+                            padding: '10px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                            <strong style={{ color: '#fff', fontSize: '13px' }}>{ticket.ticketCode || `#${ticket.ticketId}`}</strong>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                border: `1px solid ${statusColor(ticket.status)}`,
+                                color: statusColor(ticket.status),
+                                borderRadius: '999px',
+                                fontSize: '11px',
+                                padding: '2px 8px',
+                                fontWeight: 700,
+                              }}
+                            >
+                              <span
+                                aria-hidden="true"
+                                style={{
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '999px',
+                                  backgroundColor: statusColor(ticket.status),
+                                  boxShadow: `0 0 0 3px color-mix(in srgb, ${statusColor(ticket.status)} 18%, transparent)`,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {ticket.status || 'OPEN'}
+                            </span>
+                          </div>
+                          <p style={{ margin: '7px 0 0 0', fontSize: '13px', color: '#cbd5e1' }}>{ticket.title || 'Untitled ticket'}</p>
+                          <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#94a3b8' }}>
+                            Priority: {ticket.priority || '-'}
+                          </p>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </section>
@@ -1246,7 +1553,20 @@ export default function AdminTicketManagementPage() {
                   </div>
                   <div>
                     <p style={labelStyle}>Status</p>
-                    <p style={{ ...valueStyle, color: statusColor(selectedTicket.status), fontWeight: 700 }}>{selectedTicket.status || '-'}</p>
+                    <p style={{ ...valueStyle, color: statusColor(selectedTicket.status), fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '999px',
+                          backgroundColor: statusColor(selectedTicket.status),
+                          boxShadow: `0 0 0 4px color-mix(in srgb, ${statusColor(selectedTicket.status)} 18%, transparent)`,
+                          flexShrink: 0,
+                        }}
+                      />
+                      {selectedTicket.status || '-'}
+                    </p>
                   </div>
                   <div>
                     <p style={labelStyle}>Priority</p>
@@ -1328,6 +1648,31 @@ export default function AdminTicketManagementPage() {
                   <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '10px', border: '1px solid #7f1d1d', background: 'rgba(127,29,29,0.22)' }}>
                     <p style={{ ...labelStyle, color: '#fca5a5' }}>Rejection Reason</p>
                     <p style={{ ...valueStyle, color: '#fecaca', marginTop: '6px' }}>{selectedTicket.rejectionReason}</p>
+                  </div>
+                )}
+
+                {canClose(selectedTicket) && (
+                  <div style={{ marginTop: '14px', padding: '12px', borderRadius: '10px', border: '1px solid #334155', background: 'rgba(15,23,42,0.72)' }}>
+                    <p style={{ ...labelStyle, color: '#cbd5e1' }}>Final Admin Action</p>
+                    <p style={{ margin: '6px 0 10px 0', color: '#94a3b8', fontSize: '13px' }}>
+                      This ticket is resolved. Admin can close it now.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleCloseTicket}
+                      disabled={isSubmitting}
+                      style={{
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        background: '#64748b',
+                        color: '#fff',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isSubmitting ? 'Working...' : 'Close Ticket'}
+                    </button>
                   </div>
                 )}
 

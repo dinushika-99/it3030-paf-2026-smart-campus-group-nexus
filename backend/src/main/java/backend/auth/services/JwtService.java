@@ -1,11 +1,11 @@
 package backend.auth.services;
 
 import backend.auth.model.User;
+import backend.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -28,6 +28,11 @@ public class JwtService {
                 @Value("${app.auth.jwt.refresh-token-days:14}") long refreshTokenDays,
                 @Value("${app.auth.jwt.two-factor-minutes:5}") long twoFactorMinutes
     ) {
+    public JwtService(JwtProperties jwtProperties) {
+        String jwtSecret = jwtProperties.getSecret();
+        long accessTokenMinutes = jwtProperties.getAccessTokenMinutes();
+        long refreshTokenDays = jwtProperties.getRefreshTokenDays();
+
         byte[] keyBytes;
         try {
             keyBytes = Decoders.BASE64.decode(jwtSecret);

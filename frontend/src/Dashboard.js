@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { SITE_BRAND } from './siteConfig';
 import useDashboardProfile from './hooks/useDashboardProfile';
 
@@ -79,6 +79,57 @@ export default function Dashboard() {
   // ==========================================
   const StudentView = () => (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          onClick={() => navigate('/tickets')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Create Ticket
+        </button>
+         <button
+          type="button"
+          onClick={() => navigate('/bookings/my')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Booking
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate('/facilities')}
+          style={{
+            backgroundColor: '#111827',
+            border: 'none',
+            color: '#ffffff',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '700',
+          }}
+        >
+          Facilities
+        </button>
+      </div>
+
       <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
         <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#111827' }}>My Academics</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -150,9 +201,34 @@ export default function Dashboard() {
   // 🛠 TECHNICIAN VIEW
   // ==========================================
   const TechnicianView = () => (
-    <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', borderTop: '4px solid #BF932A' }}>
-      <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#111827' }}>Technician Dashboard</h3>
-      <p style={{ margin: 0, color: '#4b5563' }}>View and manage IT support tickets and campus systems health.</p>
+    <div style={{ display: 'grid', gap: '18px' }}>
+      <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1f2937 55%, #334155 100%)', color: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #0f172a', boxShadow: '0 18px 45px rgba(15, 23, 42, 0.18)' }}>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '20px' }}>Technician Workspace</h3>
+        <p style={{ margin: 0, color: '#cbd5e1', maxWidth: '720px' }}>
+          Track your assigned tickets, update progress, and record resolution notes from one place.
+        </p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px' }}>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Assigned Queue</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '30px', fontWeight: 800, color: '#111827' }}>Live</p>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Action</p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '18px', fontWeight: 700, color: '#111827' }}>Update status and resolution notes</p>
+        </div>
+        <div style={{ backgroundColor: '#ffffff', padding: '18px', borderRadius: '14px', border: '1px solid #e5e7eb' }}>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Shortcut</p>
+          <button
+            type="button"
+            onClick={() => navigate('/technician/workspace')}
+            style={{ marginTop: '8px', backgroundColor: '#BF932A', color: '#111827', border: 'none', borderRadius: '10px', padding: '10px 14px', fontWeight: 800, cursor: 'pointer' }}
+          >
+            Open Technician Workspace
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -165,12 +241,15 @@ export default function Dashboard() {
       
       {/* Shared Navbar */}
       <nav style={{ backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '36px', height: '36px', objectFit: 'contain' }} />
+        <Link to="/facilities" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
+          <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
           <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
-        </div>
+        </Link>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <button onClick={() => navigate('/facilities')} style={{ backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0', color: '#111827', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+            Facilities Catalogue
+          </button>
           <button onClick={() => navigate('/tickets')} style={{ backgroundColor: '#111827', border: 'none', color: '#ffffff', padding: '8px 15px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
             Create Ticket
           </button>
