@@ -15,34 +15,6 @@ const COLORS = {
   softPurple: "#f7eedf",
 };
 
-// Background images for random rotation
-const BACKGROUND_IMAGES = [
-  '/authleft.jpg',
-  '/hero-campus-1.jpg',
-  '/hero-campus-2.jpg',
-  '/hero-campus-3.jpg',
-  '/hero-library.jpg',
-  '/hero-sports.jpg',
-];
-
-const useRandomBackground = () => {
-  const [currentImage, setCurrentImage] = useState(BACKGROUND_IMAGES[0]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prev) => {
-        const available = BACKGROUND_IMAGES.filter((img) => img !== prev);
-        const next = available[Math.floor(Math.random() * available.length)];
-        return next;
-      });
-    }, 5000); // Change every 5 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return currentImage;
-};
-
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -60,7 +32,6 @@ export default function Dashboard() {
     openTickets: 0,
   });
   const [statsLoading, setStatsLoading] = useState(false);
-  const backgroundImage = useRandomBackground();
 
   const {
     notifications,
@@ -145,25 +116,15 @@ export default function Dashboard() {
     const fetchStudentStats = async () => {
       setStatsLoading(true);
       try {
-        const [resourcesRes, bookingsRes] = await Promise.all([
+        const [resourcesRes, bookingsRes, ticketsRes] = await Promise.all([
           api.get("/api/resources"),
           api.get("/api/bookings/my"),
-        ]);
-
-        const resources = Array.isArray(resourcesRes.data)
-          ? resourcesRes.data
-          : [];
-        const [resourcesRes, bookingsRes, ticketsRes] = await Promise.all([
-          api.get('/api/resources'),
-          api.get('/api/bookings/my'),
-          api.get('/api/tickets'),
+          api.get("/api/tickets"),
         ]);
 
         const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data : [];
-
         const bookingsData = bookingsRes.data?.data ?? bookingsRes.data ?? [];
         const bookings = Array.isArray(bookingsData) ? bookingsData : [];
-
         const tickets = Array.isArray(ticketsRes.data) ? ticketsRes.data : [];
 
         const pendingBookings = bookings.filter((booking) => {
@@ -177,9 +138,10 @@ export default function Dashboard() {
         const myTickets = userId
           ? tickets.filter((t) => (t.createdByUserId || t.userId) === userId)
           : tickets;
+          
         const openTickets = myTickets.filter((ticket) => {
-          const status = String(ticket.status || '').toUpperCase();
-          return status === 'OPEN' || status === 'IN_PROGRESS';
+          const status = String(ticket.status || "").toUpperCase();
+          return status === "OPEN" || status === "IN_PROGRESS";
         }).length;
 
         if (active) {
@@ -191,8 +153,7 @@ export default function Dashboard() {
           });
         }
       } catch (error) {
-        console.error("Failed to fetch student dashboard stats:", error);
-        console.error('Failed to fetch dashboard stats:', error);
+        console.error("Failed to fetch dashboard stats:", error);
       } finally {
         if (active) setStatsLoading(false);
       }
@@ -325,13 +286,13 @@ export default function Dashboard() {
             inset: 0,
             backgroundImage: `
               linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)),
-              url('${backgroundImage}')
+              url('/authleft.jpg')
             `,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            transform: 'scale(1.03)',
-            transition: 'background-image 1s ease-in-out',
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            filter: "blur(2px)",
+            transform: "scale(1.03)",
           }}
         />
 
@@ -351,13 +312,12 @@ export default function Dashboard() {
           <div>
             <p
               style={{
-                color: "#ffffff",
+                color: "#B99443",
                 fontWeight: 800,
                 marginBottom: "12px",
                 fontSize: "13px",
               }}
             >
-            <p style={{ color: '#B99443', fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
               Welcome to Smart Campus
             </p>
             <h1
@@ -385,17 +345,7 @@ export default function Dashboard() {
               dashboard.
             </p>
 
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <ActionButton filled onClick={() => navigate("/facilities")}>
-                Browse Facilities
-              </ActionButton>
-              <ActionButton onClick={() => navigate("/bookings/my")}>
-                My Bookings
-              </ActionButton>
-              <ActionButton onClick={() => navigate("/tickets")}>
-                Create Ticket
-              </ActionButton>
-            </div>
+            
           </div>
 
           <div style={{ position: "relative", minHeight: "320px" }}>
@@ -432,7 +382,6 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
         </div>
       </section>
 
@@ -478,42 +427,21 @@ export default function Dashboard() {
           >
             <InfoBox
               number={formatStat(studentStats.resources)}
-              title="Find Resource"
+              title="Available Resources"
             />
             <InfoBox
               number={formatStat(studentStats.bookings)}
-              title="Request Booking"
+              title="My Bookings"
             />
             <InfoBox
               number={formatStat(studentStats.pendingBookings)}
-              title="Track Status"
+              title="Pending Bookings"
             />
             <InfoBox
-              number={formatStat(studentStats.notifications)}
-              title="Get Notification"
+              number={formatStat(studentStats.openTickets)}
+              title="Open Tickets"
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
-  <InfoBox
-    number={formatStat(studentStats.resources)}
-    title="Available Resources"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.bookings)}
-    title="My Bookings"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.pendingBookings)}
-    title="Pending Bookings"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.openTickets)}
-    title="Open Tickets"
-  />
-</div>
         </div>
 
         <div>
@@ -622,16 +550,15 @@ export default function Dashboard() {
         style={{
           backgroundImage: `
             linear-gradient(${COLORS.overlay}, ${COLORS.overlay}),
-            url('${backgroundImage}')
+            url('/authleft.jpg')
           `,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          padding: '70px 30px',
-          marginBottom: '55px',
-          position: 'relative',
-          overflow: 'hidden',
-          transition: 'background-image 1s ease-in-out',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          padding: "70px 30px",
+          marginBottom: "55px",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
         <div
@@ -1038,102 +965,6 @@ export default function Dashboard() {
         fontFamily: "system-ui, sans-serif",
       }}
     >
-      <nav
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1100,
-          backgroundColor: "#ffffff",
-          borderBottom: "1px solid #e5e7eb",
-          padding: "15px 30px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Link
-          to="/facilities"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            textDecoration: "none",
-          }}
-        >
-          <img
-            src={SITE_BRAND.logoPath}
-            alt={SITE_BRAND.logoAlt}
-            style={{ width: "40px", height: "40px", objectFit: "contain" }}
-          />
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "20px",
-              fontWeight: "700",
-              color: "#111827",
-              letterSpacing: "0.8px",
-            }}
-          >
-            {SITE_BRAND.name}
-          </h1>
-        </Link>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-          <div
-            style={{
-              textAlign: "center",
-              display: "grid",
-              justifyItems: "center",
-            }}
-          >
-            <button
-              onClick={openProfile}
-              title="Open profile"
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "999px",
-                border: "none",
-                background: COLORS.purple,
-                color: "#fff",
-                fontWeight: 700,
-                cursor: "pointer",
-                overflow: "hidden",
-                display: "grid",
-                placeItems: "center",
-                padding: 0,
-              }}
-            >
-              {profileAvatarUrl ? (
-                <img
-                  src={profileAvatarUrl}
-                  alt="Profile"
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                (user.name || "U").charAt(0).toUpperCase()
-              )}
-            </button>
-            <button
-              onClick={openProfile}
-              style={{
-                margin: "3px 0 0 0",
-                padding: 0,
-                border: "none",
-                background: "transparent",
-                fontSize: "12px",
-                fontWeight: "700",
-                color: "#111827",
-                cursor: "pointer",
-                lineHeight: 1.1,
-              }}
-            >
-              {user.name}
-            </button>
-          </div>
-        </div>
-      </nav>
-
       <div style={{ padding: "0", width: "100%", margin: 0 }}>
         <header
           style={{
@@ -1247,47 +1078,6 @@ export default function Dashboard() {
                 ⏰
               </span>
               <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
-      <div style={{ padding: '0', width: '100%', margin: 0 }}>
-        <header style={{ top: '72px', zIndex: 1090, width: '100%', margin: 0, background: '#ffffff', borderBottom: '1px solid #eef2f7' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '14px 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px 12px' }}>
-              <h2 style={{ fontSize: '28px', margin: 0, color: COLORS.black }}>
-                Hi, {user.name}.
-              </h2>
-              
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                color: COLORS.black,
-                fontSize: '13px',
-                fontWeight: 600,
-                flexWrap: 'nowrap',
-                overflowX: 'auto',
-                WebkitOverflowScrolling: 'touch',
-                padding: '6px 2px',
-                maxWidth: '100%',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
-                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>U</span>
-                <span>University Contact: NEXUS Student Services</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
-                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>☎</span>
-                <span>Phone: +94 11 234 5678</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
-                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>@</span>
-                <span>Email: support@nexus.edu.lk</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
-                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>⏰</span>
-                <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
-              </div>
             </div>
           </div>
         </header>
@@ -1336,7 +1126,7 @@ export default function Dashboard() {
               minHeight: "min(640px, 88vh)",
               display: "grid",
               gridTemplateColumns: "230px 1fr",
-              gap: "24px", /* THIS CREATES THE SPACE BETWEEN CARDS */
+              gap: "24px",
             }}
             onClick={(e) => e.stopPropagation()}
           >
