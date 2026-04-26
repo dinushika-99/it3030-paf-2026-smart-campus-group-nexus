@@ -47,6 +47,12 @@ public class User {
     @Column(name = "refresh_token_expires_at")
     private LocalDateTime refreshTokenExpiresAt;
 
+    @Column(name = "two_factor_enabled", nullable = false)
+    private Boolean twoFactorEnabled = false;
+
+    @Column(name = "totp_secret", length = 128)
+    private String totpSecret;
+
     public User() {
     }
 
@@ -153,6 +159,22 @@ public class User {
         this.refreshTokenExpiresAt = refreshTokenExpiresAt;
     }
 
+    public Boolean getTwoFactorEnabled() {
+        return twoFactorEnabled;
+    }
+
+    public void setTwoFactorEnabled(Boolean twoFactorEnabled) {
+        this.twoFactorEnabled = twoFactorEnabled;
+    }
+
+    public String getTotpSecret() {
+        return totpSecret;
+    }
+
+    public void setTotpSecret(String totpSecret) {
+        this.totpSecret = totpSecret;
+    }
+
     @PrePersist
     public void onPrePersist() {
         if (user_id == null || user_id.isBlank()) {
@@ -163,6 +185,9 @@ public class User {
         }
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (twoFactorEnabled == null) {
+            twoFactorEnabled = false;
         }
     }
 }

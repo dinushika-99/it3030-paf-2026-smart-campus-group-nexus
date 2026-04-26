@@ -7,6 +7,7 @@ import backend.auth.repository.UserRepository;
 import backend.auth.services.JwtAuthenticationFilter;
 import backend.auth.services.JwtService;
 import backend.auth.services.RefreshTokenService;
+import backend.auth.services.TotpService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +36,8 @@ record LoginRequest(String email, String password) {}
 record GoogleAuthRequest(String token, String role) {}
 record GithubAuthRequest(String code, String role) {}
 record ChangePasswordRequest(String currentPassword, String newPassword, String confirmPassword) {}
+record TwoFactorVerifyRequest(String twoFactorToken, String code) {}
+record TwoFactorCodeRequest(String code) {}
 
 @RestController
 @RequestMapping("/api/auth")
@@ -44,6 +47,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
+    private final TotpService totpService;
     private JwtDecoder googleIdTokenDecoder;
     private final RestClient restClient;
     private final boolean cookieSecure;
@@ -51,6 +55,7 @@ public class AuthController {
     private final String githubClientId;
     private final String githubClientSecret;
     private final String githubRedirectUri;
+    private final String totpIssuer;
 
     private static final Set<Role> SELF_REGISTRATION_ROLES = Set.of(Role.STUDENT, Role.LECTURER);
 
@@ -58,20 +63,24 @@ public class AuthController {
                           PasswordEncoder passwordEncoder,
                           JwtService jwtService,
                           RefreshTokenService refreshTokenService,
+                          TotpService totpService,
                           @Value("${app.auth.jwt.cookie-secure:false}") boolean cookieSecure,
                           @Value("${app.auth.jwt.cookie-same-site:Lax}") String cookieSameSite,
                           @Value("${app.auth.github.client-id:}") String githubClientId,
                           @Value("${app.auth.github.client-secret:}") String githubClientSecret,
-                          @Value("${app.auth.github.redirect-uri:http://localhost:3000/auth/github/callback}") String githubRedirectUri) {
+                          @Value("${app.auth.github.redirect-uri:http://localhost:3000/auth/github/callback}") String githubRedirectUri,
+                          @Value("${app.auth.totp.issuer:NEXUS}") String totpIssuer) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.refreshTokenService = refreshTokenService;
+        this.totpService = totpService;
         this.cookieSecure = cookieSecure;
         this.cookieSameSite = cookieSameSite;
         this.githubClientId = githubClientId;
         this.githubClientSecret = githubClientSecret;
         this.githubRedirectUri = githubRedirectUri;
+        this.totpIssuer = totpIssuer;
         this.restClient = RestClient.builder().build();
         this.googleIdTokenDecoder = null;
     }
@@ -94,7 +103,8 @@ public class AuthController {
             "id", user.getId(),
             "name", user.getName(),
             "email", user.getEmail(),
-            "role", user.getRole().name()
+            "role", user.getRole().name(),
+            "twoFactorEnabled", Boolean.TRUE.equals(user.getTwoFactorEnabled())
         ));
     }
 
@@ -120,16 +130,15 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
 
+        if (requiresTwoFactor(user)) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(buildTwoFactorChallengeResponse(user));
+        }
+
         issueAuthCookies(user, response);
 
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "user", Map.of(
-                "id", user.getId(),
-                "name", user.getName(),
-                "email", user.getEmail(),
-                "role", user.getRole().name()
-            )
+            "user", buildUserPayload(user)
         ));
     }
 
@@ -224,6 +233,10 @@ public class AuthController {
             userRepository.save(user);
         }
 
+        if (requiresTwoFactor(user)) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(buildTwoFactorChallengeResponse(user));
+        }
+
         issueAuthCookies(user, response);
 
         HttpStatus responseStatus = isNewUser ? HttpStatus.CREATED : HttpStatus.OK;
@@ -231,12 +244,7 @@ public class AuthController {
         return ResponseEntity.status(responseStatus).body(Map.of(
                 "success", true,
                 "isNewUser", isNewUser,
-                "user", Map.of(
-                        "id", user.getId(),
-                        "name", user.getName(),
-                        "email", user.getEmail(),
-                        "role", user.getRole().name()
-                )
+                "user", buildUserPayload(user)
         ));
     }
 
@@ -371,18 +379,153 @@ public class AuthController {
             userRepository.save(user);
         }
 
+        if (requiresTwoFactor(user)) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(buildTwoFactorChallengeResponse(user));
+        }
+
         issueAuthCookies(user, response);
 
         HttpStatus responseStatus = isNewUser ? HttpStatus.CREATED : HttpStatus.OK;
         return ResponseEntity.status(responseStatus).body(Map.of(
                 "success", true,
                 "isNewUser", isNewUser,
-                "user", Map.of(
-                        "id", user.getId(),
-                        "name", user.getName(),
-                        "email", user.getEmail(),
-                        "role", user.getRole().name()
-                )
+                "user", buildUserPayload(user)
+        ));
+    }
+
+    @PostMapping("/2fa/verify")
+    public ResponseEntity<?> verifyTwoFactor(@RequestBody TwoFactorVerifyRequest request,
+                                             HttpServletResponse response) {
+        if (request.twoFactorToken() == null || request.twoFactorToken().isBlank()
+                || request.code() == null || request.code().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Two-factor token and code are required"));
+        }
+
+        try {
+            if (!jwtService.isTwoFactorToken(request.twoFactorToken())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid two-factor session"));
+            }
+
+            String email = jwtService.extractEmail(request.twoFactorToken());
+            User user = userRepository.findByEmail(email).orElse(null);
+            if (user == null || !requiresTwoFactor(user)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Two-factor authentication is not available"));
+            }
+
+            if (!totpService.isCodeValid(user.getTotpSecret(), request.code())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid authenticator code"));
+            }
+
+            issueAuthCookies(user, response);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "user", buildUserPayload(user)
+            ));
+        } catch (JwtException | IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Two-factor session expired. Please log in again."));
+        }
+    }
+
+    @GetMapping("/2fa/status")
+    public ResponseEntity<?> twoFactorStatus(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        boolean configured = hasTotpConfigured(user);
+        boolean enabled = Boolean.TRUE.equals(user.getTwoFactorEnabled()) && configured;
+        return ResponseEntity.ok(Map.of(
+                "enabled", enabled,
+                "configured", configured
+        ));
+    }
+
+    @PostMapping("/2fa/setup")
+    public ResponseEntity<?> setupTwoFactor(Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        String secret = totpService.generateSecret();
+        user.setTotpSecret(secret);
+        user.setTwoFactorEnabled(false);
+        userRepository.save(user);
+
+        String otpAuthUri = totpService.buildOtpAuthUri(totpIssuer, user.getEmail(), secret);
+        return ResponseEntity.ok(Map.of(
+                "message", "Authenticator setup initialized",
+                "enabled", false,
+                "configured", true,
+                "secret", secret,
+                "otpAuthUri", otpAuthUri
+        ));
+    }
+
+    @PostMapping("/2fa/enable")
+    public ResponseEntity<?> enableTwoFactor(@RequestBody TwoFactorCodeRequest request,
+                                             Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        if (!hasTotpConfigured(user)) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Set up authenticator first"));
+        }
+
+        if (request.code() == null || request.code().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Authenticator code is required"));
+        }
+
+        if (!totpService.isCodeValid(user.getTotpSecret(), request.code())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid authenticator code"));
+        }
+
+        user.setTwoFactorEnabled(true);
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of(
+                "message", "Two-factor authentication enabled",
+                "enabled", true,
+                "configured", true
+        ));
+    }
+
+    @PostMapping("/2fa/disable")
+    public ResponseEntity<?> disableTwoFactor(@RequestBody TwoFactorCodeRequest request,
+                                              Authentication authentication) {
+        User user = resolveCurrentUser(authentication);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized"));
+        }
+
+        if (!requiresTwoFactor(user)) {
+            user.setTwoFactorEnabled(false);
+            user.setTotpSecret(null);
+            userRepository.save(user);
+            return ResponseEntity.ok(Map.of(
+                    "message", "Two-factor authentication disabled",
+                    "enabled", false,
+                    "configured", false
+            ));
+        }
+
+        if (request.code() == null || request.code().isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Authenticator code is required"));
+        }
+
+        if (!totpService.isCodeValid(user.getTotpSecret(), request.code())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Invalid authenticator code"));
+        }
+
+        user.setTwoFactorEnabled(false);
+        user.setTotpSecret(null);
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of(
+                "message", "Two-factor authentication disabled",
+                "enabled", false,
+                "configured", false
         ));
     }
 
@@ -553,6 +696,32 @@ public class AuthController {
             return userRepository.findByEmail(email).orElse(null);
         }
         return null;
+    }
+
+    private boolean hasTotpConfigured(User user) {
+        return user != null && user.getTotpSecret() != null && !user.getTotpSecret().isBlank();
+    }
+
+    private boolean requiresTwoFactor(User user) {
+        return user != null && Boolean.TRUE.equals(user.getTwoFactorEnabled()) && hasTotpConfigured(user);
+    }
+
+    private Map<String, Object> buildTwoFactorChallengeResponse(User user) {
+        return Map.of(
+                "requiresTwoFactor", true,
+                "twoFactorToken", jwtService.generateTwoFactorToken(user),
+                "message", "Authenticator code required"
+        );
+    }
+
+    private Map<String, Object> buildUserPayload(User user) {
+        return Map.of(
+                "id", user.getId(),
+                "name", user.getName(),
+                "email", user.getEmail(),
+                "role", user.getRole().name(),
+                "twoFactorEnabled", Boolean.TRUE.equals(user.getTwoFactorEnabled())
+        );
     }
 
     private Role parseRole(String role) {

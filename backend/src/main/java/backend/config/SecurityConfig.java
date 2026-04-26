@@ -46,7 +46,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/error").permitAll()
-                    .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/github", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                    .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/github", "/api/auth/refresh", "/api/auth/logout", "/api/auth/2fa/verify").permitAll()
                     .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
