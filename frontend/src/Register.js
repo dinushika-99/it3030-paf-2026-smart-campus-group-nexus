@@ -8,16 +8,21 @@ import api from './api/axiosClient';
 const ALLOWED_ROLES = ['student', 'lecturer'];
 
 export default function Register() {
-  const [formFields, setFormFields] = useState({ name: '', email: '', password: '', studentId: '' });
+  const [formFields, setFormFields] = useState({ name: '', email: '', password: '', confirmPassword: '', studentId: '' });
   const [selectedRole, setSelectedRole] = useState('student');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const idLabel = selectedRole === 'lecturer' ? 'Lecturer ID' : 'Student ID';
   const idPlaceholder = selectedRole === 'lecturer' ? 'LEC-001' : '2024-001';
   const githubClientId = process.env.REACT_APP_GITHUB_CLIENT_ID || '';
   const githubRedirectUri = process.env.REACT_APP_GITHUB_REDIRECT_URI || `${window.location.origin}/auth/github/callback`;
+  const hasConfirmValue = formFields.confirmPassword.length > 0;
+  const passwordsMatch = hasConfirmValue && formFields.password === formFields.confirmPassword;
+  const passwordsMismatch = hasConfirmValue && formFields.password !== formFields.confirmPassword;
 
   const handleGithubSignUp = () => {
     if (!githubClientId) {
@@ -77,6 +82,11 @@ export default function Register() {
 
     if (!ALLOWED_ROLES.includes(selectedRole)) {
       setError('Only STUDENT or LECTURER roles are allowed for self-registration.');
+      return;
+    }
+
+    if (formFields.password !== formFields.confirmPassword) {
+      setError('Password and confirm password must match.');
       return;
     }
 
@@ -187,15 +197,73 @@ export default function Register() {
             </div>
             <div className="form-row">
               <label htmlFor="password" className="clean-label">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={formFields.password}
-                onChange={(e) => setFormFields((prev) => ({ ...prev, password: e.target.value }))}
-                className="clean-input"
-                placeholder="••••••••"
-                required
-              />
+              <div className="password-input-wrap">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formFields.password}
+                  onChange={(e) => setFormFields((prev) => ({ ...prev, password: e.target.value }))}
+                  className="clean-input password-input"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M9.88 5.09C10.56 4.87 11.27 4.75 12 4.75C17 4.75 20.27 9.41 21 12C20.69 13.1 19.92 14.45 18.73 15.56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M14.12 18.91C13.44 19.13 12.73 19.25 12 19.25C7 19.25 3.73 14.59 3 12C3.31 10.9 4.08 9.55 5.27 8.44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M2 12C3 8.5 6.5 5 12 5C17.5 5 21 8.5 22 12C21 15.5 17.5 19 12 19C6.5 19 3 15.5 2 12Z" stroke="currentColor" strokeWidth="2" />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="form-row">
+              <label htmlFor="confirmPassword" className="clean-label">Confirm Password</label>
+              <div className="password-input-wrap">
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={formFields.confirmPassword}
+                  onChange={(e) => setFormFields((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="clean-input password-input"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                >
+                  {showConfirmPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M3 3L21 21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M10.58 10.58C10.21 10.95 10 11.46 10 12C10 13.1 10.9 14 12 14C12.54 14 13.05 13.79 13.42 13.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M9.88 5.09C10.56 4.87 11.27 4.75 12 4.75C17 4.75 20.27 9.41 21 12C20.69 13.1 19.92 14.45 18.73 15.56" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M14.12 18.91C13.44 19.13 12.73 19.25 12 19.25C7 19.25 3.73 14.59 3 12C3.31 10.9 4.08 9.55 5.27 8.44" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M2 12C3 8.5 6.5 5 12 5C17.5 5 21 8.5 22 12C21 15.5 17.5 19 12 19C6.5 19 3 15.5 2 12Z" stroke="currentColor" strokeWidth="2" />
+                      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              {passwordsMatch && <p className="password-match-hint success">Passwords match.</p>}
+              {passwordsMismatch && <p className="password-match-hint error">Passwords do not match yet.</p>}
             </div>
             <div className="form-row">
               <label htmlFor="studentId" className="clean-label">{idLabel}</label>
