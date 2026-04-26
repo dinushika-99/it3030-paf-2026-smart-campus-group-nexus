@@ -27,6 +27,12 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     // Find pending bookings for a resource
     List<Booking> findByResourcesIdAndStatus(Long resourcesId, Booking.BookingStatus status);
 
+    // Find booked slots for a resource (used for availability display)
+    List<Booking> findByResourcesIdAndStatusInOrderByStartTimeAsc(
+        Long resourcesId,
+        List<Booking.BookingStatus> statuses
+    );
+
     // Find by booking code
     Optional<Booking> findByBookingCode(String bookingCode);
 

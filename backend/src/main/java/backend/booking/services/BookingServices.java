@@ -23,6 +23,9 @@ public interface BookingServices {
     // Get pending bookings (Admin only)
     List<BookingResponseDTO> getPendingBookings();
 
+    // Get booked slots for a resource (APPROVED/PENDING)
+    List<BookingResponseDTO> getBookedSlotsByResourceId(Long resourceId);
+
     // Update booking status (Approve/Reject/Cancel)
     BookingResponseDTO updateBookingStatus(String bookingId, StatusUpdateDTO statusUpdateDTO, String currentUserId, boolean isAdmin);
 

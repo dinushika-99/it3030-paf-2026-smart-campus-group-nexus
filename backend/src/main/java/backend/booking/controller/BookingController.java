@@ -136,6 +136,21 @@ public class BookingController {
         }
     }
 
+    // ✅ GET /api/bookings/resource/{resourceId}/slots - View booked slots for a resource
+    @GetMapping("/resource/{resourceId}/slots")
+    public ResponseEntity<?> getBookedSlotsByResource(@PathVariable Long resourceId) {
+        try {
+            List<BookingResponseDTO> slots = bookingService.getBookedSlotsByResourceId(resourceId);
+            return ResponseEntity.ok(
+                createSuccessResponse("Booked slots retrieved successfully", slots)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        }
+    }
+
     // ✅ PATCH /api/bookings/{bookingId}/status - Approve/Reject (ADMIN only)
     @PatchMapping("/{bookingId}/status")
     @PreAuthorize("hasRole('ADMIN')")

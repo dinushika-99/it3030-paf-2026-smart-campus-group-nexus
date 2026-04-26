@@ -107,3 +107,8 @@ export async function searchResources(params) {
   const { data } = await api.get("/resources/search", { params });
   return data;
 }
+
+export async function getResourceBookedSlots(resourceId) {
+  const { data } = await api.get(`/bookings/resource/${resourceId}/slots`);
+  return data?.data || [];
+}

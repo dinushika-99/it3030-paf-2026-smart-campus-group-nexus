@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -615,6 +616,30 @@ public class BookingServiceImpl implements BookingServices {
             .stream()
             .map(this::mapToResponseDTO)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getBookedSlotsByResourceId(Long resourceId) {
+        return bookingRepository
+            .findByResourcesIdAndStatusInOrderByStartTimeAsc(
+                resourceId,
+                Arrays.asList(Booking.BookingStatus.APPROVED, Booking.BookingStatus.PENDING)
+            )
+            .stream()
+            .map(this::mapToSlotResponseDTO)
+            .collect(Collectors.toList());
+    }
+
+    private BookingResponseDTO mapToSlotResponseDTO(Booking booking) {
+        BookingResponseDTO response = new BookingResponseDTO();
+        response.setBookingId(booking.getBookingId());
+        response.setResourcesId(booking.getResourcesId());
+        response.setStartTime(booking.getStartTime());
+        response.setEndTime(booking.getEndTime());
+        response.setPurpose(booking.getPurpose());
+        response.setStatus(booking.getStatus() != null ? booking.getStatus().name() : "PENDING");
+        return response;
     }
     
     @Override
