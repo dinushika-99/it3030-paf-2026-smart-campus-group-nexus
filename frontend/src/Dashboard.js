@@ -29,7 +29,7 @@ export default function Dashboard() {
     resources: 0,
     bookings: 0,
     pendingBookings: 0,
-    notifications: 0,
+    openTickets: 0,
   });
   const [statsLoading, setStatsLoading] = useState(false);
 
@@ -124,8 +124,18 @@ export default function Dashboard() {
         const resources = Array.isArray(resourcesRes.data)
           ? resourcesRes.data
           : [];
+        const [resourcesRes, bookingsRes, ticketsRes] = await Promise.all([
+          api.get('/api/resources'),
+          api.get('/api/bookings/my'),
+          api.get('/api/tickets'),
+        ]);
+
+        const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data : [];
+
         const bookingsData = bookingsRes.data?.data ?? bookingsRes.data ?? [];
         const bookings = Array.isArray(bookingsData) ? bookingsData : [];
+
+        const tickets = Array.isArray(ticketsRes.data) ? ticketsRes.data : [];
 
         const pendingBookings = bookings.filter((booking) => {
           const status = String(
@@ -134,20 +144,28 @@ export default function Dashboard() {
           return status === "PENDING";
         }).length;
 
+        const userId = user?.id || user?.userId;
+        const myTickets = userId
+          ? tickets.filter((t) => (t.createdByUserId || t.userId) === userId)
+          : tickets;
+        const openTickets = myTickets.filter((ticket) => {
+          const status = String(ticket.status || '').toUpperCase();
+          return status === 'OPEN' || status === 'IN_PROGRESS';
+        }).length;
+
         if (active) {
           setStudentStats({
             resources: resources.length,
             bookings: bookings.length,
             pendingBookings,
-            notifications: notifications.length,
+            openTickets,
           });
         }
       } catch (error) {
         console.error("Failed to fetch student dashboard stats:", error);
+        console.error('Failed to fetch dashboard stats:', error);
       } finally {
-        if (active) {
-          setStatsLoading(false);
-        }
+        if (active) setStatsLoading(false);
       }
     };
 
@@ -310,6 +328,7 @@ export default function Dashboard() {
                 fontSize: "13px",
               }}
             >
+            <p style={{ color: '#B99443', fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
               Welcome to Smart Campus
             </p>
             <h1
@@ -444,6 +463,27 @@ export default function Dashboard() {
               title="Get Notification"
             />
           </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
+  <InfoBox
+    number={formatStat(studentStats.resources)}
+    title="Available Resources"
+  />
+
+  <InfoBox
+    number={formatStat(studentStats.bookings)}
+    title="My Bookings"
+  />
+
+  <InfoBox
+    number={formatStat(studentStats.pendingBookings)}
+    title="Pending Bookings"
+  />
+
+  <InfoBox
+    number={formatStat(studentStats.openTickets)}
+    title="Open Tickets"
+  />
+</div>
         </div>
 
         <div>
@@ -1176,6 +1216,47 @@ export default function Dashboard() {
                 ⏰
               </span>
               <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
+      <div style={{ padding: '0', width: '100%', margin: 0 }}>
+        <header style={{ top: '72px', zIndex: 1090, width: '100%', margin: 0, background: '#ffffff', borderBottom: '1px solid #eef2f7' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '14px 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '8px 12px' }}>
+              <h2 style={{ fontSize: '28px', margin: 0, color: COLORS.black }}>
+                Hi, {user.name}.
+              </h2>
+              
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                color: COLORS.black,
+                fontSize: '13px',
+                fontWeight: 600,
+                flexWrap: 'nowrap',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                padding: '6px 2px',
+                maxWidth: '100%',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
+                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>U</span>
+                <span>University Contact: NEXUS Student Services</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
+                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '12px', flexShrink: 0 }}>☎</span>
+                <span>Phone: +94 11 234 5678</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
+                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>@</span>
+                <span>Email: support@nexus.edu.lk</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', whiteSpace: 'nowrap', border: '1px solid #e5e7eb', background: '#f8fafc', borderRadius: '999px', padding: '8px 12px' }}>
+                <span style={{ width: '24px', height: '24px', borderRadius: '999px', background: COLORS.purple, color: '#ffffff', display: 'grid', placeItems: 'center', fontSize: '11px', flexShrink: 0 }}>⏰</span>
+                <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
+              </div>
             </div>
           </div>
         </header>
