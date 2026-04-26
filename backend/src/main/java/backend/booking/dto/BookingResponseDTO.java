@@ -1,6 +1,8 @@
 package backend.booking.dto;
 
 import java.time.LocalDateTime;
+import java.util.List; 
+import backend.booking.dto.BookingStatusHistoryDTO;
 
 public class BookingResponseDTO {
 
@@ -26,6 +28,7 @@ public class BookingResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime approvedAt;
     private LocalDateTime cancelledAt;
+    private List<BookingStatusHistoryDTO> statusHistory;
 
     //Default constructor
     public BookingResponseDTO() {
@@ -206,5 +209,13 @@ public class BookingResponseDTO {
 
     public void setCancelledByUserName(String cancelledByUserName) {
         this.cancelledByUserName = cancelledByUserName;
+    }
+
+    public List<BookingStatusHistoryDTO> getStatusHistory() {
+    return statusHistory;
+}
+
+    public void setStatusHistory(List<BookingStatusHistoryDTO> statusHistory) {
+        this.statusHistory = statusHistory;
     }
 }

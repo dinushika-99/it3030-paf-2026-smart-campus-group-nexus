@@ -30,15 +30,29 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     // Find by booking code
     Optional<Booking> findByBookingCode(String bookingCode);
 
-    // Check for overlapping bookings (CRITICAL FOR CONFLICT DETECTION)
+    // ✅ Check for overlapping bookings (CRITICAL FOR CONFLICT DETECTION)
+    // Only APPROVED bookings block the slot - PENDING can overlap
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.resourcesId = :resourcesId " +
-           "AND b.status IN ('APPROVED', 'PENDING') " +
+           "AND b.status IN ('APPROVED') " +
            "AND NOT (b.endTime <= :startTime OR b.startTime >= :endTime)")
     int countOverlappingBookings(
         @Param("resourcesId") Long resourcesId,
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime
+    );
+
+    // ✅ Check for overlapping bookings EXCLUDING current booking (for updates)
+    @Query("SELECT COUNT(b) FROM Booking b " +
+           "WHERE b.resourcesId = :resourcesId " +
+           "AND b.status IN ('APPROVED') " +
+           "AND b.bookingId != :excludeBookingId " +
+           "AND NOT (b.endTime <= :startTime OR b.startTime >= :endTime)")
+    int countOverlappingBookingsExcluding(
+        @Param("resourcesId") Long resourcesId,
+        @Param("startTime") LocalDateTime startTime,
+        @Param("endTime") LocalDateTime endTime,
+        @Param("excludeBookingId") String excludeBookingId
     );
 
     // Count bookings by user and date (for daily limit validation)

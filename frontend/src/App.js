@@ -26,6 +26,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import MyBookings from './pages/bookings/MyBookings';
 import BookingDetail from './pages/bookings/BookingDetail';
 import HomePage from './pages/HomePage';
+import EditBooking from './pages/bookings/EditBooking'; 
 
 const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || '561676533130-h2qmjsddoohsufv7ojl5pmb507e0or6e.apps.googleusercontent.com';
 
@@ -112,6 +113,15 @@ export default function App() {
                   <BookingDetail />
                 </ProtectedRoute>
               }
+            />
+
+            <Route 
+              path="/bookings/:id/edit" 
+              element={
+                <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+                  <EditBooking />
+                </ProtectedRoute>
+              } 
             />
           </Routes>
         </Router>
