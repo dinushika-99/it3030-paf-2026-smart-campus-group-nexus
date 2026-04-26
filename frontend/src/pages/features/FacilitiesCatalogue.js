@@ -61,7 +61,6 @@ export default function FacilitiesCatalogue() {
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [selectedType, setSelectedType] = useState("ALL");
   const [selectedStatus, setSelectedStatus] = useState("ALL");
-  const [selectedCapacity, setSelectedCapacity] = useState("ALL");
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -109,32 +108,22 @@ export default function FacilitiesCatalogue() {
       const matchesStatus =
         selectedStatus === "ALL" || r.status === selectedStatus;
 
-      let matchesCapacity = true;
-      if (selectedCapacity !== "ALL") {
-        const cap = parseInt(r.capacity, 10) || 0;
-        if (selectedCapacity === "SMALL") matchesCapacity = cap < 50;
-        else if (selectedCapacity === "MEDIUM") matchesCapacity = cap >= 50 && cap <= 150;
-        else if (selectedCapacity === "LARGE") matchesCapacity = cap > 150;
-      }
-
-      return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesCapacity;
+      return matchesSearch && matchesCategory && matchesType && matchesStatus;
     });
-  }, [resources, searchQuery, selectedCategory, selectedType, selectedStatus, selectedCapacity]);
+  }, [resources, searchQuery, selectedCategory, selectedType, selectedStatus]);
 
   function clearFilters() {
     setSearchQuery("");
     setSelectedCategory("ALL");
     setSelectedType("ALL");
     setSelectedStatus("ALL");
-    setSelectedCapacity("ALL");
   }
 
   const hasActiveFilters =
     searchQuery ||
     selectedCategory !== "ALL" ||
     selectedType !== "ALL" ||
-    selectedStatus !== "ALL" ||
-    selectedCapacity !== "ALL";
+    selectedStatus !== "ALL";
 
   function getResourceImage(resource) {
     if (resource.imageUrl) return resource.imageUrl;
@@ -202,7 +191,7 @@ export default function FacilitiesCatalogue() {
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
               <div>
                 <label className="text-xs font-medium text-gray-500 uppercase mb-1.5 block">
                   Category
@@ -217,19 +206,11 @@ export default function FacilitiesCatalogue() {
                   <SelectTrigger>
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="ALL">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 opacity-0" />
-                        <span>All Categories</span>
-                      </div>
-                    </SelectItem>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Categories</SelectItem>
                     {ALL_CATEGORIES.map((cat) => (
                       <SelectItem key={cat} value={cat}>
-                        <div className="flex items-center gap-2">
-                          {CATEGORY_ICONS[cat]}
-                          <span>{formatCategory(cat)}</span>
-                        </div>
+                        {formatCategory(cat)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -243,30 +224,13 @@ export default function FacilitiesCatalogue() {
                   <SelectTrigger>
                     <SelectValue placeholder="All Types" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="ALL">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 opacity-0" />
-                        <span>All Types</span>
-                      </div>
-                    </SelectItem>
-                    {availableTypes.map((t) => {
-                      let icon = null;
-                      for (const [cat, types] of Object.entries(CATEGORY_TYPES)) {
-                        if (types.includes(t)) {
-                          icon = CATEGORY_ICONS[cat];
-                          break;
-                        }
-                      }
-                      return (
-                        <SelectItem key={t} value={t}>
-                          <div className="flex items-center gap-2">
-                            {icon}
-                            <span>{formatType(t)}</span>
-                          </div>
-                        </SelectItem>
-                      );
-                    })}
+                  <SelectContent>
+                    <SelectItem value="ALL">All Types</SelectItem>
+                    {availableTypes.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {formatType(t)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -278,61 +242,10 @@ export default function FacilitiesCatalogue() {
                   <SelectTrigger>
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="ALL">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4 opacity-0" />
-                        <span>All Statuses</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="ACTIVE">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500 ml-0.5" />
-                        <span className="ml-0.5">Active</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="OUT_OF_SERVICE">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500 ml-0.5" />
-                        <span className="ml-0.5">Out of Service</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 uppercase mb-1.5 block">
-                  Capacity
-                </label>
-                <Select value={selectedCapacity} onValueChange={setSelectedCapacity}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Capacities" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="ALL">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 opacity-0" />
-                        <span>All Capacities</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="SMALL">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-500" />
-                        <span>Small (&lt; 50)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="MEDIUM">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-500" />
-                        <span>Medium (50 - 150)</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="LARGE">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-gray-500" />
-                        <span>Large (&gt; 150)</span>
-                      </div>
-                    </SelectItem>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Statuses</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="OUT_OF_SERVICE">Out of Service</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
