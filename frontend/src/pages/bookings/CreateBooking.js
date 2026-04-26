@@ -47,7 +47,7 @@ const CreateBooking = () => {
 
       await bookingService.createBooking(bookingData);
       toast.success('Booking request submitted successfully!');
-      navigate('/facilities');
+      navigate('/bookings/my');
     } catch (error) {
       console.error('Full error:', error);
       const errorMsg = error.response?.data?.message || error.message;
