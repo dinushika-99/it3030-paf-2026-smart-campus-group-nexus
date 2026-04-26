@@ -67,7 +67,7 @@ function AppRoutes() {
 
   return (
     <>
-      {shouldShowNavbar && <Navbar user={user} />}
+      {shouldShowNavbar && <Navbar user={user} setUser={setUser} />}
 
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
