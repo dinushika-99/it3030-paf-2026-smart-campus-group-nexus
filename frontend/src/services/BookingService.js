@@ -33,18 +33,41 @@ export const bookingService = {
   // Get current user's bookings
   getMyBookings: async () => {
     const response = await axiosClient.get('/bookings/my');
-    return response.data;
+    return response.data?.data || [];
   },
 
   // Get booking by ID
   getBookingById: async (bookingId) => {
     const response = await axiosClient.get(`/bookings/${bookingId}`);
-    return response.data;
+    return response.data?.data || response.data;
   },
 
   // Cancel booking
   cancelBooking: async (bookingId) => {
     const response = await axiosClient.delete(`/bookings/${bookingId}`);
+    return response.data;
+  },
+
+  // Get all bookings (admin only)
+  getAllBookings: async () => {
+    const response = await axiosClient.get('/bookings/all');
+    return response.data?.data || [];
+  },
+
+  // Approve booking (admin only)
+  approveBooking: async (bookingId) => {
+    const response = await axiosClient.patch(`/bookings/${bookingId}/status`, {
+      status: 'APPROVED'
+    });
+    return response.data;
+  },
+
+  // Reject booking (admin only)
+  rejectBooking: async (bookingId, reason = '') => {
+    const response = await axiosClient.patch(`/bookings/${bookingId}/status`, {
+      status: 'REJECTED',
+      rejectionReason: reason
+    });
     return response.data;
   }
 };
