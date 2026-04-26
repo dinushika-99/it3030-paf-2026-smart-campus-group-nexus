@@ -633,32 +633,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: COLORS.white, color: COLORS.black, fontFamily: 'system-ui, sans-serif' }}>
-      <nav style={{ position: 'sticky', top: 0, zIndex: 1100, backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', padding: '15px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Link to="/facilities" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
-          <img src={SITE_BRAND.logoPath} alt={SITE_BRAND.logoAlt} style={{ width: '40px', height: '40px', objectFit: 'contain' }} />
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#111827', letterSpacing: '0.8px' }}>{SITE_BRAND.name}</h1>
-        </Link>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ textAlign: 'center', display: 'grid', justifyItems: 'center' }}>
-            <button
-              onClick={openProfile}
-              title="Open profile"
-              style={{ width: '40px', height: '40px', borderRadius: '999px', border: 'none', background: COLORS.purple, color: '#fff', fontWeight: 700, cursor: 'pointer', overflow: 'hidden', display: 'grid', placeItems: 'center', padding: 0 }}
-            >
-              {profileAvatarUrl
-                ? <img src={profileAvatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : (user.name || 'U').charAt(0).toUpperCase()}
-            </button>
-            <button
-              onClick={openProfile}
-              style={{ margin: '3px 0 0 0', padding: 0, border: 'none', background: 'transparent', fontSize: '12px', fontWeight: '700', color: '#111827', cursor: 'pointer', lineHeight: 1.1 }}
-            >
-              {user.name}
-            </button>
-          </div>
-        </div>
-      </nav>
+      
 
       <div style={{ padding: '0', width: '100%', margin: 0 }}>
         <header style={{  top: '72px', zIndex: 1090, width: '100%', margin: 0, padding: '12px 30px', background: '#ffffff', borderBottom: '1px solid #eef2f7' }}>
