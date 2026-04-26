@@ -29,8 +29,8 @@ export default function TicketPage() {
         <h2 className="ticket-page-title">Your Tickets</h2>
         <div className="ticket-page-actions">
           <button type="button" className="ticket-nav-btn" onClick={() => navigate('/dashboard')}>
-            Home
-          </button>
+            Back
+          </button> 
         </div>
       </div>
 

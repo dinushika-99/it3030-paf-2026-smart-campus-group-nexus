@@ -251,7 +251,7 @@ export default function Dashboard() {
           }}
         />
 
-        <div style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '40px', alignItems: 'center',paddingTop : '50px' }}>
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 0.9fr', gap: '40px', alignItems: 'center',paddingTop : '10px' }}>
           <div>
             <p style={{ color: '#ffffff', fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
               Welcome to Smart Campus
