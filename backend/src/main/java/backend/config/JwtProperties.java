@@ -10,6 +10,7 @@ public class JwtProperties {
     private String secret;
     private long accessTokenMinutes = 15;
     private long refreshTokenDays = 14;
+    private long twoFactorMinutes = 5;
 
     public String getSecret() {
         return secret;
@@ -33,5 +34,13 @@ public class JwtProperties {
 
     public void setRefreshTokenDays(long refreshTokenDays) {
         this.refreshTokenDays = refreshTokenDays;
+    }
+
+    public long getTwoFactorMinutes() {
+        return twoFactorMinutes;
+    }
+
+    public void setTwoFactorMinutes(long twoFactorMinutes) {
+        this.twoFactorMinutes = twoFactorMinutes;
     }
 }

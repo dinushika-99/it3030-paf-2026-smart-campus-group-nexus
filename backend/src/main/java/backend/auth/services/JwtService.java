@@ -22,16 +22,11 @@ public class JwtService {
     private final Duration refreshTokenTtl;
     private final Duration twoFactorTokenTtl;
 
-    public JwtService(
-            @Value("${app.auth.jwt.secret}") String jwtSecret,
-            @Value("${app.auth.jwt.access-token-minutes:15}") long accessTokenMinutes,
-                @Value("${app.auth.jwt.refresh-token-days:14}") long refreshTokenDays,
-                @Value("${app.auth.jwt.two-factor-minutes:5}") long twoFactorMinutes
-    ) {
     public JwtService(JwtProperties jwtProperties) {
         String jwtSecret = jwtProperties.getSecret();
         long accessTokenMinutes = jwtProperties.getAccessTokenMinutes();
         long refreshTokenDays = jwtProperties.getRefreshTokenDays();
+        long twoFactorMinutes = jwtProperties.getTwoFactorMinutes();
 
         byte[] keyBytes;
         try {
