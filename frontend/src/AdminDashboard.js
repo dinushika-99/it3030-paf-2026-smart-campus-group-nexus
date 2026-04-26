@@ -507,10 +507,6 @@ export default function AdminDashboard({ user: userProp }) {
               <NavButton active={activeTab === 'manager-communication'} onClick={() => setActiveTab('manager-communication')} text="Service Updates" icon="audit" />
             </>
           )}
-
-          <div style={{ marginTop: '14px' }}></div>
-          <MenuCategory title="Quick Links" />
-          <NavButton active={false} onClick={() => navigate('/facilities')} text="Facilities Catalogue" icon="catalogue" />
         </div>
       </aside>
 
@@ -524,22 +520,6 @@ export default function AdminDashboard({ user: userProp }) {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button onClick={() => navigate('/facilities')} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 14px', backgroundColor: '#1f2937', color: '#fff', border: '1px solid #374151', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '13px' }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect>
-                <path d="M9 22v-4h6v4"></path>
-                <path d="M8 6h.01"></path>
-                <path d="M16 6h.01"></path>
-                <path d="M12 6h.01"></path>
-                <path d="M12 10h.01"></path>
-                <path d="M12 14h.01"></path>
-                <path d="M16 10h.01"></path>
-                <path d="M16 14h.01"></path>
-                <path d="M8 10h.01"></path>
-                <path d="M8 14h.01"></path>
-              </svg>
-              Facilities
-            </button>
             <TopNavIconButton label="Profile" onClick={handleOpenProfile}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21a8 8 0 0 0-16 0"></path>
@@ -1353,22 +1333,6 @@ function AdminResourcesTab({ navigate }) {
           }}
         >
           Resource Manager
-        </button>
-        <button
-          type="button"
-          onClick={() => navigate('/facilities')}
-          style={{
-            border: '1px solid #334155',
-            background: '#0f172a',
-            color: '#cbd5e1',
-            borderRadius: '999px',
-            padding: '7px 12px',
-            fontSize: '12px',
-            fontWeight: 700,
-            cursor: 'pointer',
-          }}
-        >
-          Facilities Catalogue
         </button>
         <button
           type="button"
