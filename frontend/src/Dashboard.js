@@ -968,27 +968,32 @@ export default function Dashboard() {
       <div style={{ padding: "0", width: "100%", margin: 0 }}>
         <header
           style={{
-            top: "72px",
             zIndex: 1090,
             width: "100%",
             margin: 0,
-            padding: "12px 30px",
+            padding: "20px 32px",
             background: "#ffffff",
             borderBottom: "1px solid #eef2f7",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap", 
+            gap: "20px",
           }}
         >
+          {/* Welcome Area (Left Side) */}
           <div
             style={{
               display: "flex",
-              alignItems: "baseline",
-              flexWrap: "wrap",
-              gap: "8px 12px",
+              flexDirection: "column",
+              gap: "6px",
+              flex: "1 1 auto",
             }}
           >
-            <h2 style={{ fontSize: "28px", margin: 0, color: COLORS.black }}>
-              Welcome back, {user.name}.
+            <h2 style={{ fontSize: "28px", margin: 0, color: COLORS.black, fontWeight: 800, letterSpacing: "-0.5px" }}>
+              Welcome back, <span style={{ color: COLORS.purple }}>{user.name}</span>.
             </h2>
-            <p style={{ color: COLORS.muted, margin: 0 }}>
+            <p style={{ color: "#64748b", margin: 0, fontSize: "14px", fontWeight: 500 }}>
               {user.role === "lecturer"
                 ? "Here is your academic operations dashboard for today."
                 : user.role === "technician"
@@ -996,88 +1001,42 @@ export default function Dashboard() {
                   : "Here is what's happening around campus today."}
             </p>
           </div>
+
+          {/* Modern Contact Info 'Pills' (Right Side) */}
           <div
             style={{
               display: "flex",
-              flexWrap: "wrap",
-              gap: "10px 18px",
-              marginTop: "10px",
-              color: COLORS.black,
-              fontSize: "13px",
-              fontWeight: 600,
+              flexWrap: "nowrap", /* Forces a single horizontal line */
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: "12px",
+              overflowX: "auto", /* Allows smooth swiping on smaller screens */
+              WebkitOverflowScrolling: "touch",
+              paddingBottom: "4px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "12px",
-                  flexShrink: 0,
-                }}
-              >
-                U
-              </span>
-              <span>University Contact: NEXUS Student Services</span>
+            {/* Pill 1 */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", borderRadius: "999px", padding: "6px 14px 6px 6px", color: "#334155", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
+              <span style={{ width: "24px", height: "24px", borderRadius: "999px", background: "rgba(185, 148, 67, 0.15)", color: COLORS.purple, display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 800, flexShrink: 0 }}>U</span>
+              <span>NEXUS Student Services</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "12px",
-                  flexShrink: 0,
-                }}
-              >
-                ☎
-              </span>
-              <span>Phone: +94 11 234 5678</span>
+            
+            {/* Pill 2 */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", borderRadius: "999px", padding: "6px 14px 6px 6px", color: "#334155", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
+              <span style={{ width: "24px", height: "24px", borderRadius: "999px", background: "rgba(185, 148, 67, 0.15)", color: COLORS.purple, display: "grid", placeItems: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 }}>☎</span>
+              <span>+94 11 234 5678</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "11px",
-                  flexShrink: 0,
-                }}
-              >
-                @
-              </span>
-              <span>Email: support@nexus.edu.lk</span>
+            
+            {/* Pill 3 */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", borderRadius: "999px", padding: "6px 14px 6px 6px", color: "#334155", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
+              <span style={{ width: "24px", height: "24px", borderRadius: "999px", background: "rgba(185, 148, 67, 0.15)", color: COLORS.purple, display: "grid", placeItems: "center", fontSize: "11px", fontWeight: 800, flexShrink: 0 }}>@</span>
+              <span>support@nexus.edu.lk</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "11px",
-                  flexShrink: 0,
-                }}
-              >
-                ⏰
-              </span>
-              <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
+            
+            {/* Pill 4 */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#ffffff", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.02)", borderRadius: "999px", padding: "6px 14px 6px 6px", color: "#334155", fontSize: "12px", fontWeight: 600, whiteSpace: "nowrap" }}>
+              <span style={{ width: "24px", height: "24px", borderRadius: "999px", background: "rgba(185, 148, 67, 0.15)", color: COLORS.purple, display: "grid", placeItems: "center", fontSize: "12px", fontWeight: 800, flexShrink: 0 }}>⏰</span>
+              <span>Mon-Fri, 8:30 AM - 4:30 PM</span>
             </div>
           </div>
         </header>
