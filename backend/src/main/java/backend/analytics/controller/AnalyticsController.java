@@ -17,7 +17,7 @@ public class AnalyticsController {
         this.analyticsService = analyticsService;
     }
 
-    // ✅ 1. Peak Booking Hours (ALL approved bookings)
+    //Peak Booking Hours (ALL approved bookings)
     @GetMapping("/peak-hours")
     public ResponseEntity<?> getPeakBookingHours() {
         try {
@@ -29,7 +29,7 @@ public class AnalyticsController {
         }
     }
 
-    // ✅ 2. Peak Booking Days (ALL approved bookings)
+    //Peak Booking Days (ALL approved bookings)
     @GetMapping("/peak-days")
     public ResponseEntity<?> getPeakBookingDays() {
         try {
@@ -41,7 +41,7 @@ public class AnalyticsController {
         }
     }
 
-    // ✅ 3. Booking Trends
+    // Booking Trends
     @GetMapping("/trends")
     public ResponseEntity<?> getBookingTrends(
             @RequestParam(defaultValue = "monthly") String period) {
@@ -54,7 +54,7 @@ public class AnalyticsController {
         }
     }
 
-    // ✅ 4. Resource Utilization
+    // Resource Utilization
     @GetMapping("/utilization")
     public ResponseEntity<?> getResourceUtilization() {
         try {
@@ -66,7 +66,7 @@ public class AnalyticsController {
         }
     }
 
-    // ✅ 5. Summary Statistics (All-in-one)
+    // 5. Summary Statistics
     @GetMapping("/summary")
     public ResponseEntity<?> getAnalyticsSummary() {
         try {

@@ -4,7 +4,7 @@ import { bookingService } from '../../services/BookingService';
 import AdminLayout from '../../components/layout/AdminLayout';
 import RejectionModal from './components/RejectionModal'; 
 import BookingDetailsModal from './components/BookingDetailsModal'; 
-import toast from 'react-hot-toast'; // ✅ Import Toast
+import toast from 'react-hot-toast';
 
 const AdminBookingsPage = () => {
   const navigate = useNavigate();
@@ -50,7 +50,7 @@ const AdminBookingsPage = () => {
       console.error('Error fetching bookings:', err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to load bookings.';
       setError(errorMsg);
-      toast.error(errorMsg); // ✅ Show Toast for load error
+      toast.error(errorMsg); 
       setBookings([]);
     } finally {
       setLoading(false);
@@ -64,13 +64,12 @@ const AdminBookingsPage = () => {
       await bookingService.approveBooking(bookingId);
       await fetchAllBookings(); // Refresh list
       
-      // ✅ SUCCESS TOAST
       toast.success('Booking approved successfully!');
       
     } catch (err) {
       console.error('Error approving booking:', err);
       const errorMsg = err.response?.data?.message || 'Failed to approve booking.';
-      // ✅ ERROR TOAST
+      
       toast.error(errorMsg);
     } finally {
       setProcessing((prev) => ({ ...prev, [bookingId]: false }));
@@ -94,20 +93,18 @@ const AdminBookingsPage = () => {
       // Pass the reason to the service
       await bookingService.rejectBooking(selectedBookingId, rejectionReason);
       
-      await fetchAllBookings(); // Refresh list
+      await fetchAllBookings(); 
       
       // Close modal and reset state
       setShowRejectionModal(false);
       setSelectedBookingId(null);
       setSelectedBookingCode('');
       
-      // ✅ SUCCESS TOAST
       toast.success('Booking rejected successfully.');
       
     } catch (err) {
       console.error('Error rejecting booking:', err);
       const errorMsg = err.response?.data?.message || 'Failed to reject booking.';
-      // ✅ ERROR TOAST
       toast.error(errorMsg);
       throw new Error(errorMsg); 
     } finally {

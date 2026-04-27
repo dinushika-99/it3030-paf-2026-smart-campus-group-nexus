@@ -187,8 +187,6 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
       onFormDataChange({ ...formData, selectedResource, isValid: currentIsValid });
     }
     
-    // ✅ ONLY update displayed errors for fields that have been touched
-    // This prevents red errors from showing on initial load
     setErrors(prevErrors => {
       const newDisplayedErrors = {};
       Object.keys(calculatedErrors).forEach(field => {

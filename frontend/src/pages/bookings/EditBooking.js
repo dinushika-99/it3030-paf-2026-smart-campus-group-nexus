@@ -24,7 +24,7 @@ const EditBooking = () => {
       const data = await bookingService.getBookingById(id);
       const bookingData = data.data || data;
       
-      // ✅ Only allow editing PENDING bookings
+      // Only allow editing PENDING bookings
       if (bookingData.status !== 'PENDING') {
         toast.error(`Cannot edit ${bookingData.status.toLowerCase()} booking. Only PENDING bookings can be edited.`);
         setTimeout(() => {
@@ -106,7 +106,7 @@ const EditBooking = () => {
     );
   }
 
-  // ✅ Show message if booking is not editable
+  // Show message if booking is not editable
   if (!isEditable && booking) {
     return (
       <div className="relative min-h-screen bg-gray-50 py-8">

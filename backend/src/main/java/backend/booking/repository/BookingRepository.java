@@ -12,14 +12,13 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, String> {
 
-    // ==================== EXISTING: Basic Queries ====================
     List<Booking> findByUserIdOrderByCreatedAtDesc(String userId);
     List<Booking> findByStatus(Booking.BookingStatus status);
     List<Booking> findByStatusOrderByCreatedAtDesc(Booking.BookingStatus status);
     List<Booking> findAllByOrderByCreatedAtDesc();
     List<Booking> findByResourcesIdAndStatus(Long resourcesId, Booking.BookingStatus status);
 
-    // Find booked slots for a resource (used for availability display)
+    // Find booked slots for a resource
     List<Booking> findByResourcesIdAndStatusInOrderByStartTimeAsc(
         Long resourcesId,
         List<Booking.BookingStatus> statuses
@@ -28,7 +27,7 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     // Find by booking code
     Optional<Booking> findByBookingCode(String bookingCode);
 
-    // ==================== EXISTING: Conflict Detection ====================
+    // Conflict Detection
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.resourcesId = :resourcesId " +
            "AND b.status = :approvedStatus " +
@@ -53,14 +52,14 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
         @Param("excludeBookingId") String excludeBookingId
     );
 
-    // ==================== EXISTING: User Limits ====================
+    // User Limits
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.userId = :userId " +
            "AND DATE(b.startTime) = :date " +
            "AND b.status IN ('APPROVED', 'PENDING')")
     int countByUserIdAndDate(@Param("userId") String userId, @Param("date") java.time.LocalDate date);
 
-    // ==================== ✅ ANALYTICS: Peak Hours/Days (ALL approved - NO date filter) ====================
+    // ANALYTICS: Peak Hours/Days (ALL approved)
     @Query("SELECT HOUR(b.startTime) as hour, COUNT(b) as count " +
            "FROM Booking b " +
            "WHERE b.status = 'APPROVED' " +
@@ -75,7 +74,7 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
            "ORDER BY dayOfWeek ASC")
     List<Object[]> findPeakBookingDays();
 
-    // ==================== ✅ ANALYTICS: Resource Utilization (WITH dynamic date range) ====================
+    //ANALYTICS: Resource Utilization
     @Query("SELECT b.resourcesId, r.name, " +
            "SUM(TIMESTAMPDIFF(MINUTE, b.startTime, b.endTime)) as totalMinutes " +
            "FROM Booking b " +
@@ -89,7 +88,7 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
         @Param("endDate") LocalDateTime endDate
     );
 
-    // ==================== ✅ ANALYTICS: Booking Trends ====================
+    //  ANALYTICS: Booking Trends 
     @Query("SELECT DATE(b.startTime) as date, COUNT(b) as count " +
            "FROM Booking b " +
            "WHERE b.status = 'APPROVED' " +
@@ -114,7 +113,6 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
            "ORDER BY month ASC")
     List<Object[]> findMonthlyBookingTrends(@Param("startDate") LocalDateTime startDate);
 
-    // ==================== HELPER ====================
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.resourcesId = :resourceId " +
            "AND b.status = 'APPROVED'")

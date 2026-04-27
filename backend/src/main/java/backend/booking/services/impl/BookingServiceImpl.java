@@ -180,20 +180,19 @@ public class BookingServiceImpl implements BookingServices {
         return mapToResponseDTO(updatedBooking);
     }
 
-    // ==================== ✅ SINGLE cancelBooking METHOD (FIXED) ====================
 
     @Override
     public void cancelBooking(String bookingId, String currentUserId) {
         Booking booking = bookingRepository.findById(bookingId)
             .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
 
-        // ✅ Cannot cancel already terminal states
+        // Cannot cancel already terminal states
         if (booking.getStatus() == Booking.BookingStatus.CANCELLED || 
             booking.getStatus() == Booking.BookingStatus.REJECTED) {
             throw new IllegalStateException("Cannot cancel a booking that is already " + booking.getStatus());
         }
 
-        // ✅ Only owner or admin can cancel
+        //Only owner or admin can cancel
         boolean isOwner = booking.getUserId().equals(currentUserId);
         boolean isAdmin = false;
         
@@ -207,7 +206,7 @@ public class BookingServiceImpl implements BookingServices {
             throw new AccessDeniedException("Only the booking owner or an admin can cancel this booking");
         }
 
-        // ✅ Only PENDING or APPROVED can be cancelled
+        // Only PENDING or APPROVED can be cancelled
         if (booking.getStatus() != Booking.BookingStatus.PENDING && 
             booking.getStatus() != Booking.BookingStatus.APPROVED) {
             throw new IllegalStateException(
@@ -216,7 +215,7 @@ public class BookingServiceImpl implements BookingServices {
             );
         }
 
-        // ✅ 24-hour restriction for APPROVED bookings
+        // 24-hour restriction for APPROVED bookings
         if (booking.getStatus() == Booking.BookingStatus.APPROVED) {
             LocalDateTime now = LocalDateTime.now();
             LocalDateTime bookingStart = booking.getStartTime();
@@ -229,10 +228,10 @@ public class BookingServiceImpl implements BookingServices {
             }
         }
 
-        // ✅ Capture old status BEFORE update for accurate history
+        // Capture old status BEFORE update for accurate history
         String oldStatus = booking.getStatus().name();
         
-        // ✅ Update booking
+        // Update booking
         booking.setStatus(Booking.BookingStatus.CANCELLED);
         booking.setCancelledByUserId(currentUserId);
         booking.setCancelledAt(LocalDateTime.now());
@@ -240,20 +239,20 @@ public class BookingServiceImpl implements BookingServices {
 
         bookingRepository.save(booking);
 
-        // ✅ Record accurate status history
+        // Record accurate status history
         recordStatusHistory(
             bookingId, 
-            oldStatus,  // ✅ Dynamic old status, not hardcoded
+            oldStatus, 
             "CANCELLED", 
             currentUserId, 
             "Booking cancelled by " + (isAdmin ? "admin" : "user")
         );
 
-        // ✅ Send cancellation notification (fail-safe)
+        //Send cancellation notification (fail-safe)
         sendCancellationNotification(booking, currentUserId);
     }
 
-    // ==================== UPDATE BOOKING (Pending Only) ====================
+    // UPDATE BOOKING (Pending Only)
 
     @Override
     public BookingResponseDTO updateBooking(String bookingId, BookingRequestDTO updateDTO, String currentUserId) {
@@ -311,7 +310,7 @@ public class BookingServiceImpl implements BookingServices {
         return mapToResponseDTO(updatedBooking);
     }
 
-    // ==================== NOTIFICATION HELPERS ====================
+    // NOTIFICATION HELPERS 
 
     private void sendApprovalNotification(Booking booking) {
         try {
@@ -432,7 +431,7 @@ public class BookingServiceImpl implements BookingServices {
             }).orElse("Resource");
     }
 
-    // ==================== VALIDATION METHODS ====================
+    // VALIDATION METHODS 
 
     private void validateTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
         if (endTime.isBefore(startTime) || endTime.isEqual(startTime)) {
@@ -649,7 +648,7 @@ public class BookingServiceImpl implements BookingServices {
         return response;
     }
 
-    // ==================== READ-ONLY METHODS ====================
+    // READ-ONLY METHODS
     
     @Override
     @Transactional(readOnly = true)
@@ -710,7 +709,7 @@ public class BookingServiceImpl implements BookingServices {
         return bookingRepository.existsById(bookingId);
     }
 
-    // ==================== CUSTOM EXCEPTIONS ====================
+    //  CUSTOM EXCEPTIONS 
     public static class BookingConflictException extends RuntimeException {
         public BookingConflictException(String message) { super(message); }
     }

@@ -35,7 +35,7 @@ public class BookingController {
         this.userRepository = userRepository;
     }
 
-    // ✅ POST /api/bookings - Create booking (STUDENT, LECTURER, MANAGER only)
+    //Create booking (STUDENT, LECTURER only)
     @PostMapping
     public ResponseEntity<?> createBooking(
             @Valid @RequestBody BookingRequestDTO requestDTO,
@@ -70,9 +70,9 @@ public class BookingController {
                 createErrorResponse("Server error: " + e.getMessage())
             );
         }
-    } // ✅ Closing brace for createBooking method
+    } //
 
-    // ✅ PATCH /api/bookings/{bookingId} - Update booking details (Owner only, PENDING status)
+    // Update booking details (Owner only, PENDING status)
     @PatchMapping("/{bookingId}")
     public ResponseEntity<?> updateBooking(
             @PathVariable String bookingId,
@@ -112,9 +112,9 @@ public class BookingController {
                 createErrorResponse("Server error: " + e.getMessage())
             );
         }
-    } // ✅ Closing brace for updateBooking method
+    } //
 
-    // ✅ GET /api/bookings/my - Get current user's bookings
+    //Get current user's bookings
     @GetMapping("/my")
     public ResponseEntity<?> getMyBookings(Principal principal) {
         try {
@@ -129,9 +129,9 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    } // ✅ Closing brace for getMyBookings method
+    } 
 
-    // ✅ GET /api/bookings/{bookingId} - Get booking by ID
+    //Get booking by ID
     @GetMapping("/{bookingId}")
     public ResponseEntity<?> getBookingById(@PathVariable String bookingId) {
         try {
@@ -144,9 +144,9 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    } // ✅ Closing brace for getBookingById method
+    } //
 
-    // ✅ GET /api/bookings/all - Get all bookings (ADMIN only)
+    // Get all bookings (ADMIN only)
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllBookings() {
@@ -160,9 +160,9 @@ public class BookingController {
                 createErrorResponse("Only admins can view all bookings")
             );
         }
-    } // ✅ Closing brace for getAllBookings method
+    }
 
-    // ✅ GET /api/bookings/pending - View pending bookings (ADMIN only)
+    // View pending bookings (ADMIN only)
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getPendingBookings() {
@@ -176,9 +176,9 @@ public class BookingController {
                 createErrorResponse("Only admins can view pending bookings")
             );
         }
-    } // ✅ Closing brace for getPendingBookings method
+    } 
 
-    // ✅ GET /api/bookings/resource/{resourceId}/slots - View booked slots for a resource
+    // View booked slots for a resource
     @GetMapping("/resource/{resourceId}/slots")
     public ResponseEntity<?> getBookedSlotsByResource(@PathVariable Long resourceId) {
         try {
@@ -193,7 +193,7 @@ public class BookingController {
         }
     }
 
-    // ✅ PATCH /api/bookings/{bookingId}/status - Approve/Reject (ADMIN only)
+    // Approve/Reject (ADMIN only)
     @PatchMapping("/{bookingId}/status")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateBookingStatus(
@@ -223,9 +223,9 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    } // ✅ Closing brace for updateBookingStatus method
+    } 
 
-    // ✅ DELETE /api/bookings/{bookingId} - Cancel booking (Owner or Admin)
+    // Cancel booking (Owner or Admin)
     @DeleteMapping("/{bookingId}")
     public ResponseEntity<?> cancelBooking(
             @PathVariable String bookingId,
@@ -249,10 +249,9 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    } // ✅ Closing brace for cancelBooking method
+    }
 
-    // ==================== HELPER METHODS ====================
-
+    // HELPER METHODS 
     private String getCurrentUserId(Principal principal) {
         if (principal == null) {
             throw new RuntimeException("User not authenticated");
