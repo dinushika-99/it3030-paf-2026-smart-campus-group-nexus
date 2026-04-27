@@ -76,7 +76,21 @@ public class ProfileController {
         body.put("studentId", user.getStudentId());
         body.put("avatarUrl", user.getAvatarUrl());
         body.put("twoFactorEnabled", Boolean.TRUE.equals(user.getTwoFactorEnabled()));
+        body.put("notificationPreferences", user.getNotificationPreferences());
         return ResponseEntity.ok(body);
+    }
+
+    @PatchMapping("/me/preferences")
+    public ResponseEntity<?> updatePreferences(@RequestBody Map<String, Boolean> updates,
+                                               @AuthenticationPrincipal Object principal) {
+        User user = resolveCurrentUser(principal).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        user.getNotificationPreferences().putAll(updates);
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("message", "Preferences updated", "preferences", user.getNotificationPreferences()));
     }
 
     @GetMapping("/user/{userId}")

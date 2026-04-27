@@ -15,7 +15,7 @@ import backend.modulea.model.Resource;
 import backend.modulea.repository.ResourceRepository;
 import backend.notifications.model.Notification;
 import backend.notifications.repository.NotificationRepository;
-import backend.booking.dto.BookingStatusHistoryDTO;
+import backend.notifications.service.NotificationService;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +40,7 @@ public class BookingServiceImpl implements BookingServices {
     private final UserRepository userRepository;
     private final ResourceRepository resourceRepository;
     private final NotificationRepository notificationRepository; 
+    private final NotificationService notificationService;
     
     private static final Pattern PURPOSE_PATTERN = Pattern.compile("^[a-zA-Z0-9\\s,.'-]+$");
     
@@ -47,12 +48,14 @@ public class BookingServiceImpl implements BookingServices {
                               BookingHistoryRepository bookingHistoryRepository,
                               UserRepository userRepository,
                               ResourceRepository resourceRepository,
-                              NotificationRepository notificationRepository) {
+                              NotificationRepository notificationRepository,
+                              NotificationService notificationService) {
         this.bookingRepository = bookingRepository;
         this.bookingHistoryRepository = bookingHistoryRepository;
         this.userRepository = userRepository;
         this.resourceRepository = resourceRepository;
         this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -100,6 +103,8 @@ public class BookingServiceImpl implements BookingServices {
         
         Booking savedBooking = bookingRepository.save(booking);
         recordStatusHistory(savedBooking.getBookingId(), null, "PENDING", currentUserId, "Booking created");
+
+        sendBookingCreatedNotificationToAdmins(savedBooking, user);
         
         return mapToResponseDTO(savedBooking);
     }
@@ -364,6 +369,30 @@ public class BookingServiceImpl implements BookingServices {
         notification.setRelatedEntityType("BOOKING");
         notification.setRelatedEntityId(referenceId);
         notificationRepository.save(notification);
+    }
+
+    private void sendBookingCreatedNotificationToAdmins(Booking booking, User creator) {
+        String resourceName = fetchResourceName(booking.getResourcesId());
+        String creatorName = fetchUserName(creator.getId());
+
+        userRepository.findAll().stream()
+            .filter(user -> user.getRole() == Role.ADMIN)
+            .forEach(admin -> notificationService.createNotificationWithReference(
+                admin,
+                "BOOKING_CREATED",
+                "New Booking Request",
+                String.format(
+                    "%s created booking %s for %s on %s (%s - %s).",
+                    creatorName,
+                    booking.getBookingCode(),
+                    resourceName,
+                    booking.getStartTime().toLocalDate(),
+                    booking.getStartTime().toLocalTime(),
+                    booking.getEndTime().toLocalTime()
+                ),
+                "BOOKING",
+                booking.getBookingId()
+            ));
     }
 
     private String fetchUserName(String userId) {

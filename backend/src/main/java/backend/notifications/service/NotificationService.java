@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Transactional
@@ -27,6 +28,10 @@ public class NotificationService {
 
      //Create a generic notification
     public Notification createNotification(User user, String type, String title, String message) {
+        if (!shouldSendNotification(user, type)) {
+            return null;
+        }
+
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType(type);
@@ -41,7 +46,9 @@ public class NotificationService {
      //Broadcast notification to all users
     public void broadcastToAll(String type, String title, String message) {
         List<User> users = userRepository.findAll();
-        users.forEach(user -> createNotification(user, type, title, message));
+        users.stream()
+                .filter(user -> user.getRole() != Role.ADMIN && user.getRole() != Role.MANAGER)
+                .forEach(user -> createNotification(user, type, title, message));
     }
 
     
@@ -69,6 +76,10 @@ public class NotificationService {
 
      // Create notification for booking rejection with reason
     public Notification createBookingRejectionNotification(User user, String bookingCode, String rejectionReason) {
+        if (!shouldSendNotification(user, "BOOKING_REJECTED")) {
+            return null;
+        }
+
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType("BOOKING_REJECTED");
@@ -87,6 +98,10 @@ public class NotificationService {
 
      // Create notification for booking approval
     public Notification createBookingApprovalNotification(User user, String bookingCode) {
+        if (!shouldSendNotification(user, "BOOKING_APPROVED")) {
+            return null;
+        }
+
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType("BOOKING_APPROVED");
@@ -168,6 +183,10 @@ public class NotificationService {
      // Create a generic notification with related entity reference
     public Notification createNotificationWithReference(User user, String type, String title, String message, 
                                                         String relatedEntityType, String relatedEntityId) {
+        if (!shouldSendNotification(user, type)) {
+            return null;
+        }
+
         Notification notification = new Notification();
         notification.setUser(user);
         notification.setType(type);
@@ -179,5 +198,20 @@ public class NotificationService {
         notification.setRelatedEntityId(relatedEntityId);
         
         return notificationRepository.save(notification);
+    }
+
+    private boolean shouldSendNotification(User user, String type) {
+        boolean shouldSend = true;
+        Map<String, Boolean> prefs = user.getNotificationPreferences();
+
+        if (type != null && type.contains("BOOKING")) {
+            shouldSend = prefs.getOrDefault("BOOKING_ALERTS", true);
+        } else if (type != null && type.contains("TICKET")) {
+            shouldSend = prefs.getOrDefault("TICKET_UPDATES", true);
+        } else if ("INFO".equals(type) || "WARNING".equals(type) || "ALERT".equals(type)) {
+            shouldSend = prefs.getOrDefault("SYSTEM_BROADCASTS", true);
+        }
+
+        return shouldSend;
     }
 }
