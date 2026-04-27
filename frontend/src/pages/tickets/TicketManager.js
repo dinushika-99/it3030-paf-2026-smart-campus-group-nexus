@@ -25,6 +25,7 @@ const MAX_ATTACHMENTS = 3;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_ATTACHMENT_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
 const QR_READER_ELEMENT_ID = 'ticket-qr-reader';
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function uniqueNonEmpty(values) {
   return [...new Set((values || []).map((value) => String(value || '').trim()).filter(Boolean))];
@@ -46,6 +47,57 @@ function toPayload(form, editingTicket) {
     resourceId: resourceId || null,
     locationId: locationId || null,
   };
+}
+
+function validateTicketForm(form) {
+  const title = String(form.title || '').trim();
+  const category = String(form.category || '').trim();
+  const description = String(form.description || '').trim();
+  const preferredContactName = String(form.preferredContactName || '').trim();
+  const preferredContactEmail = String(form.preferredContactEmail || '').trim();
+  const preferredContactPhone = String(form.preferredContactPhone || '').trim();
+
+  if (!title) {
+    return 'Ticket title is required.';
+  }
+
+  if (title.length < 3) {
+    return 'Ticket title must be at least 3 characters long.';
+  }
+
+  if (!category) {
+    return 'Category is required.';
+  }
+
+  if (!description) {
+    return 'Description is required.';
+  }
+
+  if (description.length < 10) {
+    return 'Description must be at least 10 characters long.';
+  }
+
+  if (!preferredContactName) {
+    return 'Contact name is required.';
+  }
+
+  if (!preferredContactEmail) {
+    return 'Contact email is required.';
+  }
+
+  if (!EMAIL_PATTERN.test(preferredContactEmail)) {
+    return 'Enter a valid contact email address.';
+  }
+
+  if (!preferredContactPhone) {
+    return 'Contact phone is required.';
+  }
+
+  if (preferredContactPhone.length < 7) {
+    return 'Contact phone must be at least 7 characters long.';
+  }
+
+  return '';
 }
 
 export default function TicketManager({ user, initialRoomId = '' }) {
@@ -476,9 +528,17 @@ export default function TicketManager({ user, initialRoomId = '' }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setMessage('');
     setError('');
+
+    const validationError = validateTicketForm(form);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const editingTicket = tickets.find((ticket) => ticket.ticketId === editingId) || null;
@@ -805,6 +865,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
               value={form.preferredContactName}
               onChange={handleChange}
               placeholder="Contact Name"
+              required
             />
 
             <div className="ticket-form-row">
@@ -814,6 +875,7 @@ export default function TicketManager({ user, initialRoomId = '' }) {
                 onChange={handleChange}
                 placeholder="Contact Email"
                 type="email"
+                required
               />
 
               <input
