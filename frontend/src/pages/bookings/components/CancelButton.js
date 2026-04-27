@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Trash2, X } from 'lucide-react';
 import { bookingService } from '../../../services/BookingService';
 
 const CancelButton = ({ bookingId, onSuccess, disabled }) => {
@@ -20,20 +21,56 @@ const CancelButton = ({ bookingId, onSuccess, disabled }) => {
 
   if (showConfirm) {
     return (
-      <div className="flex items-center gap-2">
+      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
         <button
           onClick={handleCancel}
           disabled={isCancelling}
-          className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:bg-red-400 transition-colors"
+          className="btn-confirm"
+          style={{
+            background: '#b91c1c',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.15s ease',
+            opacity: isCancelling ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => !isCancelling && (e.target.style.background = '#8b1515')}
+          onMouseLeave={(e) => !isCancelling && (e.target.style.background = '#b91c1c')}
         >
-          {isCancelling ? 'Cancelling...' : 'Yes, Cancel'}
+          <Trash2 size={14} />
+          <span>{isCancelling ? 'Cancelling...' : 'Yes'}</span>
         </button>
         <button
           onClick={() => setShowConfirm(false)}
           disabled={isCancelling}
-          className="px-4 py-2 bg-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-400 disabled:bg-gray-200 transition-colors"
+          className="btn-cancel-confirm"
+          style={{
+            background: '#e5e7eb',
+            color: '#374151',
+            border: 'none',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'all 0.15s ease',
+            opacity: isCancelling ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => !isCancelling && (e.target.style.background = '#d1d5db')}
+          onMouseLeave={(e) => !isCancelling && (e.target.style.background = '#e5e7eb')}
         >
-          No
+          <X size={14} />
+          <span>No</span>
         </button>
       </div>
     );
@@ -43,9 +80,28 @@ const CancelButton = ({ bookingId, onSuccess, disabled }) => {
     <button
       onClick={() => setShowConfirm(true)}
       disabled={disabled}
-      className="px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+      className="btn-danger"
+      style={{
+        background: '#dc2626',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        cursor: 'pointer',
+        fontWeight: '600',
+        fontSize: '12px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        transition: 'all 0.15s ease',
+        boxShadow: 'none',
+        opacity: disabled ? 0.55 : 1,
+      }}
+      onMouseEnter={(e) => !disabled && (e.target.style.background = '#b91c1c')}
+      onMouseLeave={(e) => !disabled && (e.target.style.background = '#dc2626')}
     >
-      Cancel Booking
+      <Trash2 size={14} />
+      <span>Cancel</span>
     </button>
   );
 };

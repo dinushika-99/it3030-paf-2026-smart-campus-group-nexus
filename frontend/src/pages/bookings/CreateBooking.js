@@ -11,6 +11,8 @@ const CreateBooking = () => {
   const [formData, setFormData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const backButtonClass = 'absolute top-4 left-4 sm:top-6 sm:left-6 z-10 px-6 py-3 bg-white text-gray-800 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:bg-gray-50 transition-all flex items-center gap-2 font-medium';
+
   const handleBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -47,7 +49,7 @@ const CreateBooking = () => {
 
       await bookingService.createBooking(bookingData);
       toast.success('Booking request submitted successfully!');
-      navigate('/facilities');
+      navigate('/bookings/my');
     } catch (error) {
       console.error('Full error:', error);
       const errorMsg = error.response?.data?.message || error.message;
@@ -65,16 +67,17 @@ const CreateBooking = () => {
   const isValid = formData?.isValid || false;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="relative min-h-screen bg-gray-50 py-8">
+      <button
+        onClick={handleBack}
+        className={backButtonClass}
+      >
+        ← Back
+      </button>
+
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
-        <div className="mb-6">
-          <button
-            onClick={handleBack}
-            className="text-gray-600 hover:text-gray-900 mb-4 flex items-center gap-2"
-          >
-            ← Back to Resources
-          </button>
+        <div className="mb-6 mt-8">
           <h1 className="text-3xl font-bold text-gray-900">Create Booking</h1>
           <p className="text-gray-600 mt-2">
             Request a resource booking

@@ -32,6 +32,8 @@ import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
 import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
+import EditBooking from './pages/bookings/EditBooking'; 
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 const clientId =
   process.env.REACT_APP_GOOGLE_CLIENT_ID ||
@@ -63,7 +65,13 @@ function AppRoutes() {
     '/reset-password',
   ];
 
-  const shouldShowNavbar = user && !hideNavbarPaths.includes(location.pathname);
+  // ✅ NEW: hide navbar for all admin routes
+  const isAdminRoute = location.pathname.startsWith('/admin');
+
+  const shouldShowNavbar =
+    user &&
+    !hideNavbarPaths.includes(location.pathname) &&
+    !isAdminRoute;
 
   return (
     <>
@@ -97,6 +105,7 @@ function AppRoutes() {
 
         <Route path="/technician/workspace" element={<TechnicianWorkspacePage />} />
 
+        {/* ADMIN ROUTES */}
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/bookings" element={<AdminBookingsPage />} />
         <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
@@ -126,6 +135,24 @@ function AppRoutes() {
           element={
             <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
               <BookingDetail />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/bookings/:id/edit"
+          element={
+            <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+              <EditBooking />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <AnalyticsDashboard />
             </ProtectedRoute>
           }
         />
@@ -167,7 +194,6 @@ export default function App() {
               },
             }}
           />
-
           <AppRoutes />
         </Router>
       </AuthProvider>
