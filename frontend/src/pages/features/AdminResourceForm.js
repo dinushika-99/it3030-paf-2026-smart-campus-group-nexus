@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Layout from "../../components/Layout";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "../../components/ui/select";
 import { 
-  ArrowLeft, 
   Save, 
   Loader2, 
   MapPin, 
@@ -60,7 +59,7 @@ const initialFormData = {
   maxQuantity: "",
 };
 
-export default function AdminResourceForm() {
+export default function AdminResourceForm({ embedded = false, onClose, onSaved }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
@@ -70,6 +69,15 @@ export default function AdminResourceForm() {
   const [fetching, setFetching] = useState(false);
   const [errors, setErrors] = useState({});
   const [activeSection, setActiveSection] = useState("basic");
+
+  const handleBack = () => {
+    if (embedded) {
+      onClose?.();
+      return;
+    }
+
+    navigate("/admin");
+  };
 
   useEffect(() => {
     if (!isEdit || !id) return;
@@ -100,6 +108,11 @@ export default function AdminResourceForm() {
       })
       .catch(() => {
         toast.error("Failed to load resource");
+        if (embedded) {
+          onClose?.();
+          return;
+        }
+
         navigate("/admin");
       })
       .finally(() => setFetching(false));
@@ -192,7 +205,12 @@ export default function AdminResourceForm() {
         await createResource(payload);
         toast.success("Resource created successfully");
       }
-      navigate("/admin");
+      if (embedded) {
+        onSaved?.();
+        onClose?.();
+      } else {
+        navigate("/admin");
+      }
     } catch (err) {
       const errorMsg =
         err instanceof Error
@@ -211,94 +229,83 @@ export default function AdminResourceForm() {
   ];
 
   if (fetching) {
-    return (
-      <Layout>
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-gray-200 rounded w-1/3" />
-            <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-12 bg-gray-200 rounded" />
-              ))}
-            </div>
+    const loadingView = (
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-gray-200 rounded w-1/3" />
+          <div className="space-y-4">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded" />
+            ))}
           </div>
         </div>
-      </Layout>
+      </div>
     );
+
+    return embedded ? loadingView : <Layout>{loadingView}</Layout>;
   }
 
-  return (
-    <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  const formView = (
+      <div className="admin-resource-form-page min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0f172a] to-[#0b1120]">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative">
           {/* Header Section */}
-          <div className="mb-8">
-            <Link to="/admin">
-              <Button 
-                variant="ghost" 
-                className="mb-4 text-gray-600 hover:text-[#1B2A4A] hover:bg-gray-100 transition-all duration-200 group"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" />
-                Back to Dashboard
-              </Button>
-            </Link>
-            
+          <div className="mb-8 pt-2">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-[#1B2A4A] to-[#2A3F6E] bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold text-[#FDE68A]">
                   {isEdit ? "Edit Resource" : "Create New Resource"}
                 </h1>
-                <p className="text-gray-500 mt-2">
+                <p className="text-slate-400 mt-2">
                   {isEdit 
                     ? "Update the resource details below" 
                     : "Fill in the details to add a new resource to the system"}
                 </p>
               </div>
               {!isEdit && (
-                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-full">
-                  <Sparkles className="w-4 h-4 text-green-600" />
-                  <span className="text-xs text-green-700 font-medium">New Resource</span>
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#0f172a] border border-[#334155] rounded-full">
+                  <Sparkles className="w-4 h-4 text-[#FDE68A]" />
+                  <span className="text-xs text-[#FDE68A] font-medium">New Resource</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Section Navigation */}
-          <div className="flex gap-2 mb-6 border-b border-gray-200">
-            {sections.map((section) => {
-              const Icon = section.icon;
-              return (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${
-                    activeSection === section.id
-                      ? "border-[#C5961A] text-[#C5961A]"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {section.label}
-                </button>
-              );
-            })}
-          </div>
+          <div className="mt-6 rounded-3xl border border-[#334155] bg-[#111827] shadow-2xl p-5 sm:p-6 lg:p-8">
+            {/* Section Navigation */}
+            <div className="flex gap-2 mb-6 border-b border-[#1f2937]">
+              {sections.map((section) => {
+                const Icon = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all duration-200 border-b-2 ${
+                      activeSection === section.id
+                        ? "border-[#C5961A] text-[#FDE68A]"
+                        : "border-transparent text-slate-400 hover:text-slate-200 hover:border-[#334155]"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {section.label}
+                  </button>
+                );
+              })}
+            </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information Section */}
-            {activeSection === "basic" && (
-              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#C5961A] to-[#E8B53A]" />
-                <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-white">
-                  <CardTitle className="flex items-center gap-2 text-xl text-[#1B2A4A]">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information Section */}
+              {activeSection === "basic" && (
+                <Card className="border border-[#1f2937] bg-[#0f172a] shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+                  <CardHeader className="pb-4 bg-gradient-to-r from-[#0b1220] to-[#111827]">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-100">
                     <Info className="w-5 h-5 text-[#C5961A]" />
                     Basic Information
                   </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">Essential details about the resource</p>
+                  <p className="text-sm text-slate-400 mt-1">Essential details about the resource</p>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-6">
                   <div>
-                    <Label htmlFor="name" className="text-sm font-semibold text-gray-700">
+                    <Label htmlFor="name" className="text-sm font-semibold text-slate-200">
                       Resource Name <span className="text-red-500">*</span>
                     </Label>
                     <Input
@@ -307,7 +314,7 @@ export default function AdminResourceForm() {
                       onChange={(e) => updateField("name", e.target.value)}
                       placeholder="e.g. Main Lecture Hall A, Chemistry Lab, Tennis Court"
                       className={`mt-1.5 transition-all duration-200 focus:ring-2 focus:ring-[#C5961A]/20 ${
-                        errors.name ? "border-red-400 focus:ring-red-200" : "border-gray-200"
+                        errors.name ? "border-red-400 focus:ring-red-200" : "border-[#334155]"
                       }`}
                     />
                     {errors.name && (
@@ -319,7 +326,7 @@ export default function AdminResourceForm() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label className="text-sm font-semibold text-gray-700">
+                      <Label className="text-sm font-semibold text-slate-200">
                         Category <span className="text-red-500">*</span>
                       </Label>
                       <Select
@@ -331,12 +338,12 @@ export default function AdminResourceForm() {
                       >
                         <SelectTrigger 
                           className={`mt-1.5 transition-all duration-200 ${
-                            errors.category ? "border-red-400" : "border-gray-200"
+                            errors.category ? "border-red-400" : "border-[#334155]"
                           }`}
                         >
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-[#0f172a] text-slate-100 border-[#334155]">
                           {ALL_CATEGORIES.map((cat) => (
                             <SelectItem key={cat} value={cat}>
                               <span className="flex items-center gap-2">
@@ -358,7 +365,7 @@ export default function AdminResourceForm() {
                     </div>
 
                     <div>
-                      <Label className="text-sm font-semibold text-gray-700">
+                      <Label className="text-sm font-semibold text-slate-200">
                         Type <span className="text-red-500">*</span>
                       </Label>
                       <Select
@@ -368,14 +375,14 @@ export default function AdminResourceForm() {
                       >
                         <SelectTrigger 
                           className={`mt-1.5 transition-all duration-200 ${
-                            errors.type ? "border-red-400" : "border-gray-200"
-                          } ${!form.category ? "bg-gray-50" : ""}`}
+                            errors.type ? "border-red-400" : "border-[#334155]"
+                          } ${!form.category ? "bg-[#0f172a]" : ""}`}
                         >
                           <SelectValue 
                             placeholder={form.category ? "Select a type" : "Select category first"} 
                           />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-[#0f172a] text-slate-100 border-[#334155]">
                           {availableTypes.map((t) => (
                             <SelectItem key={t} value={t}>
                               {formatType(t)}
@@ -393,7 +400,7 @@ export default function AdminResourceForm() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label htmlFor="capacity" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="capacity" className="text-sm font-semibold text-slate-200">
                         <Users className="w-3 h-3 inline mr-1" /> Capacity <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -404,7 +411,7 @@ export default function AdminResourceForm() {
                         onChange={(e) => updateField("capacity", e.target.value)}
                         placeholder="Number of people"
                         className={`mt-1.5 transition-all duration-200 ${
-                          errors.capacity ? "border-red-400" : "border-gray-200"
+                          errors.capacity ? "border-red-400" : "border-[#334155]"
                         }`}
                       />
                       {errors.capacity && (
@@ -415,12 +422,12 @@ export default function AdminResourceForm() {
                     </div>
 
                     <div>
-                      <Label className="text-sm font-semibold text-gray-700">Status</Label>
+                      <Label className="text-sm font-semibold text-slate-200">Status</Label>
                       <Select value={form.status} onValueChange={(val) => updateField("status", val)}>
-                        <SelectTrigger className="mt-1.5 border-gray-200">
+                        <SelectTrigger className="mt-1.5 border-[#334155]">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="bg-[#0f172a] text-slate-100 border-[#334155]">
                           <SelectItem value="ACTIVE">
                             <span className="flex items-center gap-2">
                               <div className="w-2 h-2 bg-green-500 rounded-full" />
@@ -439,7 +446,7 @@ export default function AdminResourceForm() {
                   </div>
 
                   <div>
-                    <Label htmlFor="description" className="text-sm font-semibold text-gray-700">
+                    <Label htmlFor="description" className="text-sm font-semibold text-slate-200">
                       Description
                     </Label>
                     <Textarea
@@ -448,12 +455,12 @@ export default function AdminResourceForm() {
                       onChange={(e) => updateField("description", e.target.value)}
                       placeholder="Describe the resource, its features, amenities, and any special notes..."
                       rows={4}
-                      className="mt-1.5 border-gray-200 focus:ring-2 focus:ring-[#C5961A]/20 resize-none"
+                      className="mt-1.5 border-[#334155] focus:ring-2 focus:ring-[#C5961A]/20 resize-none"
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="imageUrl" className="text-sm font-semibold text-gray-700">
+                    <Label htmlFor="imageUrl" className="text-sm font-semibold text-slate-200">
                       <ImageIcon className="w-3 h-3 inline mr-1" /> Image URL
                     </Label>
                     <Input
@@ -461,29 +468,28 @@ export default function AdminResourceForm() {
                       value={form.imageUrl}
                       onChange={(e) => updateField("imageUrl", e.target.value)}
                       placeholder="https://example.com/image.jpg"
-                      className="mt-1.5 border-gray-200"
+                      className="mt-1.5 border-[#334155]"
                     />
-                    <p className="text-xs text-gray-400 mt-1">Optional: Add a URL for the resource image</p>
+                    <p className="text-xs text-slate-500 mt-1">Optional: Add a URL for the resource image</p>
                   </div>
                 </CardContent>
-              </Card>
-            )}
+                </Card>
+              )}
 
-            {/* Availability Section */}
-            {activeSection === "availability" && (
-              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#C5961A] to-[#E8B53A]" />
-                <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-white">
-                  <CardTitle className="flex items-center gap-2 text-xl text-[#1B2A4A]">
+              {/* Availability Section */}
+              {activeSection === "availability" && (
+                <Card className="border border-[#1f2937] bg-[#0f172a] shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+                  <CardHeader className="pb-4 bg-gradient-to-r from-[#0b1220] to-[#111827]">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-100">
                     <Clock className="w-5 h-5 text-[#C5961A]" />
                     Availability & Booking Rules
                   </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">Configure when and how this resource can be booked</p>
+                  <p className="text-sm text-slate-400 mt-1">Configure when and how this resource can be booked</p>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label htmlFor="dailyOpenTime" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="dailyOpenTime" className="text-sm font-semibold text-slate-200">
                         Opening Time <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -492,7 +498,7 @@ export default function AdminResourceForm() {
                         value={form.dailyOpenTime}
                         onChange={(e) => updateField("dailyOpenTime", e.target.value)}
                         className={`mt-1.5 transition-all duration-200 ${
-                          errors.dailyOpenTime ? "border-red-400" : "border-gray-200"
+                          errors.dailyOpenTime ? "border-red-400" : "border-[#334155]"
                         }`}
                       />
                       {errors.dailyOpenTime && (
@@ -503,7 +509,7 @@ export default function AdminResourceForm() {
                     </div>
 
                     <div>
-                      <Label htmlFor="dailyCloseTime" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="dailyCloseTime" className="text-sm font-semibold text-slate-200">
                         Closing Time <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -512,7 +518,7 @@ export default function AdminResourceForm() {
                         value={form.dailyCloseTime}
                         onChange={(e) => updateField("dailyCloseTime", e.target.value)}
                         className={`mt-1.5 transition-all duration-200 ${
-                          errors.dailyCloseTime ? "border-red-400" : "border-gray-200"
+                          errors.dailyCloseTime ? "border-red-400" : "border-[#334155]"
                         }`}
                       />
                       {errors.dailyCloseTime && (
@@ -523,24 +529,24 @@ export default function AdminResourceForm() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-[#0f172a] rounded-xl">
                     <div>
-                      <Label htmlFor="isBookable" className="cursor-pointer text-sm font-semibold text-gray-700">
+                      <Label htmlFor="isBookable" className="cursor-pointer text-sm font-semibold text-slate-200">
                         Allow Bookings
                       </Label>
-                      <p className="text-xs text-gray-500 mt-0.5">Enable or disable booking for this resource</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Enable or disable booking for this resource</p>
                     </div>
                     <Switch
                       id="isBookable"
                       checked={form.isBookable}
                       onCheckedChange={(val) => updateField("isBookable", val)}
-                      className="data-[state=checked]:bg-[#C5961A]"
+                      className="border border-[#475569] bg-[#1e293b] shadow-inner data-[state=checked]:bg-[#C5961A] data-[state=checked]:border-[#C5961A] data-[state=unchecked]:bg-[#1e293b]"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <Label htmlFor="maxBookingDurationHours" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="maxBookingDurationHours" className="text-sm font-semibold text-slate-200">
                         <Calendar className="w-3 h-3 inline mr-1" /> Max Booking Duration
                       </Label>
                       <div className="relative mt-1.5">
@@ -552,10 +558,10 @@ export default function AdminResourceForm() {
                           onChange={(e) => updateField("maxBookingDurationHours", e.target.value)}
                           placeholder="Hours"
                           className={`pr-16 ${
-                            errors.maxBookingDurationHours ? "border-red-400" : "border-gray-200"
+                            errors.maxBookingDurationHours ? "border-red-400" : "border-[#334155]"
                           }`}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">hours</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">hours</span>
                       </div>
                       {errors.maxBookingDurationHours && (
                         <p className="flex items-center gap-1 text-red-500 text-xs mt-1">
@@ -565,7 +571,7 @@ export default function AdminResourceForm() {
                     </div>
 
                     <div>
-                      <Label htmlFor="maxQuantity" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="maxQuantity" className="text-sm font-semibold text-slate-200">
                         Max Quantity
                       </Label>
                       <div className="relative mt-1.5">
@@ -577,10 +583,10 @@ export default function AdminResourceForm() {
                           onChange={(e) => updateField("maxQuantity", e.target.value)}
                           placeholder="Available units"
                           className={`pr-16 ${
-                            errors.maxQuantity ? "border-red-400" : "border-gray-200"
+                            errors.maxQuantity ? "border-red-400" : "border-[#334155]"
                           }`}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">units</span>
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">units</span>
                       </div>
                       {errors.maxQuantity && (
                         <p className="flex items-center gap-1 text-red-500 text-xs mt-1">
@@ -590,27 +596,26 @@ export default function AdminResourceForm() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            )}
+                </Card>
+              )}
 
-            {/* Location Section */}
-            {activeSection === "location" && (
-              <Card className="border-0 shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#C5961A] to-[#E8B53A]" />
-                <CardHeader className="pb-4 bg-gradient-to-r from-gray-50 to-white">
-                  <CardTitle className="flex items-center gap-2 text-xl text-[#1B2A4A]">
+              {/* Location Section */}
+              {activeSection === "location" && (
+                <Card className="border border-[#1f2937] bg-[#0f172a] shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+                  <CardHeader className="pb-4 bg-gradient-to-r from-[#0b1220] to-[#111827]">
+                  <CardTitle className="flex items-center gap-2 text-xl text-slate-100">
                     <MapPin className="w-5 h-5 text-[#C5961A]" />
                     Location Details
                   </CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">Specify where this resource is located</p>
+                  <p className="text-sm text-slate-400 mt-1">Specify where this resource is located</p>
                 </CardHeader>
                 <CardContent className="space-y-5 pt-6">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-[#0f172a] rounded-xl">
                     <div>
-                      <Label htmlFor="isIndoor" className="cursor-pointer text-sm font-semibold text-gray-700">
+                      <Label htmlFor="isIndoor" className="cursor-pointer text-sm font-semibold text-slate-200">
                         <Building2 className="w-3 h-3 inline mr-1" /> Indoor Resource
                       </Label>
-                      <p className="text-xs text-gray-500 mt-0.5">
+                      <p className="text-xs text-slate-400 mt-0.5">
                         {form.isIndoor
                           ? "Located inside a building (requires building, floor, room)"
                           : "Located outdoors (requires area name)"}
@@ -627,7 +632,7 @@ export default function AdminResourceForm() {
                   {form.isIndoor ? (
                     <div className="space-y-4 animate-in slide-in-from-left duration-300">
                       <div>
-                        <Label htmlFor="building" className="text-sm font-semibold text-gray-700">
+                        <Label htmlFor="building" className="text-sm font-semibold text-slate-200">
                           Building Name <span className="text-red-500">*</span>
                         </Label>
                         <Input
@@ -636,7 +641,7 @@ export default function AdminResourceForm() {
                           onChange={(e) => updateField("building", e.target.value)}
                           placeholder="e.g. Engineering Block, Science Tower"
                           className={`mt-1.5 ${
-                            errors.building ? "border-red-400" : "border-gray-200"
+                            errors.building ? "border-red-400" : "border-[#334155]"
                           }`}
                         />
                         {errors.building && (
@@ -648,7 +653,7 @@ export default function AdminResourceForm() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                          <Label htmlFor="floor" className="text-sm font-semibold text-gray-700">
+                          <Label htmlFor="floor" className="text-sm font-semibold text-slate-200">
                             Floor Number <span className="text-red-500">*</span>
                           </Label>
                           <Input
@@ -658,7 +663,7 @@ export default function AdminResourceForm() {
                             onChange={(e) => updateField("floor", e.target.value)}
                             placeholder="e.g. 2"
                             className={`mt-1.5 ${
-                              errors.floor ? "border-red-400" : "border-gray-200"
+                              errors.floor ? "border-red-400" : "border-[#334155]"
                             }`}
                           />
                           {errors.floor && (
@@ -669,7 +674,7 @@ export default function AdminResourceForm() {
                         </div>
 
                         <div>
-                          <Label htmlFor="roomNumber" className="text-sm font-semibold text-gray-700">
+                          <Label htmlFor="roomNumber" className="text-sm font-semibold text-slate-200">
                             Room Number <span className="text-red-500">*</span>
                           </Label>
                           <Input
@@ -678,7 +683,7 @@ export default function AdminResourceForm() {
                             onChange={(e) => updateField("roomNumber", e.target.value)}
                             placeholder="e.g. 201A, B12"
                             className={`mt-1.5 ${
-                              errors.roomNumber ? "border-red-400" : "border-gray-200"
+                              errors.roomNumber ? "border-red-400" : "border-[#334155]"
                             }`}
                           />
                           {errors.roomNumber && (
@@ -691,7 +696,7 @@ export default function AdminResourceForm() {
                     </div>
                   ) : (
                     <div className="animate-in slide-in-from-right duration-300">
-                      <Label htmlFor="areaName" className="text-sm font-semibold text-gray-700">
+                      <Label htmlFor="areaName" className="text-sm font-semibold text-slate-200">
                         Area Name <span className="text-red-500">*</span>
                       </Label>
                       <Input
@@ -700,7 +705,7 @@ export default function AdminResourceForm() {
                         onChange={(e) => updateField("areaName", e.target.value)}
                         placeholder="e.g. Main Sports Ground, Central Courtyard"
                         className={`mt-1.5 ${
-                          errors.areaName ? "border-red-400" : "border-gray-200"
+                          errors.areaName ? "border-red-400" : "border-[#334155]"
                         }`}
                       />
                       {errors.areaName && (
@@ -711,41 +716,59 @@ export default function AdminResourceForm() {
                     </div>
                   )}
                 </CardContent>
-              </Card>
-            )}
+                </Card>
+              )}
 
-            {/* Form Actions */}
-            <div className="flex items-center gap-3 justify-end pt-6 border-t border-gray-200">
-              <Link to="/admin">
+              {/* Form Actions */}
+              <div className="flex items-center gap-3 justify-end pt-6 border-t border-[#334155]">
                 <Button 
                   variant="outline" 
                   type="button"
-                  className="px-6 hover:bg-gray-50 transition-all duration-200"
+                  onClick={handleBack}
+                  className="px-6 border-[#334155] bg-[#0f172a] text-slate-200 hover:bg-[#1f2937] hover:text-white transition-all duration-200"
                 >
                   Cancel
                 </Button>
-              </Link>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="bg-gradient-to-r from-[#C5961A] to-[#E8B53A] hover:from-[#B08518] hover:to-[#D4A020] text-white min-w-[160px] shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {isEdit ? "Update Resource" : "Create Resource"}
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
+                <Button
+                  type="submit"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-[#C5961A] to-[#E8B53A] hover:from-[#B08518] hover:to-[#D4A020] text-[#111827] min-w-[160px] shadow-lg hover:shadow-xl transition-all duration-200"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      {isEdit ? "Update Resource" : "Create Resource"}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
         </div>
+        <style>{`
+          .admin-resource-form-page input,
+          .admin-resource-form-page textarea {
+            background-color: #0b1220;
+            color: #e2e8f0;
+          }
+
+          .admin-resource-form-page input::placeholder,
+          .admin-resource-form-page textarea::placeholder {
+            color: #64748b;
+          }
+
+          .admin-resource-form-page [role="combobox"] {
+            background-color: #0b1220;
+            color: #e2e8f0;
+          }
+        `}</style>
       </div>
-    </Layout>
   );
+
+  return embedded ? formView : <Layout>{formView}</Layout>;
 }

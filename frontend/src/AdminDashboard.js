@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from './api/axiosClient';
 import { SITE_BRAND } from './siteConfig';
 import { getAllResources, deleteResource, formatCategory, formatType } from './lib/api';
+import AdminResourceForm from './pages/features/AdminResourceForm';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
 import {
   Chart as ChartJS,
@@ -1588,6 +1589,7 @@ function AdminResourcesTab({ navigate }) {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [showTopUsed, setShowTopUsed] = useState(false);
+  const [showResourceForm, setShowResourceForm] = useState(false);
   const [topUsedLoading, setTopUsedLoading] = useState(false);
   const [topUsedError, setTopUsedError] = useState('');
   const [topUsedResources, setTopUsedResources] = useState([]);
@@ -1750,6 +1752,22 @@ function AdminResourcesTab({ navigate }) {
         >
           Top Used Resources
         </button>
+        <button
+          type="button"
+          onClick={() => setShowResourceForm((prev) => !prev)}
+          style={{
+            border: showResourceForm ? '1px solid #BF932A' : '1px solid #334155',
+            background: showResourceForm ? 'rgba(191,147,42,0.18)' : '#0f172a',
+            color: showResourceForm ? '#FDE68A' : '#cbd5e1',
+            borderRadius: '999px',
+            padding: '7px 12px',
+            fontSize: '12px',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Add New Resource
+        </button>
 
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
           <div style={{ width: '160px' }}>
@@ -1779,6 +1797,19 @@ function AdminResourcesTab({ navigate }) {
           </div>
         </div>
       </div>
+
+      {showResourceForm && (
+        <div style={{ border: '1px solid #334155', borderRadius: '18px', background: '#0b1220', padding: '14px' }}>
+          <AdminResourceForm
+            embedded
+            onClose={() => setShowResourceForm(false)}
+            onSaved={() => {
+              load();
+              setShowResourceForm(false);
+            }}
+          />
+        </div>
+      )}
 
       {showTopUsed && (
         <div style={{ ...CARD_STYLE, border: '1px solid #3f2f0c', background: 'linear-gradient(145deg, #18181b, #0f172a)' }}>
@@ -1857,13 +1888,6 @@ function AdminResourcesTab({ navigate }) {
             {loading ? 'Loading...' : `${filteredResources.length} resource${filteredResources.length !== 1 ? 's' : ''} found`}
           </p>
         </div>
-        <button
-          onClick={() => navigate('/admin/resources/new')}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', backgroundColor: '#BF932A', color: '#111827', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '14px' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add New Resource
-        </button>
       </div>
 
       {/* Error */}
