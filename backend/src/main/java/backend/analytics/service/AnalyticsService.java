@@ -30,7 +30,7 @@ public class AnalyticsService {
         this.resourceRepository = resourceRepository;
     }
 
-    // ✅ 1. Get Peak Booking Hours (Count ALL occupied hours, not just start time)
+    // 1. Get Peak Booking Hours (Count ALL occupied hours, not just start time)
     public Map<String, Object> getPeakBookingHours() {
         // Get ALL approved bookings
         List<Booking> bookings = bookingRepository.findAll().stream()
@@ -88,7 +88,7 @@ public class AnalyticsService {
         return response;
     }
 
-    // ✅ Helper method to get all hours occupied by a booking
+    // Helper method to get all hours occupied by a booking
     private List<Integer> getOccupiedHours(LocalDateTime startTime, LocalDateTime endTime) {
         List<Integer> hours = new ArrayList<>();
         LocalDateTime current = startTime;
@@ -104,7 +104,7 @@ public class AnalyticsService {
         return hours;
     }
 
-    // ✅ 2. Get Peak Booking Days (ALL approved bookings - no date filter)
+    // Get Peak Booking Days (ALL approved bookings)
     public Map<String, Object> getPeakBookingDays() {
         List<Object[]> results = bookingRepository.findPeakBookingDays();
         
@@ -146,7 +146,7 @@ public class AnalyticsService {
         return response;
     }
 
-    // ✅ 3. Get Booking Trends
+    // Get Booking Trends
     public Map<String, Object> getBookingTrends(String period) {
         LocalDateTime startDate;
         List<Object[]> results;
@@ -239,7 +239,7 @@ public class AnalyticsService {
         return response;
     }
 
-    // ✅ 4. Get Resource Utilization (DYNAMIC - Last 30 days + Next 30 days)
+    // Get Resource Utilization (DYNAMIC - Last 30 days + Next 30 days)
     public Map<String, Object> getResourceUtilization() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime startDate = now.minusDays(30);
@@ -285,7 +285,7 @@ public class AnalyticsService {
         return response;
     }
 
-    // ✅ 5. Get Summary Statistics
+    //Get Summary Statistics
     public Map<String, Object> getSummaryStats() {
         Map<String, Object> stats = new HashMap<>();
         

@@ -91,7 +91,7 @@ public class Booking {
         updatedAt = LocalDateTime.now();
     }
 
-    // ==================== GETTERS AND SETTERS ====================
+    // GETTERS AND SETTERS 
     
     public String getBookingId() { return bookingId; }
     public void setBookingId(String bookingId) { this.bookingId = bookingId; }
