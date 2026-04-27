@@ -59,12 +59,12 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
       today.setHours(0, 0, 0, 0);
       const selectedDate = new Date(formData.bookingDate);
       const maxDate = new Date(today);
-      maxDate.setDate(today.getDate() + 14);
+      maxDate.setMonth(today.getMonth() + 1);
 
       if (selectedDate < today) {
         newErrors.bookingDate = 'Cannot book dates in the past';
       } else if (selectedDate > maxDate) {
-        newErrors.bookingDate = 'Bookings allowed up to 2 weeks in advance';
+        newErrors.bookingDate = 'Bookings allowed up to one month in advance';
       }
     }
 
@@ -227,7 +227,7 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
   // Calculate max date for input attribute
   const getMaxDate = () => {
     const date = new Date();
-    date.setDate(date.getDate() + 14);
+    date.setMonth(date.getMonth() + 1);
     return date.toISOString().split('T')[0];
   };
 
@@ -270,7 +270,7 @@ const BookingForm = ({ preSelectedResourceId, onFormDataChange }) => {
           }`}
         />
         {showError('bookingDate') && <p className="text-red-500 text-xs mt-1">{errors.bookingDate}</p>}
-        <p className="text-xs text-gray-500 mt-1">Bookings allowed up to 2 weeks in advance.</p>
+        <p className="text-xs text-gray-500 mt-1">Bookings allowed up to one month in advance.</p>
       </div>
 
       {/* Time Selection */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { bookingService } from '../../services/BookingService';
-import DashboardLayout from '../../components/layout/DashboardLayout';
+import AdminLayout from '../../components/layout/AdminLayout';
 import RejectionModal from './components/RejectionModal'; 
 import BookingDetailsModal from './components/BookingDetailsModal'; 
 import toast from 'react-hot-toast'; // ✅ Import Toast
@@ -236,16 +236,13 @@ const AdminBookingsPage = () => {
   const currentBookings = filteredBookings();
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <DashboardLayout>
-        <div style={{ padding: '24px' }}>
-          
-          {/* Header */}
+    <AdminLayout highlightBookings={true}>
+      {/* Header */}
           <div style={{ marginBottom: '32px' }}>
-            <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#1f2937' }}>
+            <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#fff' }}>
               All Bookings
             </h1>
-            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: '#9ca3af' }}>
               Review and manage booking requests
             </p>
           </div>
@@ -293,9 +290,10 @@ const AdminBookingsPage = () => {
                   width: '100%',
                   padding: '10px 16px 10px 40px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #374151',
                   fontSize: '14px',
-                  backgroundColor: '#fff',
+                  backgroundColor: '#1f2937',
+                  color: '#e5e7eb',
                   boxSizing: 'border-box',
                 }}
               />
@@ -318,9 +316,10 @@ const AdminBookingsPage = () => {
               style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 fontSize: '14px',
-                backgroundColor: '#fff',
+                backgroundColor: '#1f2937',
+                color: '#e5e7eb',
                 cursor: 'pointer',
                 minWidth: '120px',
               }}
@@ -337,9 +336,10 @@ const AdminBookingsPage = () => {
               style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 fontSize: '14px',
-                backgroundColor: '#fff',
+                backgroundColor: '#1f2937',
+                color: '#e5e7eb',
                 cursor: 'pointer',
                 minWidth: '120px',
               }}
@@ -352,19 +352,19 @@ const AdminBookingsPage = () => {
           </div>
 
           {/* Booking Count */}
-          <div style={{ marginBottom: '16px', fontSize: '14px', color: '#6b7280' }}>
+          <div style={{ marginBottom: '16px', fontSize: '14px', color: '#9ca3af' }}>
             Showing {currentBookings.length} booking{currentBookings.length !== 1 ? 's' : ''}
           </div>
 
           {/* Loading State */}
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6b7280' }}>
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
               <div style={{
                 display: 'inline-block',
                 width: '40px',
                 height: '40px',
-                border: '4px solid #e5e7eb',
-                borderTop: '4px solid #3b82f6',
+                border: '4px solid #374151',
+                borderTop: '4px solid #BF932A',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite',
               }} />
@@ -374,10 +374,10 @@ const AdminBookingsPage = () => {
             <div style={{
               textAlign: 'center',
               padding: '60px 20px',
-              backgroundColor: '#fff',
+              backgroundColor: '#111827',
               borderRadius: '12px',
-              border: '1px solid #e5e7eb',
-              color: '#6b7280',
+              border: '1px solid #1f2937',
+              color: '#9ca3af',
             }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>📋</div>
               <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>No bookings found</p>
@@ -392,19 +392,19 @@ const AdminBookingsPage = () => {
                   <div
                     key={booking.bookingId || booking.id}
                     style={{
-                      backgroundColor: '#fff',
+                      backgroundColor: '#111827',
                       borderRadius: '12px',
-                      border: hasOverlap ? '2px solid #fecaca' : '2px solid #e5e7eb', // Red border if overlap
+                      border: hasOverlap ? '2px solid #7f1d1d' : '2px solid #1f2937',
                       padding: '20px 24px',
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '20px',
                       transition: 'box-shadow 0.2s',
-                      boxShadow: hasOverlap ? '0 0 0 1px #fee2e2' : 'none'
+                      boxShadow: hasOverlap ? '0 0 0 1px #7f1d1d' : 'none'
                     }}
                   >
                     {/* Icon */}
-                    <div style={{ fontSize: '32px', color: '#3b82f6', minWidth: '40px', textAlign: 'center', marginTop: '4px' }}>
+                    <div style={{ fontSize: '32px', color: '#BF932A', minWidth: '40px', textAlign: 'center', marginTop: '4px' }}>
                       📅
                     </div>
 
@@ -413,11 +413,11 @@ const AdminBookingsPage = () => {
                       {/* Header */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
                         <div>
-                          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>
+                          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#9ca3af' }}>
                             Code: {booking.bookingCode || 'N/A'}
                           </h3>
-                          <h2 style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '700', color: '#1f2937', display: 'flex', alignItems: 'center' }}>
-                            <span style={{ color: '#059669' }}>{booking.resourceName || 'Unknown Resource'}</span>
+                          <h2 style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '700', color: '#e5e7eb', display: 'flex', alignItems: 'center' }}>
+                            <span style={{ color: '#10b981' }}>{booking.resourceName || 'Unknown Resource'}</span>
                             
                             {/* ✅ NEW: Show Warning Icon if Overlap Exists */}
                             {hasOverlap && (
@@ -451,27 +451,27 @@ const AdminBookingsPage = () => {
                         
                         {/* Optional: Show 'First Requested' badge if it's the older one */}
                         {booking.status === 'PENDING' && !hasOverlap && (
-                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '600', backgroundColor: '#ecfdf5', padding: '2px 8px', borderRadius: '10px' }}>
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '600', backgroundColor: '#1f2937', padding: '2px 8px', borderRadius: '10px', border: '1px solid #374151' }}>
                             ✅ No Conflicts
                           </span>
                         )}
                       </div>
 
                       {/* Purpose */}
-                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#4b5563', lineHeight: '1.6' }}>
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6' }}>
                         {booking.purpose || 'No description provided'}
                       </p>
 
                       {/* Details */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '13px', color: '#6b7280', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '13px', color: '#9ca3af', flexWrap: 'wrap' }}>
                         <div>
-                          <span style={{ fontWeight: '600', color: '#1f2937' }}>Requested by:</span> {booking.userName || 'Unknown'}
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Requested by:</span> {booking.userName || 'Unknown'}
                         </div>
                         <div>
-                          <span style={{ fontWeight: '600', color: '#1f2937' }}>Schedule:</span> {formatDateTime(booking.startTime, booking.endTime)}
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Schedule:</span> {formatDateTime(booking.startTime, booking.endTime)}
                         </div>
                         <div>
-                          <span style={{ fontWeight: '600', color: '#1f2937' }}>Count:</span> {booking.expectedAttendees || booking.quantityRequested || 0}
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Count:</span> {booking.expectedAttendees || booking.quantityRequested || 0}
                         </div>
                       </div>
                     </div>
@@ -486,8 +486,8 @@ const AdminBookingsPage = () => {
                             style={{
                               padding: '8px 20px',
                               borderRadius: '8px',
-                              backgroundColor: processing[booking.bookingId] ? '#9ca3af' : '#10b981',
-                              color: '#fff',
+                              backgroundColor: processing[booking.bookingId] ? '#6b7280' : '#BF932A',
+                              color: processing[booking.bookingId] ? '#e5e7eb' : '#111827',
                               border: 'none',
                               fontSize: '13px',
                               fontWeight: '600',
@@ -505,7 +505,7 @@ const AdminBookingsPage = () => {
                             style={{
                               padding: '8px 20px',
                               borderRadius: '8px',
-                              backgroundColor: processing[booking.bookingId] ? '#9ca3af' : '#ef4444',
+                              backgroundColor: processing[booking.bookingId] ? '#6b7280' : '#dc2626',
                               color: '#fff',
                               border: 'none',
                               fontSize: '13px',
@@ -525,8 +525,8 @@ const AdminBookingsPage = () => {
                           style={{
                             padding: '8px 20px',
                             borderRadius: '8px',
-                            backgroundColor: '#6b7280',
-                            color: '#fff',
+                            backgroundColor: '#374151',
+                            color: '#e5e7eb',
                             border: 'none',
                             fontSize: '13px',
                             fontWeight: '600',
@@ -571,9 +571,7 @@ const AdminBookingsPage = () => {
               to { transform: rotate(360deg); }
             }
           `}</style>
-        </div>
-      </DashboardLayout>
-    </div>
+    </AdminLayout>
   );
 };
 
