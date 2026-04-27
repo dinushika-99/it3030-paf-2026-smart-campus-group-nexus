@@ -29,7 +29,7 @@ import {
 } from "../../lib/api";
 
 const CATEGORY_COLORS = {
-  ACADEMIC: "bg-blue-100 text-blue-800 border-blue-200",
+  ACADEMIC: "bg-[#FFF6E1] text-[#8A640A] border-[#E8C977]",
   SPORTS: "bg-green-100 text-green-800 border-green-200",
   COMMON: "bg-purple-100 text-purple-800 border-purple-200",
   ADMINISTRATIVE: "bg-orange-100 text-orange-800 border-orange-200",
@@ -145,7 +145,7 @@ export default function ResourceDetail() {
           <p className="text-red-500 font-medium mb-4">{error || "Resource not found"}</p>
           <Button onClick={() => navigate("/facilities")} variant="outline">
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Facilities
+            Back
           </Button>
         </div>
       </Layout>
@@ -155,9 +155,13 @@ export default function ResourceDetail() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Button onClick={() => navigate("/facilities")} variant="ghost" className="mb-4 text-gray-600">
+        <Button
+          onClick={() => navigate("/facilities")}
+          variant="ghost"
+          className="mb-6 inline-flex items-center bg-white text-[#1B2A4A] border border-gray-200 shadow-md rounded-xl hover:bg-white hover:text-[#C5961A] transition-colors w-fit"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Facilities
+          Back
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -204,8 +208,8 @@ export default function ResourceDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <Card className="border border-gray-100">
                 <CardContent className="p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
+                  <div className="w-10 h-10 rounded-lg bg-[#FFF8E8] flex items-center justify-center">
+                    <Users className="w-5 h-5 text-[#C5961A]" />
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 uppercase font-medium">Capacity</p>

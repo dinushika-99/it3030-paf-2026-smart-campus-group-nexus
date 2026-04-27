@@ -50,6 +50,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/error").permitAll()
                     .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/google", "/api/auth/github", "/api/auth/refresh", "/api/auth/logout", "/api/auth/2fa/verify", "/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
+                    .requestMatchers("/api/bookings/resource/**").permitAll()
                     .requestMatchers(HttpMethod.GET, "/api/bookings/resource/**").permitAll()
                     .requestMatchers("/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

@@ -638,8 +638,12 @@ public class BookingServiceImpl implements BookingServices {
     public List<BookingResponseDTO> getBookedSlotsByResourceId(Long resourceId) {
         return bookingRepository
             .findByResourcesIdAndStatusInOrderByStartTimeAsc(
-                resourceId, Arrays.asList(Booking.BookingStatus.APPROVED, Booking.BookingStatus.PENDING))
-            .stream().map(this::mapToSlotResponseDTO).collect(Collectors.toList());
+                resourceId,
+                Arrays.asList(Booking.BookingStatus.APPROVED)
+            )
+            .stream()
+            .map(this::mapToSlotResponseDTO)
+            .collect(Collectors.toList());
     }
 
     private BookingResponseDTO mapToSlotResponseDTO(Booking booking) {
