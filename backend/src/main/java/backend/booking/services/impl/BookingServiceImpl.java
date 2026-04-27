@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -823,6 +824,60 @@ public class BookingServiceImpl implements BookingServices {
             .stream()
             .map(this::mapToResponseDTO)
             .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BookingResponseDTO> getBookedSlotsByResourceId(Long resourceId) {
+        return bookingRepository
+            .findByResourcesIdAndStatusInOrderByStartTimeAsc(
+                resourceId,
+                Arrays.asList(Booking.BookingStatus.APPROVED, Booking.BookingStatus.PENDING)
+            )
+            .stream()
+            .map(this::mapToSlotResponseDTO)
+            .collect(Collectors.toList());
+    }
+
+    private BookingResponseDTO mapToSlotResponseDTO(Booking booking) {
+        BookingResponseDTO response = new BookingResponseDTO();
+        response.setBookingId(booking.getBookingId());
+        response.setResourcesId(booking.getResourcesId());
+        response.setStartTime(booking.getStartTime());
+        response.setEndTime(booking.getEndTime());
+        response.setPurpose(booking.getPurpose());
+        response.setStatus(booking.getStatus() != null ? booking.getStatus().name() : "PENDING");
+        return response;
+    }
+    
+    @Override
+    public void cancelBooking(String bookingId, String currentUserId) {
+        Booking booking = bookingRepository.findById(bookingId)
+            .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
+
+        if (booking.getStatus() == Booking.BookingStatus.CANCELLED || booking.getStatus() == Booking.BookingStatus.REJECTED) {
+            throw new IllegalStateException("Cannot cancel a booking that is already " + booking.getStatus());
+        }
+
+        boolean isOwner = currentUserId != null && currentUserId.equals(booking.getUserId());
+        // Note: You might want to inject a service to check admin status properly here if needed
+        // For now, assuming strict owner-only via this specific method, or pass isAdmin flag if available
+        if (!isOwner) { 
+             // If you want admins to cancel here too, you need to fetch user role and check
+             User currentUser = userRepository.findById(currentUserId)
+                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+             if (currentUser.getRole() != Role.ADMIN) {
+                 throw new AccessDeniedException("Only the booking owner or an admin can cancel this booking");
+             }
+        }
+
+        booking.setStatus(Booking.BookingStatus.CANCELLED);
+        booking.setCancelledByUserId(currentUserId);
+        booking.setCancelledAt(LocalDateTime.now());
+        booking.setRejectionReason(null);
+
+        Booking savedBooking = bookingRepository.save(booking);
+        recordStatusHistory(savedBooking.getBookingId(), "APPROVED", "CANCELLED", currentUserId, "Booking cancelled by user");
     }
 
     @Override
