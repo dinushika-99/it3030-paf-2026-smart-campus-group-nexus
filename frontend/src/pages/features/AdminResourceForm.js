@@ -212,10 +212,15 @@ export default function AdminResourceForm({ embedded = false, onClose, onSaved }
         navigate("/admin");
       }
     } catch (err) {
+      const backendMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.response?.data?.reason;
       const errorMsg =
-        err instanceof Error
+        backendMessage ||
+        (err instanceof Error
           ? err.message
-          : "Failed to save resource. Make sure you are logged in as admin.";
+          : "Failed to save resource. Make sure you are logged in as admin.");
       toast.error(errorMsg);
     } finally {
       setLoading(false);

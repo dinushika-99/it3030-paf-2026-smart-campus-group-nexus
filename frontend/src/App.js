@@ -111,8 +111,22 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/bookings" element={<AdminBookingsPage />} />
         <Route path="/admin/tickets" element={<AdminTicketManagementPage />} />
-        <Route path="/admin/resources/new" element={<AdminResourceForm />} />
-        <Route path="/admin/resources/edit/:id" element={<AdminResourceForm />} />
+        <Route
+          path="/admin/resources/new"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <AdminResourceForm />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/resources/edit/:id"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <AdminResourceForm />
+            </ProtectedRoute>
+          }
+        />
 
         <Route
           path="/bookings/new/:resourceId?"
