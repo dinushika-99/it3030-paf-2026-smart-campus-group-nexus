@@ -121,35 +121,43 @@ const AdminBookingsPage = () => {
     setShowDetailsModal(true);
   };
 
-  // Helper: Check if a booking overlaps with any other PENDING booking
-  const checkForOverlaps = (currentBooking, allBookings) => {
-    // Safety check for dates
+  const doBookingsOverlap = (bookingA, bookingB) => {
+    if (!bookingA?.startTime || !bookingA?.endTime || !bookingB?.startTime || !bookingB?.endTime) {
+      return false;
+    }
+
+    const startA = new Date(bookingA.startTime).getTime();
+    const endA = new Date(bookingA.endTime).getTime();
+    const startB = new Date(bookingB.startTime).getTime();
+    const endB = new Date(bookingB.endTime).getTime();
+
+    return startA < endB && endA > startB;
+  };
+
+  const hasPendingOverlap = (currentBooking, allBookings) => {
     if (!currentBooking.startTime || !currentBooking.endTime) return false;
 
-    // Only check against other PENDING bookings
     const pendingBookings = allBookings.filter(
-      b => 
-        b.status === 'PENDING' && 
-        b.bookingId !== currentBooking.bookingId && // Don't compare with self
-        b.resourcesId === currentBooking.resourcesId // Same resource
+      (b) =>
+        b.status === 'PENDING' &&
+        b.bookingId !== currentBooking.bookingId &&
+        b.resourcesId === currentBooking.resourcesId
     );
 
-    const currentStart = new Date(currentBooking.startTime).getTime();
-    const currentEnd = new Date(currentBooking.endTime).getTime();
+    return pendingBookings.some((other) => doBookingsOverlap(currentBooking, other));
+  };
 
-    for (let other of pendingBookings) {
-      // Safety check for comparison dates
-      if (!other.startTime || !other.endTime) continue;
+  const hasApprovedOverlap = (currentBooking, allBookings) => {
+    if (!currentBooking.startTime || !currentBooking.endTime) return false;
 
-      const otherStart = new Date(other.startTime).getTime();
-      const otherEnd = new Date(other.endTime).getTime();
+    const approvedBookings = allBookings.filter(
+      (b) =>
+        b.status === 'APPROVED' &&
+        b.bookingId !== currentBooking.bookingId &&
+        b.resourcesId === currentBooking.resourcesId
+    );
 
-      // Overlap logic: (StartA < EndB) and (EndA > StartB)
-      if (currentStart < otherEnd && currentEnd > otherStart) {
-        return true; // Conflict found
-      }
-    }
-    return false; // No conflict
+    return approvedBookings.some((other) => doBookingsOverlap(currentBooking, other));
   };
 
   // Filter bookings based on search and filters
@@ -385,8 +393,10 @@ const AdminBookingsPage = () => {
           ) : (
             <div style={{ display: 'grid', gap: '16px' }}>
               {currentBookings.map((booking) => {
-                // Calculate overlap for this specific booking
-                const hasOverlap = booking.status === 'PENDING' && checkForOverlaps(booking, bookings);
+                const pendingOverlap = booking.status === 'PENDING' && hasPendingOverlap(booking, bookings);
+                const approvedOverlap = booking.status === 'PENDING' && hasApprovedOverlap(booking, bookings);
+                const hasOverlap = pendingOverlap || approvedOverlap;
+                const disableApprove = processing[booking.bookingId] || approvedOverlap;
 
                 return (
                   <div
@@ -422,7 +432,7 @@ const AdminBookingsPage = () => {
                             {/* ✅ NEW: Show Warning Icon if Overlap Exists */}
                             {hasOverlap && (
                               <span 
-                                title="⚠️ Conflict: Another pending booking exists for this time slot!"
+                                title={approvedOverlap ? '⛔ This slot is already booked by an approved booking.' : '⚠️ Conflict: another booking overlaps this time slot.'}
                                 style={{ 
                                   marginLeft: '8px', 
                                   color: '#ef4444', 
@@ -455,6 +465,16 @@ const AdminBookingsPage = () => {
                             ✅ No Conflicts
                           </span>
                         )}
+                        {approvedOverlap && (
+                          <span style={{ fontSize: '10px', color: '#fda4af', fontWeight: '600', backgroundColor: '#111827', padding: '2px 8px', borderRadius: '10px', border: '1px solid #7f1d1d' }}>
+                            ⛔ Already booked by approved slot
+                          </span>
+                        )}
+                        {pendingOverlap && !approvedOverlap && (
+                          <span style={{ fontSize: '10px', color: '#fde68a', fontWeight: '600', backgroundColor: '#111827', padding: '2px 8px', borderRadius: '10px', border: '1px solid #f59e0b' }}>
+                            ⚠️ Pending conflict exists
+                          </span>
+                        )}
                       </div>
 
                       {/* Purpose */}
@@ -482,16 +502,17 @@ const AdminBookingsPage = () => {
                         <>
                           <button
                             onClick={() => handleApprove(booking.bookingId)}
-                            disabled={processing[booking.bookingId]}
+                            disabled={disableApprove}
+                            title={approvedOverlap ? 'This booking overlaps an already approved booking and cannot be approved.' : undefined}
                             style={{
                               padding: '8px 20px',
                               borderRadius: '8px',
-                              backgroundColor: processing[booking.bookingId] ? '#6b7280' : '#BF932A',
-                              color: processing[booking.bookingId] ? '#e5e7eb' : '#111827',
+                              backgroundColor: disableApprove ? '#6b7280' : '#BF932A',
+                              color: disableApprove ? '#e5e7eb' : '#111827',
                               border: 'none',
                               fontSize: '13px',
                               fontWeight: '600',
-                              cursor: processing[booking.bookingId] ? 'not-allowed' : 'pointer',
+                              cursor: disableApprove ? 'not-allowed' : 'pointer',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '6px',

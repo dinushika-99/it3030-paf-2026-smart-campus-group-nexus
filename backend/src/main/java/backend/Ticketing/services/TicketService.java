@@ -426,11 +426,11 @@ public class TicketService {
         Ticket updatedTicket = ticketRepository.save(ticket);
 
         if (newStatus == TicketStatus.REJECTED) {
-            notifyStudentAndAssignedTechnicianOnRejected(updatedTicket, currentUser, request.getRejectionReason());
+            notifyTicketRejected(updatedTicket, currentUser);
         }
 
         if (newStatus == TicketStatus.RESOLVED && currentUser.getRole() == Role.TECHNICIAN) {
-            notifyStudentAndAdminsOnResolved(updatedTicket, currentUser);
+            notifyTicketResolved(updatedTicket, currentUser);
         }
 
         TicketStatusHistory history = new TicketStatusHistory(

@@ -31,23 +31,25 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     // ==================== EXISTING: Conflict Detection ====================
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.resourcesId = :resourcesId " +
-           "AND b.status IN ('APPROVED') " +
+           "AND b.status = :approvedStatus " +
            "AND NOT (b.endTime <= :startTime OR b.startTime >= :endTime)")
     int countOverlappingBookings(
         @Param("resourcesId") Long resourcesId,
         @Param("startTime") LocalDateTime startTime,
-        @Param("endTime") LocalDateTime endTime
+        @Param("endTime") LocalDateTime endTime,
+        @Param("approvedStatus") Booking.BookingStatus approvedStatus
     );
 
     @Query("SELECT COUNT(b) FROM Booking b " +
            "WHERE b.resourcesId = :resourcesId " +
-           "AND b.status IN ('APPROVED') " +
+           "AND b.status = :approvedStatus " +
            "AND b.bookingId != :excludeBookingId " +
            "AND NOT (b.endTime <= :startTime OR b.startTime >= :endTime)")
     int countOverlappingBookingsExcluding(
         @Param("resourcesId") Long resourcesId,
         @Param("startTime") LocalDateTime startTime,
         @Param("endTime") LocalDateTime endTime,
+        @Param("approvedStatus") Booking.BookingStatus approvedStatus,
         @Param("excludeBookingId") String excludeBookingId
     );
 

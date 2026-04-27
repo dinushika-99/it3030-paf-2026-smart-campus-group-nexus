@@ -3,6 +3,7 @@ package backend.booking.services.impl;
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
 import backend.booking.dto.StatusUpdateDTO;
+import backend.booking.dto.BookingStatusHistoryDTO;
 import backend.booking.model.Booking;
 import backend.booking.model.BookingStatusHistory;
 import backend.booking.repository.BookingHistoryRepository;
@@ -80,7 +81,8 @@ public class BookingServiceImpl implements BookingServices {
         int overlappingCount = bookingRepository.countOverlappingBookings(
             requestDTO.getResourcesId(),
             requestDTO.getStartTime(),
-            requestDTO.getEndTime()
+            requestDTO.getEndTime(),
+            Booking.BookingStatus.APPROVED
         );
         
         if (overlappingCount > 0) {
@@ -123,6 +125,21 @@ public class BookingServiceImpl implements BookingServices {
         switch (statusUpdateDTO.getStatus()) {
             case APPROVED:
                 if (!isAdmin) throw new AccessDeniedException("Only admins can approve bookings");
+                if (booking.getResourcesId() == null || booking.getStartTime() == null || booking.getEndTime() == null) {
+                    throw new IllegalStateException("Booking must have resource and time window before approving.");
+                }
+
+                int overlapCount = bookingRepository.countOverlappingBookings(
+                    booking.getResourcesId(),
+                    booking.getStartTime(),
+                    booking.getEndTime(),
+                    Booking.BookingStatus.APPROVED
+                );
+
+                if (overlapCount > 0) {
+                    throw new IllegalStateException("This slot is already booked. Approve another booking only after the existing approved booking is cancelled.");
+                }
+
                 booking.setStatus(Booking.BookingStatus.APPROVED);
                 booking.setApprovedByUserId(currentUserId);
                 booking.setApprovedAt(LocalDateTime.now());
@@ -274,6 +291,7 @@ public class BookingServiceImpl implements BookingServices {
             updateDTO.getResourcesId(),
             updateDTO.getStartTime(),
             updateDTO.getEndTime(),
+            Booking.BookingStatus.APPROVED,
             bookingId
         );
         
