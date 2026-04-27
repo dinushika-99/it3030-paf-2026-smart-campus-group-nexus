@@ -345,17 +345,6 @@ export default function Dashboard() {
           </div>
 
           <div style={{ position: "relative", minHeight: "320px" }}>
-            <div
-              style={{
-                position: "absolute",
-                width: "320px",
-                height: "320px",
-                borderRadius: "999px",
-                border: `2px solid rgba(114,96,180,0.25)`,
-                left: "-25px",
-                top: "-10px",
-              }}
-            />
 
             <div
               style={{
@@ -616,17 +605,6 @@ export default function Dashboard() {
           </div>
 
           <div style={{ position: "relative", minHeight: "320px" }}>
-            <div
-              style={{
-                position: "absolute",
-                width: "320px",
-                height: "320px",
-                borderRadius: "999px",
-                border: `2px solid rgba(114,96,180,0.25)`,
-                left: "-25px",
-                top: "-10px",
-              }}
-            />
             <StatBadge value="16+" label="Available Rooms" top="8px" left="0" />
             <StatBadge
               value="95%"

@@ -18,6 +18,14 @@ public interface BookingRepository extends JpaRepository<Booking, String> {
     List<Booking> findByStatusOrderByCreatedAtDesc(Booking.BookingStatus status);
     List<Booking> findAllByOrderByCreatedAtDesc();
     List<Booking> findByResourcesIdAndStatus(Long resourcesId, Booking.BookingStatus status);
+
+    // Find booked slots for a resource (used for availability display)
+    List<Booking> findByResourcesIdAndStatusInOrderByStartTimeAsc(
+        Long resourcesId,
+        List<Booking.BookingStatus> statuses
+    );
+
+    // Find by booking code
     Optional<Booking> findByBookingCode(String bookingCode);
 
     // ==================== EXISTING: Conflict Detection ====================
