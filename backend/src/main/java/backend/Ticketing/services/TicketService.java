@@ -121,9 +121,9 @@ public class TicketService {
         }
 
         try {
-            Ticket createdTicket = ticketRepository.save(ticket);
-            notifyAdminsNewTicket(createdTicket, currentUser);
-            return createdTicket;
+            Ticket savedTicket = ticketRepository.save(ticket);
+            notifyAdminsTicketCreated(savedTicket, currentUser);
+            return savedTicket;
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "Ticket data is invalid for current database constraints",
                     ex);
@@ -442,6 +442,14 @@ public class TicketService {
 
         ticketStatusHistoryRepository.save(history);
 
+        if (newStatus == TicketStatus.REJECTED) {
+            notifyTicketRejected(updatedTicket, currentUser);
+        }
+
+        if (newStatus == TicketStatus.RESOLVED) {
+            notifyTicketResolved(updatedTicket, currentUser);
+        }
+
         return updatedTicket;
     }
 
@@ -521,122 +529,135 @@ public class TicketService {
             ticketStatusHistoryRepository.save(assignmentStatusHistory);
         }
 
-            notifyStudentAndAssignedTechnicianOnAssigned(updatedTicket, currentUser, request.getAssignmentNote());
+        notifyTicketAssigned(updatedTicket, currentUser);
 
         return updatedTicket;
     }
 
-            private void notifyAdminsNewTicket(Ticket ticket, User createdBy) {
-            String creatorName = createdBy.getName() != null ? createdBy.getName() : createdBy.getId();
-            String title = "New ticket created";
-            String message = String.format(
-                "A new ticket %s was created by %s.\nTitle: %s\nPriority: %s\nStatus: %s",
-                ticket.getTicketCode(),
-                creatorName,
-                ticket.getTitle(),
-                ticket.getPriority(),
-                ticket.getStatus());
-
-            notifyAdmins("TICKET_CREATED", title, message, ticket);
-            }
-
-            private void notifyStudentAndAssignedTechnicianOnAssigned(Ticket ticket, User assignedBy, String assignmentNote) {
-            String adminName = assignedBy.getName() != null ? assignedBy.getName() : assignedBy.getId();
-            String safeNote = normalizeOptionalField(assignmentNote);
-
-            notifyUserById(
-                ticket.getCreatedByUserId(),
-                "TICKET_ASSIGNED",
-                "Your ticket was assigned",
-                String.format("Ticket %s has been assigned to a technician by %s.%s",
-                    ticket.getTicketCode(),
-                    adminName,
-                    safeNote != null ? "\nNote: " + safeNote : ""),
-                ticket);
-
-            notifyUserById(
-                ticket.getAssignedTechnicianId(),
-                "TICKET_ASSIGNED_TECHNICIAN",
-                "A ticket was assigned to you",
-                String.format("Ticket %s has been assigned to you by %s.%s",
-                    ticket.getTicketCode(),
-                    adminName,
-                    safeNote != null ? "\nNote: " + safeNote : ""),
-                ticket);
-            }
-
-            private void notifyStudentAndAssignedTechnicianOnRejected(Ticket ticket, User rejectedBy, String rejectionReason) {
-            String adminName = rejectedBy.getName() != null ? rejectedBy.getName() : rejectedBy.getId();
-            String safeReason = normalizeOptionalField(rejectionReason);
-
-            notifyUserById(
-                ticket.getCreatedByUserId(),
-                "TICKET_REJECTED",
-                "Your ticket was rejected",
-                String.format("Ticket %s was rejected by %s.%s",
-                    ticket.getTicketCode(),
-                    adminName,
-                    safeReason != null ? "\nReason: " + safeReason : ""),
-                ticket);
-
-            notifyUserById(
-                ticket.getAssignedTechnicianId(),
-                "TICKET_REJECTED_TECHNICIAN",
-                "Assigned ticket was rejected",
-                String.format("Ticket %s has been marked as rejected by %s.%s",
-                    ticket.getTicketCode(),
-                    adminName,
-                    safeReason != null ? "\nReason: " + safeReason : ""),
-                ticket);
-            }
-
-            private void notifyStudentAndAdminsOnResolved(Ticket ticket, User resolvedBy) {
-            String technicianName = resolvedBy.getName() != null ? resolvedBy.getName() : resolvedBy.getId();
-
-            notifyUserById(
-                ticket.getCreatedByUserId(),
-                "TICKET_RESOLVED",
-                "Your ticket was resolved",
-                String.format("Ticket %s has been resolved by technician %s.",
-                    ticket.getTicketCode(),
-                    technicianName),
-                ticket);
-
-            notifyAdmins(
-                "TICKET_RESOLVED_ADMIN",
-                "Ticket resolved by technician",
-                String.format("Ticket %s has been resolved by technician %s.",
-                    ticket.getTicketCode(),
-                    technicianName),
-                ticket);
-            }
-
-            private void notifyAdmins(String type, String title, String message, Ticket ticket) {
-            userRepository.findAll().stream()
+    private void notifyAdminsTicketCreated(Ticket ticket, User creator) {
+        String ticketRef = resolveTicketReference(ticket);
+        List<User> admins = userRepository.findAll().stream()
                 .filter(user -> user.getRole() == Role.ADMIN)
-                .forEach(admin -> notificationService.createNotificationWithReference(
-                    admin,
-                    type,
-                    title,
-                    message,
-                    "TICKET",
-                    String.valueOf(ticket.getTicketId())));
-            }
+                .toList();
 
-            private void notifyUserById(String userId, String type, String title, String message, Ticket ticket) {
-            String normalizedUserId = normalizeOptionalField(userId);
-            if (normalizedUserId == null) {
-                return;
-            }
-
-            userRepository.findById(normalizedUserId).ifPresent(user -> notificationService.createNotificationWithReference(
-                user,
-                type,
-                title,
-                message,
+        admins.forEach(admin -> notificationService.createNotificationWithReference(
+                admin,
+                "TICKET_CREATED",
+                "New Ticket Submitted",
+                String.format("A new ticket %s was created by %s. Title: %s", ticketRef, resolveDisplayName(creator), ticket.getTitle()),
                 "TICKET",
                 String.valueOf(ticket.getTicketId())));
-            }
+    }
+
+    private void notifyTicketAssigned(Ticket ticket, User assignedBy) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+        User technician = findUserById(ticket.getAssignedTechnicianId());
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_ASSIGNED",
+                    "Technician Assigned",
+                    String.format("Your ticket %s has been assigned to technician %s.", ticketRef,
+                            resolveDisplayName(technician)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        if (technician != null) {
+            notificationService.createNotificationWithReference(
+                    technician,
+                    "TICKET_ASSIGNED",
+                    "New Ticket Assignment",
+                    String.format("You have been assigned ticket %s by %s.", ticketRef, resolveDisplayName(assignedBy)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+    }
+
+    private void notifyTicketRejected(Ticket ticket, User actor) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+        User technician = findUserById(ticket.getAssignedTechnicianId());
+        String reason = normalizeOptionalField(ticket.getRejectionReason());
+        String reasonText = reason == null ? "No reason provided." : reason;
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_REJECTED",
+                    "Ticket Rejected",
+                    String.format("Your ticket %s was rejected by %s. Reason: %s", ticketRef,
+                            resolveDisplayName(actor), reasonText),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        if (technician != null) {
+            notificationService.createNotificationWithReference(
+                    technician,
+                    "TICKET_REJECTED",
+                    "Assigned Ticket Rejected",
+                    String.format("Ticket %s assigned to you was rejected by %s. Reason: %s", ticketRef,
+                            resolveDisplayName(actor), reasonText),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+    }
+
+    private void notifyTicketResolved(Ticket ticket, User resolver) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_RESOLVED",
+                    "Ticket Resolved",
+                    String.format("Your ticket %s has been resolved by %s.", ticketRef, resolveDisplayName(resolver)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        List<User> admins = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .toList();
+
+        admins.forEach(admin -> notificationService.createNotificationWithReference(
+                admin,
+                "TICKET_RESOLVED",
+                "Ticket Resolved",
+                String.format("Ticket %s was resolved by %s.", ticketRef, resolveDisplayName(resolver)),
+                "TICKET",
+                String.valueOf(ticket.getTicketId())));
+    }
+
+    private User findUserById(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        return userRepository.findById(userId).orElse(null);
+    }
+
+    private String resolveTicketReference(Ticket ticket) {
+        return ticket.getTicketCode() != null && !ticket.getTicketCode().isBlank()
+                ? ticket.getTicketCode()
+                : "#" + ticket.getTicketId();
+    }
+
+    private String resolveDisplayName(User user) {
+        if (user == null) {
+            return "Unknown User";
+        }
+        if (user.getName() != null && !user.getName().isBlank()) {
+            return user.getName();
+        }
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            return user.getEmail();
+        }
+        return user.getId();
+    }
 
     public List<Ticket> getTicketsByTechnician(String technicianId) {
         return ticketRepository.findByAssignedTechnicianId(technicianId);

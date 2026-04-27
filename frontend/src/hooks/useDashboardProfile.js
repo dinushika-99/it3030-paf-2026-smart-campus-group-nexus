@@ -32,6 +32,11 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
   const [twoFactorOtpAuthUri, setTwoFactorOtpAuthUri] = useState('');
   const [twoFactorNotice, setTwoFactorNotice] = useState('');
   const [twoFactorNoticeTone, setTwoFactorNoticeTone] = useState('success');
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    BOOKING_ALERTS: true,
+    TICKET_UPDATES: true,
+    SYSTEM_BROADCASTS: true,
+  });
   const profileAvatarInputRef = useRef(null);
 
   useEffect(() => {
@@ -47,6 +52,8 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
       .then((res) => res.data)
       .then((data) => {
         if (!data) return;
+
+        setNotificationPrefs(data.notificationPreferences || {});
 
         setUser((prev) => {
           const normalized = {
@@ -173,6 +180,22 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
       setProfileNotice(err.response?.data?.error || 'Network error while saving profile.');
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const toggleNotificationPreference = async (category) => {
+    const newValue = !notificationPrefs[category];
+
+    // Optimistic UI update
+    setNotificationPrefs((prev) => ({ ...prev, [category]: newValue }));
+
+    try {
+      await api.patch('/api/profile/me/preferences', { [category]: newValue });
+    } catch (err) {
+      // Revert on failure
+      setNotificationPrefs((prev) => ({ ...prev, [category]: !newValue }));
+      setProfileNoticeTone('error');
+      setProfileNotice('Failed to update preference.');
     }
   };
 
@@ -412,6 +435,7 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
     twoFactorOtpAuthUri,
     twoFactorNotice,
     twoFactorNoticeTone,
+    notificationPrefs,
     profileAvatarInputRef,
     passwordStrength,
     openProfile,
@@ -427,6 +451,7 @@ export default function useDashboardProfile({ user, setUser, navigate }) {
     startTwoFactorSetup,
     enableTwoFactor,
     disableTwoFactor,
+    toggleNotificationPreference,
     handleLogout,
   };
 }
