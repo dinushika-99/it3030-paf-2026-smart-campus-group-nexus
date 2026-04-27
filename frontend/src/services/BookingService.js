@@ -42,6 +42,12 @@ export const bookingService = {
     return response.data?.data || response.data;
   },
 
+  // Update existing booking (owner only, PENDING status)
+  updateBooking: async (bookingId, bookingData) => {
+    const response = await axiosClient.patch(`/bookings/${bookingId}`, bookingData);
+    return response.data?.data || response.data;
+  },
+
   // Cancel booking
   cancelBooking: async (bookingId) => {
     const response = await axiosClient.delete(`/bookings/${bookingId}`);

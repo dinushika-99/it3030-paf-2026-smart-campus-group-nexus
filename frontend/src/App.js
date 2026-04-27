@@ -32,6 +32,8 @@ import FacilitiesCatalogue from './pages/features/FacilitiesCatalogue';
 import TechnicianWorkspacePage from './pages/technician/TechnicianWorkspacePage';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
+import EditBooking from './pages/bookings/EditBooking'; 
+import AnalyticsDashboard from './pages/AnalyticsDashboard';
 
 const clientId =
   process.env.REACT_APP_GOOGLE_CLIENT_ID ||
@@ -136,6 +138,24 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/bookings/:id/edit"
+          element={
+            <ProtectedRoute roles={['STUDENT', 'LECTURER', 'MANAGER']}>
+              <EditBooking />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute roles={['ADMIN']}>
+              <AnalyticsDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </>
   );
@@ -174,7 +194,6 @@ export default function App() {
               },
             }}
           />
-
           <AppRoutes />
         </Router>
       </AuthProvider>

@@ -15,34 +15,6 @@ const COLORS = {
   softPurple: "#f7eedf",
 };
 
-// Background images for random rotation
-const BACKGROUND_IMAGES = [
-  '/authleft.jpg',
-  '/hero-campus-1.jpg',
-  '/hero-campus-2.jpg',
-  '/hero-campus-3.jpg',
-  '/hero-library.jpg',
-  '/hero-sports.jpg',
-];
-
-const useRandomBackground = () => {
-  const [currentImage, setCurrentImage] = useState(BACKGROUND_IMAGES[0]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImage((prev) => {
-        const available = BACKGROUND_IMAGES.filter((img) => img !== prev);
-        const next = available[Math.floor(Math.random() * available.length)];
-        return next;
-      });
-    }, 5000); // Change every 5 seconds
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return currentImage;
-};
-
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -60,7 +32,6 @@ export default function Dashboard() {
     openTickets: 0,
   });
   const [statsLoading, setStatsLoading] = useState(false);
-  const backgroundImage = useRandomBackground();
 
   const {
     notifications,
@@ -157,7 +128,6 @@ export default function Dashboard() {
 
         const bookingsData = bookingsRes.data?.data ?? bookingsRes.data ?? [];
         const bookings = Array.isArray(bookingsData) ? bookingsData : [];
-
         const tickets = Array.isArray(ticketsRes.data) ? ticketsRes.data : [];
 
         const pendingBookings = bookings.filter((booking) => {
@@ -171,9 +141,10 @@ export default function Dashboard() {
         const myTickets = userId
           ? tickets.filter((t) => (t.createdByUserId || t.userId) === userId)
           : tickets;
+          
         const openTickets = myTickets.filter((ticket) => {
-          const status = String(ticket.status || '').toUpperCase();
-          return status === 'OPEN' || status === 'IN_PROGRESS';
+          const status = String(ticket.status || "").toUpperCase();
+          return status === "OPEN" || status === "IN_PROGRESS";
         }).length;
 
         if (active) {
@@ -318,13 +289,13 @@ export default function Dashboard() {
             inset: 0,
             backgroundImage: `
               linear-gradient(rgba(15, 23, 42, 0.45), rgba(15, 23, 42, 0.45)),
-              url('${backgroundImage}')
+              url('/authleft.jpg')
             `,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            transform: 'scale(1.03)',
-            transition: 'background-image 1s ease-in-out',
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+            filter: "blur(2px)",
+            transform: "scale(1.03)",
           }}
         />
 
@@ -370,17 +341,7 @@ export default function Dashboard() {
               dashboard.
             </p>
 
-            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap" }}>
-              <ActionButton filled onClick={() => navigate("/facilities")}>
-                Browse Facilities
-              </ActionButton>
-              <ActionButton onClick={() => navigate("/bookings/my")}>
-                My Bookings
-              </ActionButton>
-              <ActionButton onClick={() => navigate("/tickets")}>
-                Create Ticket
-              </ActionButton>
-            </div>
+            
           </div>
 
           <div style={{ position: "relative", minHeight: "320px" }}>
@@ -462,42 +423,21 @@ export default function Dashboard() {
           >
             <InfoBox
               number={formatStat(studentStats.resources)}
-              title="Find Resource"
+              title="Available Resources"
             />
             <InfoBox
               number={formatStat(studentStats.bookings)}
-              title="Request Booking"
+              title="My Bookings"
             />
             <InfoBox
               number={formatStat(studentStats.pendingBookings)}
-              title="Track Status"
+              title="Pending Bookings"
             />
             <InfoBox
-              number={formatStat(studentStats.notifications)}
-              title="Get Notification"
+              number={formatStat(studentStats.openTickets)}
+              title="Open Tickets"
             />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '26px' }}>
-  <InfoBox
-    number={formatStat(studentStats.resources)}
-    title="Available Resources"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.bookings)}
-    title="My Bookings"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.pendingBookings)}
-    title="Pending Bookings"
-  />
-
-  <InfoBox
-    number={formatStat(studentStats.openTickets)}
-    title="Open Tickets"
-  />
-</div>
         </div>
 
         <div>
@@ -606,16 +546,15 @@ export default function Dashboard() {
         style={{
           backgroundImage: `
             linear-gradient(${COLORS.overlay}, ${COLORS.overlay}),
-            url('${backgroundImage}')
+            url('/authleft.jpg')
           `,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          padding: '70px 30px',
-          marginBottom: '55px',
-          position: 'relative',
-          overflow: 'hidden',
-          transition: 'background-image 1s ease-in-out',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          padding: "70px 30px",
+          marginBottom: "55px",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
         <div
@@ -1207,7 +1146,7 @@ export default function Dashboard() {
               minHeight: "min(640px, 88vh)",
               display: "grid",
               gridTemplateColumns: "230px 1fr",
-              gap: "24px", /* THIS CREATES THE SPACE BETWEEN CARDS */
+              gap: "24px",
             }}
             onClick={(e) => e.stopPropagation()}
           >
