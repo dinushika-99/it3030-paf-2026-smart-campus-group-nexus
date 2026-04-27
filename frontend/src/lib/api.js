@@ -110,5 +110,8 @@ export async function searchResources(params) {
 
 export async function getResourceBookedSlots(resourceId) {
   const { data } = await api.get(`/bookings/resource/${resourceId}/slots`);
-  return data?.data || [];
+  const slots = data?.data || [];
+  return Array.isArray(slots)
+    ? slots.filter((slot) => String(slot?.status || '').toUpperCase() === 'APPROVED')
+    : [];
 }

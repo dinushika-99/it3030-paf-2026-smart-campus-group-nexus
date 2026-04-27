@@ -142,7 +142,7 @@ export default function FacilitiesCatalogue() {
           className="w-full h-full object-cover"
           style={{ filter: "sepia(48%) saturate(145%) hue-rotate(-14deg) brightness(0.86) contrast(1.04)" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#5A4007]/84 via-[#B58512]/52 to-[#1B2A4A]/34" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#5A4007]/84 via-[#B58512]/52 to-[#B58512]/34" />
         <div className="absolute inset-0 flex items-center">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">

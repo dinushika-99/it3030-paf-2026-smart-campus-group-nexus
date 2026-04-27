@@ -18,7 +18,7 @@ export default function Layout({
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
-      <header className="sticky top-0 z-50 bg-[#1B2A4A] text-white shadow-lg">
+      <header className="sticky top-0 z-50 bg-[#C5961A] text-[#111827] shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
@@ -38,7 +38,7 @@ export default function Layout({
                   {/* ✅ Only Admin Panel (if admin) */}
                   {isAdminUser && (
                     <Link to="/admin">
-                      <Button variant="ghost" className={`text-white hover:bg-white/10 hover:text-white ${isAdmin ? "bg-white/15 text-white" : ""}`}>
+                      <Button variant="ghost" className={`text-[#111827] hover:bg-black/10 hover:text-[#111827] ${isAdmin ? "bg-black/10 text-[#111827]" : ""}`}>
                         <LayoutDashboard className="w-4 h-4 mr-2" />
                         Admin Panel
                       </Button>
@@ -51,7 +51,7 @@ export default function Layout({
 
                 {/* Mobile Menu Button */}
                 <button
-                  className="md:hidden text-white"
+                  className="md:hidden text-[#111827]"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
                   {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -63,12 +63,12 @@ export default function Layout({
 
         {/* Mobile Menu */}
         {mobileMenuOpen && !hideHeaderNav && (
-          <div className="md:hidden border-t border-white/10 px-4 pb-4 pt-2 space-y-2">
+          <div className="md:hidden border-t border-black/10 px-4 pb-4 pt-2 space-y-2">
 
             {/* ✅ Only Admin Panel (if admin) */}
             {isAdminUser && (
               <Link to="/admin" onClick={() => setMobileMenuOpen(false)} className="block">
-                <Button variant="ghost" className="w-full justify-start text-white hover:bg-white/10 hover:text-white">
+                <Button variant="ghost" className="w-full justify-start text-[#111827] hover:bg-black/10 hover:text-[#111827]">
                   <LayoutDashboard className="w-4 h-4 mr-2" />
                   Admin Panel
                 </Button>
