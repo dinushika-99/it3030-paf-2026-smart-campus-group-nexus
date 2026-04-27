@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { SITE_BRAND } from "./siteConfig";
 import useDashboardProfile from "./hooks/useDashboardProfile";
@@ -145,21 +145,15 @@ export default function Dashboard() {
     const fetchStudentStats = async () => {
       setStatsLoading(true);
       try {
-        const [resourcesRes, bookingsRes] = await Promise.all([
+        const [resourcesRes, bookingsRes, ticketsRes] = await Promise.all([
           api.get("/api/resources"),
           api.get("/api/bookings/my"),
+          api.get("/api/tickets"),
         ]);
 
         const resources = Array.isArray(resourcesRes.data)
           ? resourcesRes.data
           : [];
-        const [resourcesRes, bookingsRes, ticketsRes] = await Promise.all([
-          api.get('/api/resources'),
-          api.get('/api/bookings/my'),
-          api.get('/api/tickets'),
-        ]);
-
-        const resources = Array.isArray(resourcesRes.data) ? resourcesRes.data : [];
 
         const bookingsData = bookingsRes.data?.data ?? bookingsRes.data ?? [];
         const bookings = Array.isArray(bookingsData) ? bookingsData : [];
@@ -192,7 +186,6 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error("Failed to fetch student dashboard stats:", error);
-        console.error('Failed to fetch dashboard stats:', error);
       } finally {
         if (active) setStatsLoading(false);
       }
@@ -349,15 +342,7 @@ export default function Dashboard() {
           }}
         >
           <div>
-            <p
-              style={{
-                color: "#ffffff",
-                fontWeight: 800,
-                marginBottom: "12px",
-                fontSize: "13px",
-              }}
-            >
-            <p style={{ color: '#B99443', fontWeight: 800, marginBottom: '12px', fontSize: '13px' }}>
+            <p style={{ color: "#B99443", fontWeight: 800, marginBottom: "12px", fontSize: "13px" }}>
               Welcome to Smart Campus
             </p>
             <h1
@@ -432,7 +417,6 @@ export default function Dashboard() {
               />
             </div>
           </div>
-        </div>
         </div>
       </section>
 
@@ -1134,119 +1118,6 @@ export default function Dashboard() {
         </div>
       </nav>
 
-      <div style={{ padding: "0", width: "100%", margin: 0 }}>
-        <header
-          style={{
-            top: "72px",
-            zIndex: 1090,
-            width: "100%",
-            margin: 0,
-            padding: "12px 30px",
-            background: "#ffffff",
-            borderBottom: "1px solid #eef2f7",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "baseline",
-              flexWrap: "wrap",
-              gap: "8px 12px",
-            }}
-          >
-            <h2 style={{ fontSize: "28px", margin: 0, color: COLORS.black }}>
-              Welcome back, {user.name}.
-            </h2>
-            <p style={{ color: COLORS.muted, margin: 0 }}>
-              {user.role === "lecturer"
-                ? "Here is your academic operations dashboard for today."
-                : user.role === "technician"
-                  ? "Here is your technician workspace overview."
-                  : "Here is what's happening around campus today."}
-            </p>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "10px 18px",
-              marginTop: "10px",
-              color: COLORS.black,
-              fontSize: "13px",
-              fontWeight: 600,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "12px",
-                  flexShrink: 0,
-                }}
-              >
-                U
-              </span>
-              <span>University Contact: NEXUS Student Services</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "12px",
-                  flexShrink: 0,
-                }}
-              >
-                ☎
-              </span>
-              <span>Phone: +94 11 234 5678</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "11px",
-                  flexShrink: 0,
-                }}
-              >
-                @
-              </span>
-              <span>Email: support@nexus.edu.lk</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span
-                style={{
-                  width: "24px",
-                  height: "24px",
-                  borderRadius: "999px",
-                  background: COLORS.purple,
-                  color: "#ffffff",
-                  display: "grid",
-                  placeItems: "center",
-                  fontSize: "11px",
-                  flexShrink: 0,
-                }}
-              >
-                ⏰
-              </span>
-              <span>Help Desk: Mon-Fri, 8:30 AM - 4:30 PM</span>
       <div style={{ padding: '0', width: '100%', margin: 0 }}>
         <header style={{ top: '72px', zIndex: 1090, width: '100%', margin: 0, background: '#ffffff', borderBottom: '1px solid #eef2f7' }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '14px 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '18px', flexWrap: 'wrap' }}>
