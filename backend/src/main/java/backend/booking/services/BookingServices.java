@@ -3,7 +3,6 @@ package backend.booking.services;
 import backend.booking.dto.BookingRequestDTO;
 import backend.booking.dto.BookingResponseDTO;
 import backend.booking.dto.StatusUpdateDTO;
-
 import java.util.List;
 
 public interface BookingServices {
@@ -23,13 +22,18 @@ public interface BookingServices {
     // Get pending bookings (Admin only)
     List<BookingResponseDTO> getPendingBookings();
 
+    // Get booked slots for a resource (APPROVED/PENDING)
+    List<BookingResponseDTO> getBookedSlotsByResourceId(Long resourceId);
+
     // Update booking status (Approve/Reject/Cancel)
     BookingResponseDTO updateBookingStatus(String bookingId, StatusUpdateDTO statusUpdateDTO, String currentUserId, boolean isAdmin);
+
+    //Update booking details (for PENDING bookings only - User) - KEEP ONLY ONE
+    BookingResponseDTO updateBooking(String bookingId, BookingRequestDTO updateDTO, String currentUserId);
 
     // Delete/Cancel booking
     void cancelBooking(String bookingId, String currentUserId);
 
     // Check if booking exists
     boolean existsById(String bookingId);
-    
 }

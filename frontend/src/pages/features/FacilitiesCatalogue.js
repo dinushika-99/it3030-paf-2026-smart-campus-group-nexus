@@ -45,11 +45,11 @@ const CATEGORY_ICONS = {
 };
 
 const CATEGORY_COLORS = {
-  ACADEMIC: "bg-blue-100 text-blue-800 border-blue-200",
-  SPORTS: "bg-green-100 text-green-800 border-green-200",
-  COMMON: "bg-purple-100 text-purple-800 border-purple-200",
-  ADMINISTRATIVE: "bg-orange-100 text-orange-800 border-orange-200",
-  EQUIPMENT: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  ACADEMIC: "bg-[#FFF6E1] text-[#8A640A] border-[#E8C977]",
+  SPORTS: "bg-[#FCEFCF] text-[#8A640A] border-[#DDB655]",
+  COMMON: "bg-[#FFF4D8] text-[#7A5708] border-[#D7AE4A]",
+  ADMINISTRATIVE: "bg-[#F8E9C0] text-[#7A5708] border-[#CF9F2F]",
+  EQUIPMENT: "bg-[#FDF2D6] text-[#8A640A] border-[#D9B155]",
 };
 
 export default function FacilitiesCatalogue() {
@@ -134,14 +134,15 @@ export default function FacilitiesCatalogue() {
   }
 
   return (
-    <Layout>
+    <Layout hideHeaderBrand hideHeaderNav>
       <section className="relative h-[280px] overflow-hidden">
         <img
           src="https://mgx-backend-cdn.metadl.com/generate/images/422425/2026-04-21/nbrj2xaaaflq/hero-campus-facilities.png"
           alt="Campus Facilities"
           className="w-full h-full object-cover"
+          style={{ filter: "sepia(48%) saturate(145%) hue-rotate(-14deg) brightness(0.86) contrast(1.04)" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1B2A4A]/85 to-[#1B2A4A]/50" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#5A4007]/84 via-[#B58512]/52 to-[#B58512]/34" />
         <div className="absolute inset-0 flex items-center">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">
@@ -156,7 +157,7 @@ export default function FacilitiesCatalogue() {
       </section>
 
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
-        <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4">
+        <div className="bg-white rounded-xl shadow-md border border-[#EBD5A0] p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -170,7 +171,7 @@ export default function FacilitiesCatalogue() {
             <Button
               variant="outline"
               onClick={() => setShowFilters(!showFilters)}
-              className={showFilters ? "border-[#C5961A] text-[#C5961A]" : ""}
+              className={showFilters ? "border-[#C5961A] text-[#8A640A] bg-[#FFF8E8]" : ""}
             >
               <Filter className="w-4 h-4 mr-2" />
               Filters
@@ -265,7 +266,7 @@ export default function FacilitiesCatalogue() {
             }}
             className={
               selectedCategory === "ALL"
-                ? "bg-[#1B2A4A] hover:bg-[#152238] text-white"
+                ? "bg-[#C5961A] hover:bg-[#B28616] text-[#111827]"
                 : ""
             }
           >
@@ -282,7 +283,7 @@ export default function FacilitiesCatalogue() {
               }}
               className={
                 selectedCategory === cat
-                  ? "bg-[#1B2A4A] hover:bg-[#152238] text-white"
+                  ? "bg-[#C5961A] hover:bg-[#B28616] text-[#111827]"
                   : ""
               }
             >
@@ -376,7 +377,7 @@ export default function FacilitiesCatalogue() {
                       <Badge
                         className={`text-xs ${
                           resource.status === "ACTIVE"
-                            ? "bg-green-500 text-white border-green-500"
+                            ? "bg-[#C5961A] text-[#111827] border-[#C5961A]"
                             : "bg-red-500 text-white border-red-500"
                         }`}
                       >
@@ -416,7 +417,7 @@ export default function FacilitiesCatalogue() {
                       <div className="mt-3 pt-3 border-t border-gray-100">
                         <Badge
                           variant="outline"
-                          className="text-[#C5961A] border-[#C5961A]/30 bg-[#C5961A]/5 text-xs"
+                          className="text-[#8A640A] border-[#D7AE4A] bg-[#FFF7E7] text-xs"
                         >
                           Bookable
                         </Badge>

@@ -107,3 +107,11 @@ export async function searchResources(params) {
   const { data } = await api.get("/resources/search", { params });
   return data;
 }
+
+export async function getResourceBookedSlots(resourceId) {
+  const { data } = await api.get(`/bookings/resource/${resourceId}/slots`);
+  const slots = data?.data || [];
+  return Array.isArray(slots)
+    ? slots.filter((slot) => String(slot?.status || '').toUpperCase() === 'APPROVED')
+    : [];
+}

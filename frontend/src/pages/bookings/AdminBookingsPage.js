@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { bookingService } from '../../services/BookingService';
-import DashboardLayout from '../../components/layout/DashboardLayout';
+import AdminLayout from '../../components/layout/AdminLayout';
 import RejectionModal from './components/RejectionModal'; 
 import BookingDetailsModal from './components/BookingDetailsModal'; 
+import toast from 'react-hot-toast'; // ✅ Import Toast
 
 const AdminBookingsPage = () => {
   const navigate = useNavigate();
@@ -11,13 +12,13 @@ const AdminBookingsPage = () => {
   // State Management
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(''); // Keep for initial load errors
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All Roles');
   const [statusFilter, setStatusFilter] = useState('PENDING'); 
   const [processing, setProcessing] = useState({});
   
-  //Rejection Modal State
+  // Rejection Modal State
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [selectedBookingCode, setSelectedBookingCode] = useState('');
@@ -49,6 +50,7 @@ const AdminBookingsPage = () => {
       console.error('Error fetching bookings:', err);
       const errorMsg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to load bookings.';
       setError(errorMsg);
+      toast.error(errorMsg); // ✅ Show Toast for load error
       setBookings([]);
     } finally {
       setLoading(false);
@@ -57,16 +59,19 @@ const AdminBookingsPage = () => {
 
   // Approve Booking
   const handleApprove = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to approve this booking?')) return;
-
     try {
       setProcessing((prev) => ({ ...prev, [bookingId]: true }));
       await bookingService.approveBooking(bookingId);
       await fetchAllBookings(); // Refresh list
+      
+      // ✅ SUCCESS TOAST
+      toast.success('Booking approved successfully!');
+      
     } catch (err) {
       console.error('Error approving booking:', err);
       const errorMsg = err.response?.data?.message || 'Failed to approve booking.';
-      setError(errorMsg);
+      // ✅ ERROR TOAST
+      toast.error(errorMsg);
     } finally {
       setProcessing((prev) => ({ ...prev, [bookingId]: false }));
     }
@@ -95,10 +100,16 @@ const AdminBookingsPage = () => {
       setShowRejectionModal(false);
       setSelectedBookingId(null);
       setSelectedBookingCode('');
+      
+      // ✅ SUCCESS TOAST
+      toast.success('Booking rejected successfully.');
+      
     } catch (err) {
       console.error('Error rejecting booking:', err);
       const errorMsg = err.response?.data?.message || 'Failed to reject booking.';
-      throw new Error(errorMsg); // Throw error so Modal can show it
+      // ✅ ERROR TOAST
+      toast.error(errorMsg);
+      throw new Error(errorMsg); 
     } finally {
       setProcessing((prev) => ({ ...prev, [selectedBookingId]: false }));
     }
@@ -108,6 +119,37 @@ const AdminBookingsPage = () => {
   const openDetailsModal = (booking) => {
     setSelectedBooking(booking);
     setShowDetailsModal(true);
+  };
+
+  // Helper: Check if a booking overlaps with any other PENDING booking
+  const checkForOverlaps = (currentBooking, allBookings) => {
+    // Safety check for dates
+    if (!currentBooking.startTime || !currentBooking.endTime) return false;
+
+    // Only check against other PENDING bookings
+    const pendingBookings = allBookings.filter(
+      b => 
+        b.status === 'PENDING' && 
+        b.bookingId !== currentBooking.bookingId && // Don't compare with self
+        b.resourcesId === currentBooking.resourcesId // Same resource
+    );
+
+    const currentStart = new Date(currentBooking.startTime).getTime();
+    const currentEnd = new Date(currentBooking.endTime).getTime();
+
+    for (let other of pendingBookings) {
+      // Safety check for comparison dates
+      if (!other.startTime || !other.endTime) continue;
+
+      const otherStart = new Date(other.startTime).getTime();
+      const otherEnd = new Date(other.endTime).getTime();
+
+      // Overlap logic: (StartA < EndB) and (EndA > StartB)
+      if (currentStart < otherEnd && currentEnd > otherStart) {
+        return true; // Conflict found
+      }
+    }
+    return false; // No conflict
   };
 
   // Filter bookings based on search and filters
@@ -194,21 +236,18 @@ const AdminBookingsPage = () => {
   const currentBookings = filteredBookings();
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8f9fa', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-      <DashboardLayout>
-        <div style={{ padding: '24px' }}>
-          
-          {/* Header */}
+    <AdminLayout highlightBookings={true}>
+      {/* Header */}
           <div style={{ marginBottom: '32px' }}>
-            <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#1f2937' }}>
+            <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '700', color: '#fff' }}>
               All Bookings
             </h1>
-            <p style={{ margin: 0, fontSize: '14px', color: '#6b7280' }}>
+            <p style={{ margin: 0, fontSize: '14px', color: '#9ca3af' }}>
               Review and manage booking requests
             </p>
           </div>
 
-          {/* Error Message */}
+          {/* Error Message (Only for initial load failures) */}
           {error && (
             <div style={{
               marginBottom: '16px',
@@ -218,11 +257,14 @@ const AdminBookingsPage = () => {
               border: '1px solid #fecaca',
               color: '#991b1b',
               fontSize: '14px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
             }}>
-              {error}
+              <span>{error}</span>
               <button 
                 onClick={() => setError('')} 
-                style={{ float: 'right', background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontWeight: 'bold', fontSize: '16px' }}
               >
                 ✕
               </button>
@@ -248,9 +290,10 @@ const AdminBookingsPage = () => {
                   width: '100%',
                   padding: '10px 16px 10px 40px',
                   borderRadius: '8px',
-                  border: '1px solid #d1d5db',
+                  border: '1px solid #374151',
                   fontSize: '14px',
-                  backgroundColor: '#fff',
+                  backgroundColor: '#1f2937',
+                  color: '#e5e7eb',
                   boxSizing: 'border-box',
                 }}
               />
@@ -273,9 +316,10 @@ const AdminBookingsPage = () => {
               style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 fontSize: '14px',
-                backgroundColor: '#fff',
+                backgroundColor: '#1f2937',
+                color: '#e5e7eb',
                 cursor: 'pointer',
                 minWidth: '120px',
               }}
@@ -283,7 +327,6 @@ const AdminBookingsPage = () => {
               <option>All Roles</option>
               <option>STUDENT</option>
               <option>LECTURER</option>
-              <option>MANAGER</option>
             </select>
 
             {/* Status Filter */}
@@ -293,9 +336,10 @@ const AdminBookingsPage = () => {
               style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
-                border: '1px solid #d1d5db',
+                border: '1px solid #374151',
                 fontSize: '14px',
-                backgroundColor: '#fff',
+                backgroundColor: '#1f2937',
+                color: '#e5e7eb',
                 cursor: 'pointer',
                 minWidth: '120px',
               }}
@@ -308,19 +352,19 @@ const AdminBookingsPage = () => {
           </div>
 
           {/* Booking Count */}
-          <div style={{ marginBottom: '16px', fontSize: '14px', color: '#6b7280' }}>
+          <div style={{ marginBottom: '16px', fontSize: '14px', color: '#9ca3af' }}>
             Showing {currentBookings.length} booking{currentBookings.length !== 1 ? 's' : ''}
           </div>
 
           {/* Loading State */}
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6b7280' }}>
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9ca3af' }}>
               <div style={{
                 display: 'inline-block',
                 width: '40px',
                 height: '40px',
-                border: '4px solid #e5e7eb',
-                borderTop: '4px solid #3b82f6',
+                border: '4px solid #374151',
+                borderTop: '4px solid #BF932A',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite',
               }} />
@@ -330,155 +374,175 @@ const AdminBookingsPage = () => {
             <div style={{
               textAlign: 'center',
               padding: '60px 20px',
-              backgroundColor: '#fff',
+              backgroundColor: '#111827',
               borderRadius: '12px',
-              border: '1px solid #e5e7eb',
-              color: '#6b7280',
+              border: '1px solid #1f2937',
+              color: '#9ca3af',
             }}>
               <div style={{ fontSize: '48px', marginBottom: '12px' }}>📋</div>
               <p style={{ margin: 0, fontSize: '16px', fontWeight: '500' }}>No bookings found</p>
             </div>
           ) : (
             <div style={{ display: 'grid', gap: '16px' }}>
-              {currentBookings.map((booking) => (
-                <div
-                  key={booking.bookingId || booking.id}
-                  style={{
-                    backgroundColor: '#fff',
-                    borderRadius: '12px',
-                    border: '1px solid #e5e7eb',
-                    padding: '20px 24px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '20px',
-                    transition: 'box-shadow 0.2s',
-                  }}
-                >
-                  {/* Icon */}
-                  <div style={{ fontSize: '32px', color: '#3b82f6', minWidth: '40px', textAlign: 'center', marginTop: '4px' }}>
-                    📅
-                  </div>
+              {currentBookings.map((booking) => {
+                // Calculate overlap for this specific booking
+                const hasOverlap = booking.status === 'PENDING' && checkForOverlaps(booking, bookings);
 
-                  {/* Content */}
-                  <div style={{ flex: 1 }}>
-                    {/* Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#6b7280' }}>
-                          Code: {booking.bookingCode || 'N/A'}
-                        </h3>
-                        <h2 style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '700', color: '#1f2937' }}>
-                          <span style={{ color: '#059669' }}>{booking.resourceName || 'Unknown Resource'}</span>
-                        </h2>
-                      </div>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        backgroundColor: getStatusColor(booking.status),
-                        color: '#fff',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        textTransform: 'uppercase',
-                      }}>
-                        {booking.status || 'PENDING'}
-                      </span>
-                      <span style={{
-                        padding: '4px 12px',
-                        borderRadius: '20px',
-                        backgroundColor: '#f3f4f6',
-                        color: '#6b7280',
-                        fontSize: '12px',
-                        fontWeight: '600',
-                      }}>
-                        👤 {booking.userRole || 'User'}
-                      </span>
+                return (
+                  <div
+                    key={booking.bookingId || booking.id}
+                    style={{
+                      backgroundColor: '#111827',
+                      borderRadius: '12px',
+                      border: hasOverlap ? '2px solid #7f1d1d' : '2px solid #1f2937',
+                      padding: '20px 24px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '20px',
+                      transition: 'box-shadow 0.2s',
+                      boxShadow: hasOverlap ? '0 0 0 1px #7f1d1d' : 'none'
+                    }}
+                  >
+                    {/* Icon */}
+                    <div style={{ fontSize: '32px', color: '#BF932A', minWidth: '40px', textAlign: 'center', marginTop: '4px' }}>
+                      📅
                     </div>
 
-                    {/* Purpose */}
-                    <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#4b5563', lineHeight: '1.6' }}>
-                      {booking.purpose || 'No description provided'}
-                    </p>
-
-                    {/* Details */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '13px', color: '#6b7280', flexWrap: 'wrap' }}>
-                      <div>
-                        <span style={{ fontWeight: '600', color: '#1f2937' }}>Requested by:</span> {booking.userName || 'Unknown'}
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: '#1f2937' }}>Schedule:</span> {formatDateTime(booking.startTime, booking.endTime)}
-                      </div>
-                      <div>
-                        <span style={{ fontWeight: '600', color: '#1f2937' }}>Count:</span> {booking.expectedAttendees || booking.quantityRequested || 0}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div style={{ display: 'flex', gap: '10px', minWidth: '240px', justifyContent: 'flex-end', flexShrink: 0 }}>
-                    {booking.status?.toUpperCase() === 'PENDING' ? (
-                      <>
-                        <button
-                          onClick={() => handleApprove(booking.bookingId)}
-                          disabled={processing[booking.bookingId]}
-                          style={{
-                            padding: '8px 20px',
-                            borderRadius: '8px',
-                            backgroundColor: processing[booking.bookingId] ? '#9ca3af' : '#10b981',
-                            color: '#fff',
-                            border: 'none',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: processing[booking.bookingId] ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
-                        >
-                          {processing[booking.bookingId] ? '⏳' : '✓'} Approve
-                        </button>
-                        <button
-                          onClick={() => openRejectionModal(booking.bookingId, booking.bookingCode)}
-                          disabled={processing[booking.bookingId]}
-                          style={{
-                            padding: '8px 20px',
-                            borderRadius: '8px',
-                            backgroundColor: processing[booking.bookingId] ? '#9ca3af' : '#ef4444',
-                            color: '#fff',
-                            border: 'none',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            cursor: processing[booking.bookingId] ? 'not-allowed' : 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                          }}
-                        >
-                          {processing[booking.bookingId] ? '⏳' : '✕'} Reject
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        onClick={() => openDetailsModal(booking)} 
-                        style={{
-                          padding: '8px 20px',
-                          borderRadius: '8px',
-                          backgroundColor: '#6b7280',
+                    {/* Content */}
+                    <div style={{ flex: 1 }}>
+                      {/* Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px', flexWrap: 'wrap' }}>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#9ca3af' }}>
+                            Code: {booking.bookingCode || 'N/A'}
+                          </h3>
+                          <h2 style={{ margin: '4px 0 0 0', fontSize: '16px', fontWeight: '700', color: '#e5e7eb', display: 'flex', alignItems: 'center' }}>
+                            <span style={{ color: '#10b981' }}>{booking.resourceName || 'Unknown Resource'}</span>
+                            
+                            {/* ✅ NEW: Show Warning Icon if Overlap Exists */}
+                            {hasOverlap && (
+                              <span 
+                                title="⚠️ Conflict: Another pending booking exists for this time slot!"
+                                style={{ 
+                                  marginLeft: '8px', 
+                                  color: '#ef4444', 
+                                  fontSize: '18px',
+                                  cursor: 'help',
+                                  lineHeight: 1
+                                }}
+                              >
+                                ⚠️
+                              </span>
+                            )}
+                          </h2>
+                        </div>
+                        
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '20px',
+                          backgroundColor: getStatusColor(booking.status),
                           color: '#fff',
-                          border: 'none',
-                          fontSize: '13px',
-                          fontWeight: '600',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        📖 View Details
-                      </button>
-                    )}
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                        }}>
+                          {booking.status || 'PENDING'}
+                        </span>
+                        
+                        {/* Optional: Show 'First Requested' badge if it's the older one */}
+                        {booking.status === 'PENDING' && !hasOverlap && (
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '600', backgroundColor: '#1f2937', padding: '2px 8px', borderRadius: '10px', border: '1px solid #374151' }}>
+                            ✅ No Conflicts
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Purpose */}
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#cbd5e1', lineHeight: '1.6' }}>
+                        {booking.purpose || 'No description provided'}
+                      </p>
+
+                      {/* Details */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '13px', color: '#9ca3af', flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Requested by:</span> {booking.userName || 'Unknown'}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Schedule:</span> {formatDateTime(booking.startTime, booking.endTime)}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: '600', color: '#e5e7eb' }}>Count:</span> {booking.expectedAttendees || booking.quantityRequested || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: '10px', minWidth: '240px', justifyContent: 'flex-end', flexShrink: 0 }}>
+                      {booking.status?.toUpperCase() === 'PENDING' ? (
+                        <>
+                          <button
+                            onClick={() => handleApprove(booking.bookingId)}
+                            disabled={processing[booking.bookingId]}
+                            style={{
+                              padding: '8px 20px',
+                              borderRadius: '8px',
+                              backgroundColor: processing[booking.bookingId] ? '#6b7280' : '#BF932A',
+                              color: processing[booking.bookingId] ? '#e5e7eb' : '#111827',
+                              border: 'none',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: processing[booking.bookingId] ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {processing[booking.bookingId] ? '⏳' : '✓'} Approve
+                          </button>
+                          <button
+                            onClick={() => openRejectionModal(booking.bookingId, booking.bookingCode)}
+                            disabled={processing[booking.bookingId]}
+                            style={{
+                              padding: '8px 20px',
+                              borderRadius: '8px',
+                              backgroundColor: processing[booking.bookingId] ? '#6b7280' : '#dc2626',
+                              color: '#fff',
+                              border: 'none',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              cursor: processing[booking.bookingId] ? 'not-allowed' : 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                            }}
+                          >
+                            {processing[booking.bookingId] ? '⏳' : '✕'} Reject
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => openDetailsModal(booking)} 
+                          style={{
+                            padding: '8px 20px',
+                            borderRadius: '8px',
+                            backgroundColor: '#374151',
+                            color: '#e5e7eb',
+                            border: 'none',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          📖 View Details
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -495,21 +559,19 @@ const AdminBookingsPage = () => {
             isProcessing={selectedBookingId ? processing[selectedBookingId] : false}
           />
 
-          <style>{`
-            @keyframes spin {
-              to { transform: rotate(360deg); }
-            }
-          `}</style>
-
-          {/*Booking Details Modal */}
+          {/* Booking Details Modal */}
           <BookingDetailsModal
             isOpen={showDetailsModal}
             onClose={() => { setShowDetailsModal(false); setSelectedBooking(null); }}
             booking={selectedBooking}
           />
-        </div>
-      </DashboardLayout>
-    </div>
+
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+    </AdminLayout>
   );
 };
 

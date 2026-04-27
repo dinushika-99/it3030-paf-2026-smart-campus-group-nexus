@@ -64,13 +64,55 @@ public class BookingController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
                 createErrorResponse(e.getMessage())
             );
-        }catch (Exception e) {
-        e.printStackTrace();  
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-            createErrorResponse("Server error: " + e.getMessage())
-        );
-    }
-    }
+        } catch (Exception e) {
+            e.printStackTrace();  
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                createErrorResponse("Server error: " + e.getMessage())
+            );
+        }
+    } // ✅ Closing brace for createBooking method
+
+    // ✅ PATCH /api/bookings/{bookingId} - Update booking details (Owner only, PENDING status)
+    @PatchMapping("/{bookingId}")
+    public ResponseEntity<?> updateBooking(
+            @PathVariable String bookingId,
+            @Valid @RequestBody BookingRequestDTO updateDTO,
+            Principal principal) {
+        
+        try {
+            String userId = getCurrentUserId(principal);
+            BookingResponseDTO response = bookingService.updateBooking(bookingId, updateDTO, userId);
+            
+            return ResponseEntity.ok(
+                createSuccessResponse("Booking updated successfully", response)
+            );
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (BookingConflictException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
+            );
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                createErrorResponse("Server error: " + e.getMessage())
+            );
+        }
+    } // ✅ Closing brace for updateBooking method
 
     // ✅ GET /api/bookings/my - Get current user's bookings
     @GetMapping("/my")
@@ -87,7 +129,7 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    }
+    } // ✅ Closing brace for getMyBookings method
 
     // ✅ GET /api/bookings/{bookingId} - Get booking by ID
     @GetMapping("/{bookingId}")
@@ -102,7 +144,7 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    }
+    } // ✅ Closing brace for getBookingById method
 
     // ✅ GET /api/bookings/all - Get all bookings (ADMIN only)
     @GetMapping("/all")
@@ -118,9 +160,9 @@ public class BookingController {
                 createErrorResponse("Only admins can view all bookings")
             );
         }
-    }
+    } // ✅ Closing brace for getAllBookings method
 
-    // ✅ GET /api/bookings/pending - View pending bookings (ADMIN only) - NEW
+    // ✅ GET /api/bookings/pending - View pending bookings (ADMIN only)
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getPendingBookings() {
@@ -132,6 +174,21 @@ public class BookingController {
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
                 createErrorResponse("Only admins can view pending bookings")
+            );
+        }
+    } // ✅ Closing brace for getPendingBookings method
+
+    // ✅ GET /api/bookings/resource/{resourceId}/slots - View booked slots for a resource
+    @GetMapping("/resource/{resourceId}/slots")
+    public ResponseEntity<?> getBookedSlotsByResource(@PathVariable Long resourceId) {
+        try {
+            List<BookingResponseDTO> slots = bookingService.getBookedSlotsByResourceId(resourceId);
+            return ResponseEntity.ok(
+                createSuccessResponse("Booked slots retrieved successfully", slots)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+                createErrorResponse(e.getMessage())
             );
         }
     }
@@ -166,7 +223,7 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    }
+    } // ✅ Closing brace for updateBookingStatus method
 
     // ✅ DELETE /api/bookings/{bookingId} - Cancel booking (Owner or Admin)
     @DeleteMapping("/{bookingId}")
@@ -192,11 +249,10 @@ public class BookingController {
                 createErrorResponse(e.getMessage())
             );
         }
-    }
+    } // ✅ Closing brace for cancelBooking method
 
     // ==================== HELPER METHODS ====================
 
-    // ✅ Extract user UUID by looking up User entity via email
     private String getCurrentUserId(Principal principal) {
         if (principal == null) {
             throw new RuntimeException("User not authenticated");
@@ -204,13 +260,10 @@ public class BookingController {
         
         String email;
         
-        // Handle OAuth2 authentication (Google Sign-in)
         if (principal instanceof OAuth2User oAuth2User) {
             String oauthEmail = oAuth2User.getAttribute("email");
             email = oauthEmail != null ? oauthEmail : oAuth2User.getAttribute("sub");
-        } 
-        // Handle standard authentication (email as principal name)
-        else {
+        } else {
             email = principal.getName();
         }
         
@@ -218,14 +271,12 @@ public class BookingController {
             throw new RuntimeException("Email not found in authentication");
         }
         
-        // Lookup user by email to get the actual UUID user_id
         User user = userRepository.findByEmail(email)
             .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         
-        return user.getId();  // Return the UUID user_id
+        return user.getId();
     }
 
-    // ✅ Success response formatter
     private Map<String, Object> createSuccessResponse(String message, Object data) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -234,7 +285,6 @@ public class BookingController {
         return response;
     }
 
-    // ✅ Error response formatter
     private Map<String, Object> createErrorResponse(String message) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);
@@ -242,4 +292,4 @@ public class BookingController {
         response.put("timestamp", LocalDateTime.now().toString());
         return response;
     }
-}
+} 
