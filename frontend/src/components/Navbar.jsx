@@ -183,39 +183,7 @@ export default function Navbar({ user, setUser }) {
             </button>
           </div>
 
-          <button
-            onClick={handleLogout}
-            style={{
-              border: `1px solid ${COLORS.purple}`,
-              background: 'linear-gradient(135deg, rgba(185,148,67,0.15), #ffffff)',
-              color: COLORS.purple,
-              borderRadius: '999px',
-              padding: '10px 14px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              boxShadow: '0 8px 20px rgba(185,148,67,0.08)',
-              transition: 'background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#fff8eb';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            title="Sign out"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M16 17l5-5-5-5"></path>
-              <path d="M9 12h12"></path>
-              <path d="M9 19H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"></path>
-            </svg>
-            Sign Out
-          </button>
+          
         </div>
       </div>
       </nav>
