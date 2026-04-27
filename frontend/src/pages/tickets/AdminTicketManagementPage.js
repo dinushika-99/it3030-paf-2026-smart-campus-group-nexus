@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { SITE_BRAND } from '../../siteConfig';
 
 const API_BASE = 'http://localhost:8081';
 
@@ -199,6 +200,16 @@ const MenuIcon = ({ type }) => {
   if (type === 'identity') {
     return (
       <svg {...common}><path d="M12 3l8 4v5c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V7l8-4z"></path><path d="M9 12l2 2 4-4"></path></svg>
+    );
+  }
+  if (type === 'booking') {
+    return (
+      <svg {...common}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><path d="M8 14h.01"></path><path d="M12 14h.01"></path><path d="M16 14h.01"></path><path d="M8 18h.01"></path><path d="M12 18h.01"></path><path d="M16 18h.01"></path></svg>
+    );
+  }
+  if (type === 'catalogue') {
+    return (
+      <svg {...common}><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
     );
   }
 
@@ -1148,16 +1159,20 @@ export default function AdminTicketManagementPage() {
         <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #374151' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <img
-              src={`${process.env.PUBLIC_URL}/LOGO.png`}
-              alt="Site logo"
+              src={SITE_BRAND.logoPath}
+              alt={SITE_BRAND.logoAlt}
               style={{ width: '46px', height: '46px', objectFit: 'contain' }}
             />
             <h2 style={{ color: '#fff', margin: 0, fontSize: '24px', letterSpacing: '1px' }}>
-              NEXUS
+              {SITE_BRAND.name}
             </h2>
           </div>
 
-          <div style={{ marginTop: '16px', padding: '12px', borderRadius: '12px', border: '1px solid #374151', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => openProfileTab('profile')}
+            style={{ marginTop: '16px', width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #374151', backgroundColor: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', textAlign: 'left', cursor: 'pointer' }}
+          >
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', overflow: 'hidden', border: '1px solid #BF932A', backgroundColor: '#1f2937', display: 'grid', placeItems: 'center', color: '#BF932A', fontWeight: 700 }}>
               {avatarUrl ? (
                 <img src={avatarUrl} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -1168,9 +1183,9 @@ export default function AdminTicketManagementPage() {
             <div>
               <p style={{ margin: 0, fontSize: '11px', color: '#BF932A', textTransform: 'uppercase', letterSpacing: '0.8px' }}>Welcome</p>
               <p style={{ margin: '2px 0 0 0', fontSize: '15px', color: '#fff', fontWeight: 700 }}>{user.name || 'Admin User'}</p>
-              <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.7px' }}>Admin</p>
+              <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.7px' }}>{String(user.role || 'ADMIN')}</p>
             </div>
-          </div>
+          </button>
         </div>
 
         <div className="admin-nav-group">
@@ -1179,6 +1194,7 @@ export default function AdminTicketManagementPage() {
 
           <div style={{ marginTop: '14px' }}></div>
           <MenuCategory title="Operations" />
+          <NavButton active={false} onClick={() => navigate('/admin/bookings')} text="Booking Management" icon="booking" />
           <NavButton active={true} onClick={() => navigate('/admin/tickets')} text="Ticket Management" icon="ticket" />
           <NavButton active={false} onClick={() => goToAdminTab('asset-directory')} text="Asset Directory" icon="asset" />
           <NavButton active={false} onClick={() => goToAdminTab('scheduling')} text="Resource Scheduling" icon="schedule" />
@@ -1192,6 +1208,10 @@ export default function AdminTicketManagementPage() {
           <MenuCategory title="Administration" />
           <NavButton active={false} onClick={() => goToAdminTab('admin-users')} text="Access & Identity" icon="identity" />
           <NavButton active={false} onClick={() => goToAdminTab('admin-communication')} text="Broadcast & Audit" icon="audit" />
+
+          <div style={{ marginTop: '14px' }}></div>
+          <MenuCategory title="Quick Links" />
+          <NavButton active={false} onClick={() => navigate('/facilities')} text="Facilities Catalogue" icon="catalogue" />
         </div>
       </aside>
 
