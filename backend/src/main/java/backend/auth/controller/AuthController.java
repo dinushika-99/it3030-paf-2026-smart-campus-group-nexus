@@ -192,6 +192,7 @@ public class AuthController {
         return ResponseEntity.status(201).body(Map.of("message", "Registration successful"));
     }
 
+    
     @PostMapping("/google")
     public ResponseEntity<?> googleAuth(@RequestBody GoogleAuthRequest request,
                                         HttpServletResponse response) {

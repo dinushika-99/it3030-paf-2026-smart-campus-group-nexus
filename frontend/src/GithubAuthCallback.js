@@ -26,7 +26,7 @@ export default function GithubAuthCallback() {
         setLoading(false);
         return;
       }
-
+//github auth callback, exchange code for token and log user in
       try {
         const payload = mode === 'register' ? { code, role } : { code };
         const res = await api.post('/api/auth/github', payload, { skipAuthRefresh: true });
