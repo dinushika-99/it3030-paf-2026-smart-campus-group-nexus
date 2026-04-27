@@ -15,6 +15,7 @@ export default function Navbar({ user, setUser }) {
   const profileAvatarUrl = safeUser?.avatar || null;
 
   const [showPasswordCard, setShowPasswordCard] = useState(false);
+  const [activeNotifFilter, setActiveNotifFilter] = useState('ALL');
   const [passwordVisibility, setPasswordVisibility] = useState({
     currentPassword: false,
     newPassword: false,
@@ -45,6 +46,7 @@ export default function Navbar({ user, setUser }) {
     twoFactorOtpAuthUri,
     twoFactorNotice,
     twoFactorNoticeTone,
+    notificationPrefs,
     profileAvatarInputRef,
     passwordStrength,
     openProfile,
@@ -60,6 +62,7 @@ export default function Navbar({ user, setUser }) {
     startTwoFactorSetup,
     enableTwoFactor,
     disableTwoFactor,
+    toggleNotificationPreference,
     handleLogout,
   } = useDashboardProfile({ user, setUser, navigate });
 
@@ -220,6 +223,7 @@ export default function Navbar({ user, setUser }) {
                 padding: "20px 14px",
                 display: "flex",
                 flexDirection: "column",
+                boxSizing: "border-box", /* Ensures the padding creates a proper gap at the bottom */
               }}
             >
               <div
@@ -290,28 +294,29 @@ export default function Navbar({ user, setUser }) {
               </div>
               <ProfileTabButton active={profileTab === 'password'} onClick={() => selectProfileTab('password')} label="Password Security" accent={COLORS.purple} />
               <ProfileTabButton active={profileTab === 'two-factor'} onClick={() => selectProfileTab('two-factor')} label="Two-Factor Auth" accent={COLORS.purple} />
+              <ProfileTabButton active={profileTab === 'preferences'} onClick={() => selectProfileTab('preferences')} label="Notification Preferences" accent={COLORS.purple} />
 
               {/* NEW STYLISH LOGOUT BUTTON */}
               <button
                 onClick={handleLogout}
                 onMouseEnter={(e) => {
-                  e.target.style.background = "#ef4444"; // Soft red on hover
+                  e.target.style.background = "#ef4444"; 
                   e.target.style.color = "#ffffff";
                 }}
                 onMouseLeave={(e) => {
-                  e.target.style.background = "#111827"; // Deep premium black
+                  e.target.style.background = "#111827"; 
                   e.target.style.color = "#ffffff";
                 }}
                 style={{
-                  marginTop: "auto", /* This forces the button to the bottom of the card */
+                  marginTop: "auto", 
                   width: "100%",
                   border: "none",
                   background: "#111827",
                   color: "#ffffff",
-                  borderRadius: "10px",
-                  padding: "12px 14px",
+                  borderRadius: "999px",
+                  padding: "8px 12px", /* Reduced padding for a slimmer look */
                   fontWeight: 700,
-                  fontSize: "14px",
+                  fontSize: "13px", /* Slightly smaller font */
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                 }}
@@ -338,6 +343,7 @@ export default function Navbar({ user, setUser }) {
                   {profileTab === 'notifications' && 'Notifications'}
                   {profileTab === 'password' && 'Password Security'}
                   {profileTab === 'two-factor' && 'Two-Factor Authentication'}
+                  {profileTab === 'preferences' && 'Notification Preferences'}
                 </h2>
                 
                 {/* Fix 5: Close Button Gold Click Effect */}
@@ -375,12 +381,47 @@ export default function Navbar({ user, setUser }) {
               )}
 
               {profileTab === 'profile' && (
-                <div style={{ display: 'grid', gap: '12px' }}>
-                  <ProfileInfo label="Full Name" value={safeUser.name || '—'} />
-                  <ProfileInfo label="Role" value={safeUser.role || 'student'} />
-                  <ProfileInfo label="Email" value={safeUser.email || '—'} />
-                </div>
-              )}
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    
+    {/* Top Grid: Modern Info Cards */}
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+      <ProfileInfo icon="👤" label="Full Name" value={safeUser.name || '—'} />
+      <ProfileInfo icon="🎓" label="Role" value={safeUser.role || 'student'} />
+      <ProfileInfo icon="✉️" label="Email" value={safeUser.email || '—'} />
+      <ProfileInfo icon="💳" label="Student/Staff ID" value={safeUser.studentId || '—'} />
+      <ProfileInfo icon="🏛️" label="Department" value={safeUser.specialization || 'Data Science'} />
+      <ProfileInfo icon="📅" label="Academic Year" value={safeUser.year || '3rd Year'} />
+      <ProfileInfo icon="📍" label="Campus" value={safeUser.campus || 'SLIIT Malabe'} />
+      <ProfileInfo icon="✅" label="Account Status" value="Active" valueColor="#166534" />
+    </div>
+
+    {/* Bottom Section: Recent Activity Timeline */}
+    <div style={{ marginTop: '8px', padding: '20px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
+      <h3 style={{ margin: '0 0 16px 0', fontSize: '15px', color: '#111827', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Recent Activity
+      </h3>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <ActivityItem 
+          title="Logged in from new device" 
+          time="Just now" 
+          type="security" 
+        />
+        <ActivityItem 
+          title="Booked Lecture Hall A402" 
+          time="2 hours ago" 
+          type="booking" 
+        />
+        <ActivityItem 
+          title="Updated Profile Picture" 
+          time="Yesterday" 
+          type="profile" 
+        />
+      </div>
+    </div>
+
+  </div>
+)}
 
               {profileTab === 'edit' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
@@ -416,15 +457,172 @@ export default function Navbar({ user, setUser }) {
               )}
 
               {profileTab === 'notifications' && (
-                <div style={{ display: 'grid', gap: '10px' }}>
-                  {notifications.length === 0 && <p style={{ margin: 0, color: '#6b7280' }}>No notifications available.</p>}
-                  {notifications.map((item, index) => (
-                    <div key={item.id || index} style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                        <p style={{ margin: 0, fontWeight: 700, color: '#111827' }}>{item.title || 'Notification'}</p>
-                        <span style={{ fontSize: '12px', color: '#6b7280' }}>{item.type || 'GENERAL'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: 'calc(88vh - 180px)' }}>
+
+                  {/* Horizontal Filter Buttons */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '8px',
+                      overflowX: 'auto',
+                      paddingBottom: '12px',
+                      borderBottom: '1px solid #f1f5f9',
+                      scrollbarWidth: 'none' /* Hides scrollbar in Firefox */
+                    }}
+                  >
+                    {[
+                      { id: 'ALL', label: 'All Updates' },
+                      { id: 'BOOKING', label: 'Booking Alerts' },
+                      { id: 'TICKET', label: 'Maintenance Tickets' },
+                      { id: 'SYSTEM', label: 'System Broadcasts' }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveNotifFilter(tab.id)}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '999px',
+                          border: 'none',
+                          background: activeNotifFilter === tab.id ? '#B99443' : '#f8fafc',
+                          color: activeNotifFilter === tab.id ? '#ffffff' : '#64748b',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.2s ease',
+                          boxShadow: activeNotifFilter === tab.id ? '0 4px 12px rgba(185, 148, 67, 0.2)' : 'none'
+                        }}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Filtered Notification List */}
+                  <div style={{ display: 'grid', gap: '12px', overflowY: 'auto', paddingRight: '4px', paddingBottom: '12px' }}>
+                    {notifications.filter(item => {
+                      const type = String(item.type || '').toUpperCase();
+                      if (activeNotifFilter === 'ALL') return true;
+                      if (activeNotifFilter === 'BOOKING') return type.includes('BOOKING');
+                      if (activeNotifFilter === 'TICKET') return type.includes('TICKET');
+                      if (activeNotifFilter === 'SYSTEM') return ['INFO', 'WARNING', 'ALERT', 'GENERAL'].includes(type);
+                      return true;
+                    }).length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '30px 10px' }}>
+                        <p style={{ margin: 0, color: '#94a3b8', fontSize: '14px', fontWeight: 500 }}>
+                          No notifications found for this category.
+                        </p>
                       </div>
-                      <p style={{ margin: '6px 0 0 0', color: '#4b5563', fontSize: '13px' }}>{item.message || 'No message provided.'}</p>
+                    ) : (
+                      notifications.filter(item => {
+                        const type = String(item.type || '').toUpperCase();
+                        if (activeNotifFilter === 'ALL') return true;
+                        if (activeNotifFilter === 'BOOKING') return type.includes('BOOKING');
+                        if (activeNotifFilter === 'TICKET') return type.includes('TICKET');
+                        if (activeNotifFilter === 'SYSTEM') return ['INFO', 'WARNING', 'ALERT', 'GENERAL'].includes(type);
+                        return true;
+                      }).map((item, index) => {
+
+                        // Determine icon and colors based on type
+                        const typeStr = String(item.type || '').toUpperCase();
+                        let icon = '📢';
+                        let iconBg = '#f1f5f9';
+                        let iconColor = '#64748b';
+
+                        if (typeStr.includes('BOOKING')) {
+                          icon = '📅'; iconBg = '#fef3c7'; iconColor = '#0891b2';
+                        } else if (typeStr.includes('TICKET')) {
+                          icon = '🛠️'; iconBg = '#fce7f3'; iconColor = '#be185d';
+                        } else if (typeStr === 'WARNING' || typeStr === 'ALERT') {
+                          icon = '⚠️'; iconBg = '#fee2e2'; iconColor = '#b91c1c';
+                        }
+
+                        return (
+                          <div
+                            key={item.id || index}
+                            style={{
+                              display: 'flex',
+                              gap: '14px',
+                              border: '1px solid #e5e7eb',
+                              background: '#ffffff',
+                              borderRadius: '16px',
+                              padding: '16px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = 'translateY(-2px)';
+                              e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.05)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                            }}
+                          >
+                            {/* Dynamic Icon */}
+                            <div style={{
+                              width: '42px', height: '42px', borderRadius: '12px', flexShrink: 0,
+                              background: iconBg, color: iconColor,
+                              display: 'grid', placeItems: 'center', fontSize: '18px'
+                            }}>
+                              {icon}
+                            </div>
+
+                            {/* Notification Content */}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                                <p style={{ margin: 0, fontWeight: 800, color: '#111827', fontSize: '14px' }}>
+                                  {item.title || 'Notification'}
+                                </p>
+                                <span style={{
+                                  fontSize: '11px', color: '#64748b', fontWeight: 700,
+                                  background: '#f1f5f9', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.5px'
+                                }}>
+                                  {item.type || 'GENERAL'}
+                                </span>
+                              </div>
+                              <p style={{ margin: '6px 0 0 0', color: '#475569', fontSize: '13px', lineHeight: 1.5 }}>
+                                {item.message || 'No message provided.'}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {profileTab === 'preferences' && (
+                <div style={{ display: 'grid', gap: '16px', maxWidth: '450px', paddingTop: '10px' }}>
+                  <p style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#475569', lineHeight: 1.6 }}>
+                    Choose which updates you want to receive in your notification center.
+                  </p>
+
+                  {[
+                    { key: 'BOOKING_ALERTS', label: 'Booking Alerts', desc: 'Updates when your facility bookings are approved or rejected.' },
+                    { key: 'TICKET_UPDATES', label: 'Maintenance Tickets', desc: 'Alerts when your reported issues change status.' },
+                    { key: 'SYSTEM_BROADCASTS', label: 'System Broadcasts', desc: 'Important announcements from campus administrators.' }
+                  ].map((pref) => (
+                    <div key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px', background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
+                      <div>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: '#111827' }}>{pref.label}</p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>{pref.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleNotificationPreference(pref.key)}
+                        style={{
+                          width: '44px', height: '24px', borderRadius: '999px', border: 'none',
+                          background: notificationPrefs[pref.key] ? COLORS.purple : '#d1d5db',
+                          position: 'relative', cursor: 'pointer', transition: 'background 0.3s ease'
+                        }}
+                      >
+                        <div style={{
+                          width: '18px', height: '18px', background: '#fff', borderRadius: '50%',
+                          position: 'absolute', top: '3px', left: notificationPrefs[pref.key] ? '23px' : '3px',
+                          transition: 'left 0.3s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                        }} />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -590,12 +788,77 @@ export default function Navbar({ user, setUser }) {
   );
 }
 
-const ProfileInfo = ({ label, value }) => (
-  <div style={{ border: '1px solid #e5e7eb', background: '#f9fafb', borderRadius: '12px', padding: '12px 14px' }}>
-    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>{label}</p>
-    <p style={{ margin: '4px 0 0 0', fontWeight: 700, color: '#111827', textTransform: label === 'Role' ? 'capitalize' : 'none' }}>{value}</p>
+const ProfileInfo = ({ label, value, icon, valueColor = '#111827' }) => (
+  <div 
+    style={{ 
+      border: '1px solid #e5e7eb', 
+      background: '#ffffff', 
+      borderRadius: '14px', 
+      padding: '16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '14px',
+      transition: 'all 0.2s ease',
+      cursor: 'default',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.06)';
+      e.currentTarget.style.transform = 'translateY(-2px)';
+      e.currentTarget.style.borderColor = '#d1d5db';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.borderColor = '#e5e7eb';
+    }}
+  >
+    {icon && (
+      <div style={{ 
+        width: '42px', height: '42px', borderRadius: '10px', 
+        background: 'rgba(185, 148, 67, 0.1)', color: '#B99443', 
+        display: 'grid', placeItems: 'center', fontSize: '18px', flexShrink: 0
+      }}>
+        {icon}
+      </div>
+    )}
+    <div style={{ overflow: 'hidden' }}>
+      <p style={{ margin: 0, fontSize: '11px', color: '#6b7280', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {label}
+      </p>
+      <p style={{ 
+        margin: '4px 0 0 0', fontWeight: 800, color: valueColor, fontSize: '14px', 
+        textTransform: label === 'Role' ? 'capitalize' : 'none',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+      }}>
+        {value}
+      </p>
+    </div>
   </div>
 );
+
+const ActivityItem = ({ title, time, type }) => {
+  const getIconColor = () => {
+    switch(type) {
+      case 'security': return { bg: '#dcfce7', text: '#166534' };
+      case 'booking': return { bg: '#dbeafe', text: '#1e40af' };
+      case 'profile': return { bg: '#f3e8ff', text: '#7e22ce' };
+      default: return { bg: '#f1f5f9', text: '#475569' };
+    }
+  };
+
+  const colors = getIconColor();
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: colors.text, border: `3px solid ${colors.bg}` }} />
+      <div style={{ flex: 1 }}>
+        <p style={{ margin: 0, fontSize: '13px', color: '#111827', fontWeight: 600 }}>{title}</p>
+        <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#6b7280' }}>{time}</p>
+      </div>
+    </div>
+  );
+};
 
 const Field = ({ label, value, onChange }) => (
   <label style={{ display: 'grid', gap: '6px' }}>
@@ -613,14 +876,16 @@ const ProfileTabButton = ({ active, onClick, label, accent }) => (
       borderRadius: '10px',
       background: active ? accent : '#ffffff',
       color: active ? '#ffffff' : '#374151',
-      padding: '10px 12px',
-      marginBottom: '8px',
+      padding: '8px 12px', /* Reduced padding from 10px to 8px */
+      marginBottom: '6px', /* Tightened the gap between buttons */
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center', // Centers the text horizontally
+      justifyContent: 'center',
       fontWeight: 700,
+      fontSize: '13px', /* Added slightly smaller font size */
       cursor: 'pointer',
-      textAlign: 'center',      // Ensures text is centered
+      textAlign: 'center',
+      transition: 'all 0.2s ease',
     }}
   >
     <span>{label}</span>

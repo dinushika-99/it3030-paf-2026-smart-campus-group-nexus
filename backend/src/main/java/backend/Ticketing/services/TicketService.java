@@ -16,6 +16,7 @@ import backend.Ticketing.repository.TicketStatusHistoryRepository;
 import backend.auth.model.Role;
 import backend.auth.model.User;
 import backend.auth.repository.UserRepository;
+import backend.notifications.service.NotificationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.Authentication;
@@ -65,6 +66,7 @@ public class TicketService {
     private final UserRepository userRepository;
     private final TicketAssignmentRepository ticketAssignmentRepository;
     private final TicketAttachmentRepository ticketAttachmentRepository;
+    private final NotificationService notificationService;
 
     @Value("${app.upload.dir:uploads/tickets}")
     private String uploadDir;
@@ -94,13 +96,15 @@ public class TicketService {
             UserRepository userRepository,
             TicketAssignmentRepository ticketAssignmentRepository,
             TicketAttachmentRepository ticketAttachmentRepository,
-            TicketCommentRepository ticketCommentRepository) {
+            TicketCommentRepository ticketCommentRepository,
+            NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.ticketStatusHistoryRepository = ticketStatusHistoryRepository;
         this.userRepository = userRepository;
         this.ticketAssignmentRepository = ticketAssignmentRepository;
         this.ticketAttachmentRepository = ticketAttachmentRepository;
         this.ticketCommentRepository = ticketCommentRepository;
+        this.notificationService = notificationService;
     }
 
     public Ticket createTicket(Ticket ticket, Authentication authentication) {
@@ -117,7 +121,9 @@ public class TicketService {
         }
 
         try {
-            return ticketRepository.save(ticket);
+            Ticket savedTicket = ticketRepository.save(ticket);
+            notifyAdminsTicketCreated(savedTicket, currentUser);
+            return savedTicket;
         } catch (DataIntegrityViolationException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "Ticket data is invalid for current database constraints",
                     ex);
@@ -428,6 +434,14 @@ public class TicketService {
 
         ticketStatusHistoryRepository.save(history);
 
+        if (newStatus == TicketStatus.REJECTED) {
+            notifyTicketRejected(updatedTicket, currentUser);
+        }
+
+        if (newStatus == TicketStatus.RESOLVED) {
+            notifyTicketResolved(updatedTicket, currentUser);
+        }
+
         return updatedTicket;
     }
 
@@ -507,7 +521,134 @@ public class TicketService {
             ticketStatusHistoryRepository.save(assignmentStatusHistory);
         }
 
+        notifyTicketAssigned(updatedTicket, currentUser);
+
         return updatedTicket;
+    }
+
+    private void notifyAdminsTicketCreated(Ticket ticket, User creator) {
+        String ticketRef = resolveTicketReference(ticket);
+        List<User> admins = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .toList();
+
+        admins.forEach(admin -> notificationService.createNotificationWithReference(
+                admin,
+                "TICKET_CREATED",
+                "New Ticket Submitted",
+                String.format("A new ticket %s was created by %s. Title: %s", ticketRef, resolveDisplayName(creator), ticket.getTitle()),
+                "TICKET",
+                String.valueOf(ticket.getTicketId())));
+    }
+
+    private void notifyTicketAssigned(Ticket ticket, User assignedBy) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+        User technician = findUserById(ticket.getAssignedTechnicianId());
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_ASSIGNED",
+                    "Technician Assigned",
+                    String.format("Your ticket %s has been assigned to technician %s.", ticketRef,
+                            resolveDisplayName(technician)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        if (technician != null) {
+            notificationService.createNotificationWithReference(
+                    technician,
+                    "TICKET_ASSIGNED",
+                    "New Ticket Assignment",
+                    String.format("You have been assigned ticket %s by %s.", ticketRef, resolveDisplayName(assignedBy)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+    }
+
+    private void notifyTicketRejected(Ticket ticket, User actor) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+        User technician = findUserById(ticket.getAssignedTechnicianId());
+        String reason = normalizeOptionalField(ticket.getRejectionReason());
+        String reasonText = reason == null ? "No reason provided." : reason;
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_REJECTED",
+                    "Ticket Rejected",
+                    String.format("Your ticket %s was rejected by %s. Reason: %s", ticketRef,
+                            resolveDisplayName(actor), reasonText),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        if (technician != null) {
+            notificationService.createNotificationWithReference(
+                    technician,
+                    "TICKET_REJECTED",
+                    "Assigned Ticket Rejected",
+                    String.format("Ticket %s assigned to you was rejected by %s. Reason: %s", ticketRef,
+                            resolveDisplayName(actor), reasonText),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+    }
+
+    private void notifyTicketResolved(Ticket ticket, User resolver) {
+        String ticketRef = resolveTicketReference(ticket);
+        User student = findUserById(ticket.getCreatedByUserId());
+
+        if (student != null) {
+            notificationService.createNotificationWithReference(
+                    student,
+                    "TICKET_RESOLVED",
+                    "Ticket Resolved",
+                    String.format("Your ticket %s has been resolved by %s.", ticketRef, resolveDisplayName(resolver)),
+                    "TICKET",
+                    String.valueOf(ticket.getTicketId()));
+        }
+
+        List<User> admins = userRepository.findAll().stream()
+                .filter(user -> user.getRole() == Role.ADMIN)
+                .toList();
+
+        admins.forEach(admin -> notificationService.createNotificationWithReference(
+                admin,
+                "TICKET_RESOLVED",
+                "Ticket Resolved",
+                String.format("Ticket %s was resolved by %s.", ticketRef, resolveDisplayName(resolver)),
+                "TICKET",
+                String.valueOf(ticket.getTicketId())));
+    }
+
+    private User findUserById(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        return userRepository.findById(userId).orElse(null);
+    }
+
+    private String resolveTicketReference(Ticket ticket) {
+        return ticket.getTicketCode() != null && !ticket.getTicketCode().isBlank()
+                ? ticket.getTicketCode()
+                : "#" + ticket.getTicketId();
+    }
+
+    private String resolveDisplayName(User user) {
+        if (user == null) {
+            return "Unknown User";
+        }
+        if (user.getName() != null && !user.getName().isBlank()) {
+            return user.getName();
+        }
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            return user.getEmail();
+        }
+        return user.getId();
     }
 
     public List<Ticket> getTicketsByTechnician(String technicianId) {

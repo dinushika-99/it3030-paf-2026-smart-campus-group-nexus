@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity
 @Table(name = "users")
@@ -62,6 +64,12 @@ public class User {
 
     @Column(name = "password_reset_token_expires_at")
     private LocalDateTime passwordResetTokenExpiresAt;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_notification_prefs", joinColumns = @JoinColumn(name = "user_id"))
+    @MapKeyColumn(name = "category")
+    @Column(name = "is_enabled")
+    private Map<String, Boolean> notificationPreferences = new HashMap<>();
 
     public User() {
     }
@@ -201,6 +209,14 @@ public class User {
         this.passwordResetTokenExpiresAt = passwordResetTokenExpiresAt;
     }
 
+    public Map<String, Boolean> getNotificationPreferences() {
+        return notificationPreferences;
+    }
+
+    public void setNotificationPreferences(Map<String, Boolean> notificationPreferences) {
+        this.notificationPreferences = notificationPreferences;
+    }
+
     @PrePersist
     public void onPrePersist() {
         if (user_id == null || user_id.isBlank()) {
@@ -214,6 +230,11 @@ public class User {
         }
         if (twoFactorEnabled == null) {
             twoFactorEnabled = false;
+        }
+        if (this.notificationPreferences.isEmpty()) {
+            this.notificationPreferences.put("BOOKING_ALERTS", true);
+            this.notificationPreferences.put("TICKET_UPDATES", true);
+            this.notificationPreferences.put("SYSTEM_BROADCASTS", true);
         }
     }
 
