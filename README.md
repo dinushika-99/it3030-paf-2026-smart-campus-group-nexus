@@ -1,15 +1,15 @@
 # 🎓 Smart Campus – Nexus
 
 A full-stack campus management system developed for SLIIT IT3030 (PAF) module.
-This platform helps students, staff, and administrators manage bookings, support tickets, and campus resources efficiently.
+This platform enables students, staff, and administrators to manage campus resources, bookings, and maintenance efficiently through a centralized system.
 
 ---
 
 ## 🚀 Features
 
-* 🔐 Authentication (JWT + OAuth2)
+* 🔐 Authentication & Authorization (JWT + OAuth2)
 * 📅 Booking Management System
-* 🎫 Ticketing System
+* 🎫 Ticketing & Incident Management
 * 📊 Analytics Dashboard
 * 🏫 Resource & Facility Management
 * 🔔 Notifications System
@@ -26,7 +26,7 @@ This platform helps students, staff, and administrators manage bookings, support
 * Java
 * MySQL
 * JPA / Hibernate
-* JWT Authentication
+* Spring Security + JWT
 
 ### Frontend
 
@@ -56,7 +56,7 @@ smart-campus-nexus/
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/dinushika-99/it3030-paf-2026-smart-campus-group-nexus.git
 cd smart-campus-nexus
 ```
 
@@ -81,15 +81,7 @@ npm start
 ## 🗄️ Database Setup
 
 ```sql
-CREATE DATABASE smartcampus;
-```
-
-Update your backend `.env` file:
-
-```
-DB_URL=jdbc:mysql://localhost:3306/smartcampus
-DB_USERNAME=root
-DB_PASSWORD=your_password
+CREATE DATABASE smart_campus_db;
 ```
 
 ---
@@ -101,42 +93,43 @@ DB_PASSWORD=your_password
 
 ---
 
-## 📡 API Overview
+## 💡 Innovation Features
 
-| Method | Endpoint             | Description    |
-| ------ | -------------------- | -------------- |
-| POST   | /auth/register       | Register user  |
-| POST   | /auth/login          | Login          |
-| GET    | /bookings            | Get bookings   |
-| POST   | /tickets             | Create ticket  |
-| GET    | /analytics/dashboard | View analytics |
+### 🔐 Advanced Authentication & Security
+
+* Two-Factor Authentication (2FA) using authenticator apps
+* JWT access + refresh tokens with secure HttpOnly cookies
+* Google & GitHub OAuth2 login integration
+* Automated email system for password recovery
+
+### 🎫 Smart Ticketing & QR Assistance
+
+* Automatic priority suggestion based on ticket description
+* QR code scanning to quickly fetch resource/location details
+* Faster and more accurate ticket creation
+
+### 📊 Top Resource Utilization Overview
+
+* Displays most frequently booked resources
+* Helps administrators identify high-demand facilities
+* Supports better planning and resource allocation
+
+### 📈 Booking Analytics Insights
+
+* Peak booking hours visualization
+* Busiest day identification
+* Monthly booking trends analysis
+* Supports decision-making and capacity planning
 
 ---
 
-## 👥 Team
+## 🎯 Key Modules
 
-**Group Nexus – SLIIT PAF 2026**
-
-* Member 1
-* Member 2
-* Member 3
-* Member 4
-
----
-
-## 🐛 Common Issues
-
-* **Port already in use** → Change port in config
-* **Database error** → Check MySQL is running
-* **CORS issue** → Ensure backend is running
-
----
-
-## 📌 Notes
-
-* Each developer should use their own local database
-* Hibernate auto-creates tables
-* Use Git properly (pull before push)
+* **Facilities & Assets Catalogue** – Manage campus resources
+* **Booking Management** – Conflict-free booking workflow
+* **Ticketing System** – Incident reporting with attachments
+* **Notifications** – Real-time updates for users
+* **Authentication** – Secure role-based access
 
 ---
 
@@ -146,4 +139,4 @@ This project is developed for academic purposes (SLIIT – IT3030 PAF).
 
 ---
 
-⭐ *Simple, scalable, and smart campus solution*
+⭐ *A smart, scalable solution for modern campus operations*
